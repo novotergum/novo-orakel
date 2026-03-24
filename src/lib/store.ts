@@ -38,6 +38,7 @@ export interface PredictionRecord {
 }
 
 export async function readPredictions(): Promise<PredictionRecord[]> {
+  if (!process.env.UPSTASH_REDIS_REST_URL) return [];
   const redis = getRedis();
   const keys = await redis.smembers(ALL_KEY);
   if (!keys.length) return [];
