@@ -1,13 +1,21 @@
 /**
- * Minimal JSON-file-based prediction store.
- * V1: local filesystem, no external DB.
+ * Prediction store backed by Upstash Redis.
+ * Each prediction is stored as a hash at key "pred:{matchId}_{userId}".
+ * A set "predictions:all" tracks all prediction keys for listing.
  */
 
-import { readFile, writeFile, mkdir } from "node:fs/promises";
-import path from "node:path";
+import { Redis } from "@upstash/redis";
 
-const DATA_DIR = path.join(process.cwd(), "data");
-const FILE = path.join(DATA_DIR, "predictions.json");
+const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL!,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+});
+
+const ALL_KEY = "predictions:all";
+
+function predKey(matchId: number, userId: string) {
+  return `pred:${matchId}_${userId}`;
+}
 
 export interface PredictionRecord {
   id: string;
@@ -22,42 +30,45 @@ export interface PredictionRecord {
   points?: number;
 }
 
-async function ensureDir() {
-  try {
-    await mkdir(DATA_DIR, { recursive: true });
-  } catch {
-    // already exists
-  }
-}
-
 export async function readPredictions(): Promise<PredictionRecord[]> {
-  try {
-    const raw = await readFile(FILE, "utf-8");
-    return JSON.parse(raw) as PredictionRecord[];
-  } catch {
-    return [];
-  }
+  const keys = await redis.smembers(ALL_KEY);
+  if (!keys.length) return [];
+
+  const pipeline = redis.pipeline();
+  for (const k of keys) pipeline.get(k);
+  const results = await pipeline.exec();
+
+  return results.filter(Boolean) as PredictionRecord[];
 }
 
 export async function writePredictions(
   records: PredictionRecord[],
 ): Promise<void> {
-  await ensureDir();
-  await writeFile(FILE, JSON.stringify(records, null, 2), "utf-8");
+  // Clear and rewrite all — used by resolve-match bulk update
+  const oldKeys = await redis.smembers(ALL_KEY);
+  if (oldKeys.length) {
+    const pipeline = redis.pipeline();
+    for (const k of oldKeys) pipeline.del(k);
+    pipeline.del(ALL_KEY);
+    await pipeline.exec();
+  }
+
+  if (!records.length) return;
+
+  const pipeline = redis.pipeline();
+  for (const r of records) {
+    const key = predKey(r.matchId, r.userId);
+    pipeline.set(key, JSON.stringify(r));
+    pipeline.sadd(ALL_KEY, key);
+  }
+  await pipeline.exec();
 }
 
 export async function upsertPrediction(
   record: PredictionRecord,
 ): Promise<PredictionRecord> {
-  const records = await readPredictions();
-  const idx = records.findIndex(
-    (r) => r.matchId === record.matchId && r.userId === record.userId,
-  );
-  if (idx >= 0) {
-    records[idx] = { ...records[idx], ...record };
-  } else {
-    records.push(record);
-  }
-  await writePredictions(records);
+  const key = predKey(record.matchId, record.userId);
+  await redis.set(key, JSON.stringify(record));
+  await redis.sadd(ALL_KEY, key);
   return record;
 }
