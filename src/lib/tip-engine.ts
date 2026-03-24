@@ -1,5 +1,6 @@
 /**
  * Tip-Engine: Converts a prediction into a concrete Tippspiel tip.
+ * Agent-Persoenlichkeit: strategisch, adaptiv, nachvollziehbar.
  */
 
 export type TipStyle = "safe" | "balanced" | "risky";
@@ -21,6 +22,7 @@ export interface TipResult {
   scoreTip: string;
   style: TipStyle;
   reasoning: string[];
+  pickProbability: number; // probability of the chosen outcome
 }
 
 // ---------------------------------------------------------------------------
@@ -35,7 +37,6 @@ function pickOutcome(
   const max = Math.max(homeWin, draw, awayWin);
 
   if (style === "safe") {
-    // Conservative: if no clear favorite (>50%), lean draw
     if (max < 0.45) return "draw";
     if (homeWin === max) return "home_win";
     if (awayWin === max) return "away_win";
@@ -76,8 +77,17 @@ function pickWinner(outcome: Outcome): WinnerPick {
   return "X";
 }
 
+function outcomeProbability(
+  probs: TipInput["probabilities"],
+  outcome: Outcome,
+): number {
+  if (outcome === "home_win") return probs.homeWin;
+  if (outcome === "away_win") return probs.awayWin;
+  return probs.draw;
+}
+
 // ---------------------------------------------------------------------------
-// Build reasoning lines
+// Agent personality reasoning
 // ---------------------------------------------------------------------------
 
 function buildReasoning(
@@ -88,23 +98,36 @@ function buildReasoning(
   awayTeam?: string,
 ): string[] {
   const lines: string[] = [];
-
   const h = homeTeam ?? "Home";
   const a = awayTeam ?? "Away";
+  const max = Math.max(probs.homeWin, probs.draw, probs.awayWin);
+  const pickProb = outcomeProbability(probs, outcome);
+
   lines.push(
     `${h}: ${(probs.homeWin * 100).toFixed(0)}% | Unentschieden: ${(probs.draw * 100).toFixed(0)}% | ${a}: ${(probs.awayWin * 100).toFixed(0)}%`,
   );
 
-  const max = Math.max(probs.homeWin, probs.draw, probs.awayWin);
-  if (max < 0.40) {
-    lines.push("Kein klarer Favorit, daher Draw-Tendenz");
-  } else if (max > 0.55) {
-    lines.push("Relativ klare Tendenz laut Modell");
+  // Strategic personality
+  if (style === "risky" && pickProb < 0.35) {
+    lines.push(
+      "Ich gehe hier bewusst gegen den Trend - das Spiel ist ausgeglichener als erwartet.",
+    );
+  } else if (max > 0.60) {
+    const fav = probs.homeWin === max ? h : probs.awayWin === max ? a : "Unentschieden";
+    lines.push(`Klassischer Favoritensieg: ${fav} ist klar vorne.`);
+  } else if (max > 0.45) {
+    const fav = probs.homeWin === max ? h : probs.awayWin === max ? a : "keines";
+    lines.push(`Leichter Vorteil fuer ${fav}, aber kein klares Spiel.`);
   } else {
-    lines.push("Leichte Tendenz, aber knappes Spiel");
+    lines.push("Voellig offenes Spiel - hier entscheiden Kleinigkeiten.");
   }
 
-  lines.push(`Style: ${style}, Outcome: ${outcome}`);
+  if (style === "risky") {
+    lines.push("Strategie: Risiko-Modus - ich brauche Punkte.");
+  } else if (style === "safe") {
+    lines.push("Strategie: Absicherung - Vorsprung halten.");
+  }
+
   return lines;
 }
 
@@ -122,7 +145,8 @@ export function buildTipFromPrediction(
   const outcome = pickOutcome(probs, style);
   const winnerPick = pickWinner(outcome);
   const scoreTip = SCORE_MAP[outcome][style];
+  const pickProbability = outcomeProbability(probs, outcome);
   const reasoning = buildReasoning(probs, outcome, style, homeTeam, awayTeam);
 
-  return { winnerPick, scoreTip, style, reasoning };
+  return { winnerPick, scoreTip, style, reasoning, pickProbability };
 }

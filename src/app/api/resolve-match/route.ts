@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readPredictions, writePredictions } from "../../../lib/store";
-import { parseScoreTip, scoreTip } from "../../../lib/scoring";
+import { parseScoreTip, scoreTip, upsetBonus } from "../../../lib/scoring";
 
 interface ResolveBody {
   matchId: number;
@@ -25,17 +25,31 @@ export async function POST(req: NextRequest) {
 
     const records = await readPredictions();
     let updated = 0;
+    let upsets = 0;
 
     for (const r of records) {
       if (r.matchId !== body.matchId) continue;
       try {
         const parsed = parseScoreTip(r.scoreTip);
-        r.points = scoreTip(
+        let points = scoreTip(
           parsed.home,
           parsed.away,
           body.actualHome,
           body.actualAway,
         );
+
+        // Upset-Bonus: +5 wenn korrekte Tendenz bei <35% Wahrscheinlichkeit
+        const pickProb = typeof r.pickProbability === "number" ? r.pickProbability : 1;
+        const bonus = upsetBonus(
+          r.winnerPick,
+          body.actualHome,
+          body.actualAway,
+          pickProb,
+        );
+        if (bonus > 0) upsets++;
+        points += bonus;
+
+        r.points = points;
         updated++;
       } catch {
         r.points = 0;
@@ -49,6 +63,7 @@ export async function POST(req: NextRequest) {
       matchId: body.matchId,
       actual: { home: body.actualHome, away: body.actualAway },
       tipsResolved: updated,
+      upsetBonuses: upsets,
     });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "Unknown error";

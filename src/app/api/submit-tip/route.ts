@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { upsertPrediction, type PredictionRecord } from "../../../lib/store";
+import { getMatches } from "../../../lib/football-data";
 
 interface SubmitBody {
   matchId: number;
@@ -38,6 +39,24 @@ export async function POST(req: NextRequest) {
         { error: "scoreTip must be in format 'H:A' (e.g. 2:1)" },
         { status: 400 },
       );
+    }
+
+    // Deadline-Logik: Keine Tipps nach Anpfiff
+    try {
+      const matches = await getMatches();
+      const match = matches.find((m) => m.id === body.matchId);
+      if (match) {
+        const kickoff = new Date(match.kickoff).getTime();
+        const now = Date.now();
+        if (now >= kickoff) {
+          return NextResponse.json(
+            { error: "Tippabgabe geschlossen" },
+            { status: 400 },
+          );
+        }
+      }
+    } catch {
+      // If match lookup fails, allow the tip (graceful degradation)
     }
 
     const record: PredictionRecord = {

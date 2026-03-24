@@ -4,6 +4,7 @@
  *   3P richtige Tordifferenz
  *   2P richtige Tendenz (Sieg/Unentschieden/Niederlage)
  *   0P falsch
+ *   +5P Upset-Bonus (korrekte Prediction bei < 35% Wahrscheinlichkeit)
  */
 
 type Tendency = "1" | "X" | "2";
@@ -39,4 +40,20 @@ export function scoreTip(
   if (tendency(predictedHome, predictedAway) === tendency(actualHome, actualAway)) return 2;
 
   return 0;
+}
+
+/**
+ * Upset-Bonus: +5 wenn die getippte Tendenz korrekt war
+ * UND die Wahrscheinlichkeit des getippten Outcomes < 0.35.
+ */
+export function upsetBonus(
+  winnerPick: "1" | "X" | "2",
+  actualHome: number,
+  actualAway: number,
+  pickProbability: number,
+): number {
+  const actualTendency = tendency(actualHome, actualAway);
+  if (winnerPick !== actualTendency) return 0;
+  if (pickProbability >= 0.35) return 0;
+  return 5;
 }
