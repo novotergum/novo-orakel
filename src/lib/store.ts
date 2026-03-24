@@ -6,10 +6,17 @@
 
 import { Redis } from "@upstash/redis";
 
-const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL!,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
-});
+let _redis: Redis | null = null;
+
+function getRedis(): Redis {
+  if (!_redis) {
+    _redis = new Redis({
+      url: process.env.UPSTASH_REDIS_REST_URL!,
+      token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+    });
+  }
+  return _redis;
+}
 
 const ALL_KEY = "predictions:all";
 
@@ -31,6 +38,7 @@ export interface PredictionRecord {
 }
 
 export async function readPredictions(): Promise<PredictionRecord[]> {
+  const redis = getRedis();
   const keys = await redis.smembers(ALL_KEY);
   if (!keys.length) return [];
 
@@ -44,6 +52,7 @@ export async function readPredictions(): Promise<PredictionRecord[]> {
 export async function writePredictions(
   records: PredictionRecord[],
 ): Promise<void> {
+  const redis = getRedis();
   // Clear and rewrite all — used by resolve-match bulk update
   const oldKeys = await redis.smembers(ALL_KEY);
   if (oldKeys.length) {
@@ -67,6 +76,7 @@ export async function writePredictions(
 export async function upsertPrediction(
   record: PredictionRecord,
 ): Promise<PredictionRecord> {
+  const redis = getRedis();
   const key = predKey(record.matchId, record.userId);
   await redis.set(key, JSON.stringify(record));
   await redis.sadd(ALL_KEY, key);
