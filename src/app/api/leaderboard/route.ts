@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { readPredictions } from "../../../lib/store";
 
+const AGENT_ID = "novo-orakel";
+
 interface PlayerEntry {
   userId: string;
   userName: string;
@@ -20,6 +22,68 @@ interface LocationEntry {
   players: number;
   avgPoints: number;
 }
+
+// ---------------------------------------------------------------------------
+// Leaderboard narrative for Teams
+// ---------------------------------------------------------------------------
+
+function buildNarrative(board: PlayerEntry[]): string {
+  const lines: string[] = [];
+  lines.push("Leaderboard Update:");
+  lines.push("");
+
+  const top = board.slice(0, 10);
+  for (const e of top) {
+    lines.push(`${e.userName} -- ${e.points} Punkte`);
+  }
+
+  lines.push("");
+  lines.push("Analyse:");
+
+  if (board.length === 0) {
+    lines.push("Noch keine Tipps abgegeben.");
+    return lines.join("\n");
+  }
+
+  const leader = board[0];
+  const second = board[1];
+  const agent = board.find((e) => e.userId === AGENT_ID);
+  const agentRank = agent ? board.indexOf(agent) + 1 : -1;
+
+  // Leader analysis
+  if (second && leader.points - second.points >= 5) {
+    lines.push(`${leader.userName} setzt sich deutlich ab.`);
+  } else if (second && leader.points - second.points <= 2) {
+    lines.push("Spannung an der Spitze.");
+  } else {
+    lines.push(`${leader.userName} verteidigt Platz 1.`);
+  }
+
+  // Aufsteiger: player with most tips but not #1
+  if (board.length > 2) {
+    const mostTips = [...board].sort((a, b) => b.tips - a.tips)[0];
+    if (mostTips.userId !== leader.userId) {
+      lines.push(`${mostTips.userName} arbeitet sich nach oben.`);
+    }
+  }
+
+  // Agent analysis
+  if (agent && agentRank > 0) {
+    if (agentRank <= 2) {
+      lines.push("Das Orakel ist im Spiel.");
+    } else if (agentRank > board.length / 2) {
+      lines.push("Das Orakel liegt heute daneben.");
+    } else {
+      lines.push("Das Orakel haelt sich im Mittelfeld.");
+    }
+  }
+
+  return lines.join("\n");
+}
+
+// ---------------------------------------------------------------------------
+// GET handler
+// ---------------------------------------------------------------------------
 
 export async function GET() {
   try {
@@ -103,10 +167,14 @@ export async function GET() {
       }))
       .sort((a, b) => b.avgPoints - a.avgPoints);
 
+    // --- Narrative for Teams ---
+    const teamsPost = buildNarrative(leaderboard);
+
     return NextResponse.json({
       leaderboard,
       menschVsMaschine,
       standorte,
+      teamsPost,
     });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "Unknown error";

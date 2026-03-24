@@ -20,35 +20,90 @@ async function determineAgentStyle(): Promise<{ style: TipStyle; rank: number }>
     pointsMap.set(r.userId, (pointsMap.get(r.userId) ?? 0) + (r.points ?? 0));
   }
 
-  // Sort by points descending
   const sorted = [...pointsMap.entries()].sort((a, b) => b[1] - a[1]);
   const agentIdx = sorted.findIndex(([id]) => id === AGENT_ID);
   const rank = agentIdx >= 0 ? agentIdx + 1 : sorted.length + 1;
 
-  // Strategic rules
   if (rank === 1) return { style: "safe", rank };
   if (rank > 3) return { style: "risky", rank };
   return { style: "balanced", rank };
 }
 
 // ---------------------------------------------------------------------------
-// Daily "sichere Bank" pick
+// Agent comment per match
 // ---------------------------------------------------------------------------
 
-function findSichereBank(
-  results: { home: string; away: string; pick: string; pickProbability?: number }[],
-): string | null {
-  let best: { text: string; prob: number } | null = null;
-  for (const r of results) {
-    const prob = r.pickProbability ?? 0;
-    if (prob > 0.60 && (!best || prob > best.prob)) {
-      const winner = r.pick === "1" ? r.home : r.pick === "2" ? r.away : null;
-      if (winner) {
-        best = { text: `Heute sichere Bank: ${winner} gewinnt`, prob };
-      }
-    }
+function agentComment(
+  pickProbability: number,
+  pick: string,
+  home: string,
+  away: string,
+): string {
+  if (pickProbability > 0.65) {
+    const winner = pick === "1" ? home : pick === "2" ? away : null;
+    if (winner) return `Das ist meine sichere Bank heute.`;
+    return "Klare Sache laut Modell.";
   }
-  return best?.text ?? null;
+  if (pickProbability < 0.30) {
+    return "Ich gehe hier bewusst gegen den Trend.";
+  }
+  if (pickProbability < 0.40) {
+    return "Das wird enger als viele denken.";
+  }
+  if (pickProbability > 0.55) {
+    return "Klassischer Favoritensieg.";
+  }
+  return "Leichter Vorteil, aber kein klares Spiel.";
+}
+
+function pickLabel(pick: string): string {
+  if (pick === "1") return "HOME";
+  if (pick === "2") return "AWAY";
+  return "X";
+}
+
+// ---------------------------------------------------------------------------
+// Build formatted Teams post
+// ---------------------------------------------------------------------------
+
+interface MatchResult {
+  matchId: number;
+  ok: boolean;
+  home?: string;
+  away?: string;
+  tip?: string;
+  pick?: string;
+  pickProbability?: number;
+  reasoning?: string[];
+  comment?: string;
+  error?: string;
+}
+
+function buildTeamsPost(results: MatchResult[], rank: number, style: TipStyle): string {
+  const lines: string[] = [];
+  lines.push("NOVO-Orakel:");
+  lines.push("");
+
+  const successful = results.filter((r) => r.ok && r.home && r.away);
+
+  for (const r of successful) {
+    lines.push(`${r.home} vs ${r.away}`);
+    lines.push(`Tipp: ${r.tip}`);
+    lines.push(`Tendenz: ${pickLabel(r.pick!)}`);
+    lines.push(`Confidence: ${Math.round((r.pickProbability ?? 0) * 100)}%`);
+    lines.push(r.comment ?? "");
+    lines.push("");
+  }
+
+  if (style === "risky") {
+    lines.push(`Strategie: Rang ${rank} - Risiko-Modus. Ich brauche Punkte.`);
+  } else if (style === "safe") {
+    lines.push(`Strategie: Rang ${rank} - Absicherung. Vorsprung halten.`);
+  } else {
+    lines.push(`Strategie: Rang ${rank} - Ausgewogen.`);
+  }
+
+  return lines.join("\n");
 }
 
 // ---------------------------------------------------------------------------
@@ -58,7 +113,7 @@ function findSichereBank(
 async function tipMatch(
   match: { id: number; homeTeam: { id: number; name: string }; awayTeam: { id: number; name: string } },
   style: TipStyle,
-) {
+): Promise<MatchResult> {
   const [homeMatches, awayMatches] = await Promise.all([
     getTeamRecentMatches(match.homeTeam.id),
     getTeamRecentMatches(match.awayTeam.id),
@@ -103,14 +158,23 @@ async function tipMatch(
 
   await upsertPrediction(record);
 
+  const comment = agentComment(
+    tip.pickProbability,
+    tip.winnerPick,
+    match.homeTeam.name,
+    match.awayTeam.name,
+  );
+
   return {
     matchId: match.id,
+    ok: true,
     home: match.homeTeam.name,
     away: match.awayTeam.name,
     tip: tip.scoreTip,
     pick: tip.winnerPick,
     pickProbability: tip.pickProbability,
     reasoning: tip.reasoning,
+    comment,
   };
 }
 
@@ -120,7 +184,6 @@ async function tipMatch(
 
 export async function POST(req: NextRequest) {
   try {
-    // Determine style: explicit override or strategic auto
     let styleOverride: TipStyle | null = null;
     try {
       const body = await req.json();
@@ -134,7 +197,6 @@ export async function POST(req: NextRequest) {
     const { style: autoStyle, rank } = await determineAgentStyle();
     const style = styleOverride ?? autoStyle;
 
-    // Fetch upcoming matches
     const matches = await getMatches({ status: "SCHEDULED,TIMED" });
 
     if (!matches.length) {
@@ -144,22 +206,12 @@ export async function POST(req: NextRequest) {
         rank,
         style,
         count: 0,
-        message: "Keine anstehenden Spiele gefunden",
+        teamsPost: "NOVO-Orakel:\n\nKeine Spiele heute. Pause.",
         results: [],
       });
     }
 
-    const results: {
-      matchId: number;
-      ok: boolean;
-      home?: string;
-      away?: string;
-      tip?: string;
-      pick?: string;
-      pickProbability?: number;
-      reasoning?: string[];
-      error?: string;
-    }[] = [];
+    const results: MatchResult[] = [];
 
     for (const m of matches) {
       try {
@@ -171,7 +223,7 @@ export async function POST(req: NextRequest) {
           },
           style,
         );
-        results.push({ ...result, ok: true });
+        results.push(result);
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : "Unknown error";
         results.push({
@@ -184,24 +236,15 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const successful = results.filter((r) => r.ok);
-    const sichereBank = findSichereBank(
-      successful as { home: string; away: string; pick: string; pickProbability?: number }[],
-    );
+    const teamsPost = buildTeamsPost(results, rank, style);
 
     return NextResponse.json({
       ok: true,
       agent: AGENT_NAME,
       rank,
       style,
-      strategicNote:
-        style === "risky"
-          ? `Rang ${rank} - Risiko-Modus aktiviert, ich brauche Punkte.`
-          : style === "safe"
-            ? `Rang ${rank} - Fuehrung absichern, kein unnoeties Risiko.`
-            : `Rang ${rank} - Ausgewogene Strategie.`,
-      sichereBank,
-      count: successful.length,
+      teamsPost,
+      count: results.filter((r) => r.ok).length,
       total: matches.length,
       results,
     });
