@@ -1,0 +1,80 @@
+import { NextRequest, NextResponse } from "next/server";
+import { Redis } from "@upstash/redis";
+
+let _redis: Redis | null = null;
+function getRedis(): Redis {
+  if (!_redis) {
+    _redis = new Redis({
+      url: process.env.UPSTASH_REDIS_REST_URL!,
+      token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+    });
+  }
+  return _redis;
+}
+
+const USERS_KEY = "users:all";
+
+export interface UserProfile {
+  userId: string;
+  userName: string;
+  location: string;
+  registeredAt: string;
+}
+
+/**
+ * GET /api/users – List all registered users
+ */
+export async function GET() {
+  try {
+    if (!process.env.UPSTASH_REDIS_REST_URL) return NextResponse.json({ users: [] });
+    const redis = getRedis();
+    const keys = await redis.smembers(USERS_KEY);
+    if (!keys.length) return NextResponse.json({ users: [] });
+
+    const pipeline = redis.pipeline();
+    for (const k of keys) pipeline.get(k);
+    const results = await pipeline.exec();
+
+    const users = results.filter(Boolean) as UserProfile[];
+    users.sort((a, b) => a.userName.localeCompare(b.userName));
+
+    return NextResponse.json({ users });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : "Unknown error";
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
+}
+
+/**
+ * POST /api/users – Register a new user
+ */
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json();
+
+    if (!body?.userName?.trim()) {
+      return NextResponse.json({ error: "userName required" }, { status: 400 });
+    }
+    if (!body?.location?.trim()) {
+      return NextResponse.json({ error: "location (Standort) required" }, { status: 400 });
+    }
+
+    const userId = body.userName.trim().toLowerCase().replace(/\s+/g, "-");
+    const profile: UserProfile = {
+      userId,
+      userName: body.userName.trim(),
+      location: body.location.trim(),
+      registeredAt: new Date().toISOString(),
+    };
+
+    const redis = getRedis();
+    const key = `user:${userId}`;
+    await redis.set(key, JSON.stringify(profile));
+    await redis.sadd(USERS_KEY, key);
+
+    return NextResponse.json({ ok: true, user: profile });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : "Unknown error";
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
+}
