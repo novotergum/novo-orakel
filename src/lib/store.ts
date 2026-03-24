@@ -33,6 +33,7 @@ export interface PredictionRecord {
   winnerPick: "1" | "X" | "2";
   scoreTip: string;
   style?: string;
+  location?: string; // NOVOTERGUM-Standort
   createdAt: string;
   points?: number;
 }

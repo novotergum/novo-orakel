@@ -1,5 +1,9 @@
 /**
- * Tippspiel scoring: 3 pts exact, 1 pt correct tendency, 0 otherwise.
+ * Tippspiel scoring (NOVO-Orakel WM 2026):
+ *   4P exaktes Ergebnis
+ *   3P richtige Tordifferenz
+ *   2P richtige Tendenz (Sieg/Unentschieden/Niederlage)
+ *   0P falsch
  */
 
 type Tendency = "1" | "X" | "2";
@@ -25,11 +29,14 @@ export function scoreTip(
   actualHome: number,
   actualAway: number,
 ): number {
-  // Exact score match → 3 points
-  if (predictedHome === actualHome && predictedAway === actualAway) return 3;
+  // Exaktes Ergebnis → 4 Punkte
+  if (predictedHome === actualHome && predictedAway === actualAway) return 4;
 
-  // Correct tendency → 1 point
-  if (tendency(predictedHome, predictedAway) === tendency(actualHome, actualAway)) return 1;
+  // Richtige Tordifferenz → 3 Punkte
+  if (predictedHome - predictedAway === actualHome - actualAway) return 3;
+
+  // Richtige Tendenz → 2 Punkte
+  if (tendency(predictedHome, predictedAway) === tendency(actualHome, actualAway)) return 2;
 
   return 0;
 }

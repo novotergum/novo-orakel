@@ -9,6 +9,7 @@ interface SubmitBody {
   scoreTip: string;
   style?: string;
   source?: "human" | "agent";
+  location?: string;
 }
 
 const VALID_PICKS = ["1", "X", "2"];
@@ -48,6 +49,7 @@ export async function POST(req: NextRequest) {
       winnerPick: body.winnerPick,
       scoreTip: body.scoreTip,
       style: body.style,
+      location: body.location,
       createdAt: new Date().toISOString(),
     };
 

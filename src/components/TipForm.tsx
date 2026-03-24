@@ -20,6 +20,7 @@ const SCORE_SUGGESTIONS: Record<string, string[]> = {
 
 export default function TipForm() {
   const [name, setName] = useState("");
+  const [location, setLocation] = useState("");
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
@@ -54,6 +55,7 @@ export default function TipForm() {
           scoreTip: score,
           source: "human",
           style: "balanced",
+          location: location.trim() || undefined,
         }),
       });
       const data = await res.json();
@@ -167,15 +169,26 @@ export default function TipForm() {
         Jetzt mitspielen
       </h2>
 
-      {/* Name */}
-      <div style={{ marginBottom: 16 }}>
-        <label style={s.label}>Dein Name</label>
-        <input
-          style={s.input}
-          placeholder="z.B. Sebastian"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
+      {/* Name + Standort */}
+      <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
+        <div style={{ flex: 2 }}>
+          <label style={s.label}>Dein Name</label>
+          <input
+            style={s.input}
+            placeholder="z.B. Sebastian"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+        </div>
+        <div style={{ flex: 1 }}>
+          <label style={s.label}>Standort</label>
+          <input
+            style={s.input}
+            placeholder="z.B. Essen"
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+          />
+        </div>
       </div>
 
       {/* Match selection */}
