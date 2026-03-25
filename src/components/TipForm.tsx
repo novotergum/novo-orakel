@@ -117,6 +117,9 @@ export default function TipForm() {
   const [regLocation, setRegLocation] = useState("");
   const [showRegister, setShowRegister] = useState(false);
   const [registering, setRegistering] = useState(false);
+  const [regCode, setRegCode] = useState("");
+
+  const [regError, setRegError] = useState("");
 
   // Match + tip state
   const [matches, setMatches] = useState<Match[]>([]);
@@ -186,6 +189,7 @@ export default function TipForm() {
   async function register() {
     if (!regName.trim() || !regLocation.trim()) return;
     setRegistering(true);
+    setRegError("");
     try {
       const res = await fetch("/api/users", {
         method: "POST",
@@ -193,6 +197,7 @@ export default function TipForm() {
         body: JSON.stringify({
           userName: regName.trim(),
           location: regLocation.trim(),
+          inviteCode: regCode.trim(),
         }),
       });
       const data = await res.json();
@@ -201,9 +206,12 @@ export default function TipForm() {
         setUsers((prev) => [...prev, data.user]);
         setRegName("");
         setRegLocation("");
+        setRegError("");
+      } else {
+        setRegError(data.error ?? "Registrierung fehlgeschlagen");
       }
     } catch {
-      // ignore
+      setRegError("Netzwerkfehler");
     }
     setRegistering(false);
   }
@@ -380,6 +388,7 @@ export default function TipForm() {
     const isExpanded = expandedMatch === m.id;
     const orakel = orakelResults[m.id];
     const matchResult = result?.matchId === m.id ? result : null;
+    const teamsKnown = !!(m.homeTeam.id && m.awayTeam.id && m.homeTeam.name && m.awayTeam.name);
 
     return (
       <div
@@ -415,7 +424,11 @@ export default function TipForm() {
           </div>
 
           {/* Existing tip badge OR tip button */}
-          {tip ? (
+          {!teamsKnown ? (
+              <span style={{ fontSize: 11, color: "#7A7A7A", fontStyle: "italic", flexShrink: 0 }}>
+                TBD
+              </span>
+          ) : tip ? (
             <div
               style={{
                 display: "flex",
@@ -473,7 +486,7 @@ export default function TipForm() {
         </div>
 
         {/* Expanded inline tip form */}
-        {isExpanded && currentUser && !tip && (
+        {isExpanded && currentUser && !tip && teamsKnown && (
           <div
             style={{
               marginTop: 10,
@@ -701,6 +714,15 @@ export default function TipForm() {
                 />
               </div>
             </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={s.label}>Einladungscode</label>
+              <input
+                style={s.input}
+                placeholder="Code aus dem Teams-Kanal"
+                value={regCode}
+                onChange={(e) => setRegCode(e.target.value)}
+              />
+            </div>
             <button
               style={{
                 width: "100%",
@@ -712,13 +734,26 @@ export default function TipForm() {
                 fontSize: 16,
                 fontWeight: 700,
                 cursor: "pointer",
-                opacity: registering || !regName || !regLocation ? 0.5 : 1,
+                opacity: registering || !regName || !regLocation || !regCode ? 0.5 : 1,
               }}
               onClick={register}
-              disabled={registering || !regName || !regLocation}
+              disabled={registering || !regName || !regLocation || !regCode}
             >
               {registering ? "Wird registriert..." : "Registrieren"}
             </button>
+            {regError && (
+              <div style={{
+                marginTop: 10,
+                padding: "8px 12px",
+                borderRadius: 8,
+                fontSize: 13,
+                background: "#ffebee",
+                color: "#c62828",
+                border: "1px solid #ef9a9a",
+              }}>
+                {regError}
+              </div>
+            )}
             {users.length > 0 && (
               <button
                 style={{ ...s.link, marginTop: 12, display: "block" }}

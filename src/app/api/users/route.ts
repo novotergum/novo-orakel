@@ -59,6 +59,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "location (Standort) required" }, { status: 400 });
     }
 
+    // Einladungscode prüfen
+    const requiredCode = process.env.INVITE_CODE;
+    if (requiredCode && body.inviteCode?.trim() !== requiredCode) {
+      return NextResponse.json(
+        { error: "Ungültiger Einladungscode. Frag im Teams-Kanal nach dem Code!" },
+        { status: 403 },
+      );
+    }
+
     const userId = body.userName.trim().toLowerCase().replace(/\s+/g, "-");
     const profile: UserProfile = {
       userId,
@@ -69,6 +78,16 @@ export async function POST(req: NextRequest) {
 
     const redis = getRedis();
     const key = `user:${userId}`;
+
+    // Duplikat-Prüfung: Name bereits vergeben?
+    const existing = await redis.get(key);
+    if (existing) {
+      return NextResponse.json(
+        { error: "Dieser Name ist bereits registriert. Bitte wähle dich in der Liste aus." },
+        { status: 409 },
+      );
+    }
+
     await redis.set(key, JSON.stringify(profile));
     await redis.sadd(USERS_KEY, key);
 

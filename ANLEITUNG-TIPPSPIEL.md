@@ -19,8 +19,11 @@ Jede:r Teilnehmer:in tippt die Ergebnisse der WM-Spiele. Das UT Orakel gibt eben
 ### Registrierung
 
 1. Öffne die Tippspiel-App im Browser (Link wird im Teams-Kanal geteilt)
-2. Gib deinen **Namen** und deinen **Standort** ein
-3. Fertig – du bist registriert und kannst sofort loslegen
+2. Gib deinen **Namen**, deinen **Standort** und den **Einladungscode** ein
+3. Den Einladungscode erhältst du im Teams-Kanal
+4. Fertig – du bist registriert und kannst sofort loslegen
+
+**Hinweis:** Jeder Name kann nur einmal registriert werden. Wenn du dich bereits registriert hast, wähle dich einfach aus der Liste aus.
 
 Deine Daten werden lokal im Browser gespeichert, sodass du beim nächsten Besuch direkt erkannt wirst.
 
@@ -184,7 +187,7 @@ Für alle, die es genauer wissen wollen:
 ## 10. Quick-Start für neue Teilnehmer:innen
 
 1. Link zur App im Teams-Kanal aufrufen
-2. Namen und Standort eingeben → Registrierung abgeschlossen
+2. Namen, Standort und Einladungscode eingeben → Registrierung abgeschlossen
 3. Anstehende Spiele durchblättern
 4. Tendenz (1 / X / 2) wählen und Ergebnis tippen
 5. Optional: Orakel-Joker nutzen für KI-Empfehlung
@@ -207,6 +210,9 @@ Nein, aber wer mehr tippt, hat mehr Chancen auf Punkte. Nicht abgegebene Tipps b
 
 **Wer ist das UT Orakel?**
 Eine KI, die auf Basis von Elo-Ratings, Formkurven und statistischen Modellen automatisch tippt. Es spielt unter dem Namen "ut-orakel" mit im Leaderboard.
+
+**Wo finde ich den Einladungscode?**
+Der Code wird im Teams-Kanal geteilt. Ohne gültigen Code ist keine Registrierung möglich.
 
 **Was passiert mit meinen Joker, wenn ich sie nicht nutze?**
 Ungenutzte Joker verfallen am Ende des Turniers. Also ruhig einsetzen!
