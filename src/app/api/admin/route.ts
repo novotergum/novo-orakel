@@ -64,9 +64,12 @@ export async function GET(req: NextRequest) {
     }
 
     // Load joker usage
-    const jokerPipeline = redis.pipeline();
-    for (const u of users) jokerPipeline.get(`joker:${u.userId}`);
-    const jokerResults = await jokerPipeline.exec();
+    let jokerResults: (number | null)[] = [];
+    if (users.length > 0) {
+      const jokerPipeline = redis.pipeline();
+      for (const u of users) jokerPipeline.get(`joker:${u.userId}`);
+      jokerResults = await jokerPipeline.exec();
+    }
 
     const enriched = users.map((u, i) => ({
       ...u,

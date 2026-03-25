@@ -59,11 +59,14 @@ export async function writePredictions(
   const redis = getRedis();
   // Clear and rewrite all — used by resolve-match bulk update
   const oldKeys = await redis.smembers(ALL_KEY);
-  if (oldKeys.length) {
+  if (oldKeys.length > 0) {
     const pipeline = redis.pipeline();
     for (const k of oldKeys) pipeline.del(k);
     pipeline.del(ALL_KEY);
     await pipeline.exec();
+  } else {
+    // No old keys but ALL_KEY itself might exist as empty set
+    await redis.del(ALL_KEY);
   }
 
   if (!records.length) return;
