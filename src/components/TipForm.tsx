@@ -57,12 +57,12 @@ const STAGE_ORDER = [
 ];
 
 const STAGE_COLORS: Record<string, { bg: string; border: string; text: string }> = {
-  GROUP_STAGE: { bg: "#0f1a2e", border: "#1e3a5f", text: "#60a5fa" },
-  LAST_16: { bg: "#1a1a0f", border: "#3f3a1e", text: "#fbbf24" },
-  QUARTER_FINALS: { bg: "#1a0f1a", border: "#3f1e3f", text: "#c084fc" },
-  SEMI_FINALS: { bg: "#0f1a1a", border: "#1e3f3f", text: "#2dd4bf" },
-  THIRD_PLACE: { bg: "#1a1a0f", border: "#3f3a1e", text: "#fb923c" },
-  FINAL: { bg: "#1a0f0f", border: "#5f1e1e", text: "#f87171" },
+  GROUP_STAGE: { bg: "#eef6fb", border: "#4293D044", text: "#4293D0" },
+  LAST_16: { bg: "#fef6e8", border: "#F3920044", text: "#F39200" },
+  QUARTER_FINALS: { bg: "#f3f0f7", border: "#65597F44", text: "#65597F" },
+  SEMI_FINALS: { bg: "#eef6fb", border: "#4293D044", text: "#4293D0" },
+  THIRD_PLACE: { bg: "#fef6e8", border: "#F3920044", text: "#E76C0A" },
+  FINAL: { bg: "#fdeef0", border: "#E5172D44", text: "#E5172D" },
 };
 
 interface StageGroup {
@@ -107,7 +107,7 @@ const SCORE_SUGGESTIONS: Record<string, string[]> = {
   "2": ["0:1", "0:2", "1:2", "1:3"],
 };
 
-const LS_KEY = "novo-orakel-user";
+const LS_KEY = "ut-orakel-user";
 
 export default function TipForm() {
   // User state
@@ -302,16 +302,17 @@ export default function TipForm() {
   // ---- Styles ----
   const s = {
     section: {
-      background: "#141414",
+      background: "#ffffff",
       borderRadius: 12,
       padding: "28px 24px",
       marginTop: 32,
-      border: "1px solid #222",
+      border: "1px solid #e0ddd9",
+      boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
     } as React.CSSProperties,
     label: {
       display: "block",
       fontSize: 12,
-      color: "#888",
+      color: "#7A7A7A",
       marginBottom: 6,
       textTransform: "uppercase" as const,
       letterSpacing: "0.05em",
@@ -319,10 +320,10 @@ export default function TipForm() {
     input: {
       width: "100%",
       padding: "10px 12px",
-      background: "#1a1a1a",
-      border: "1px solid #333",
+      background: "#F7F5F3",
+      border: "1px solid #e0ddd9",
       borderRadius: 8,
-      color: "#fff",
+      color: "#3A3A3A",
       fontSize: 15,
       outline: "none",
       boxSizing: "border-box" as const,
@@ -330,10 +331,10 @@ export default function TipForm() {
     btn: (active: boolean) =>
       ({
         padding: "10px 16px",
-        background: active ? "#2563eb" : "#1a1a1a",
-        border: active ? "1px solid #2563eb" : "1px solid #333",
+        background: active ? "#F39200" : "#F7F5F3",
+        border: active ? "1px solid #F39200" : "1px solid #e0ddd9",
         borderRadius: 8,
-        color: "#fff",
+        color: active ? "#fff" : "#3A3A3A",
         cursor: "pointer",
         fontSize: 14,
         fontWeight: active ? 700 : 400,
@@ -342,10 +343,10 @@ export default function TipForm() {
       ({
         flex: 1,
         padding: "8px",
-        background: active ? "#2563eb" : "#1a1a1a",
-        border: active ? "1px solid #2563eb" : "1px solid #333",
+        background: active ? "#F39200" : "#F7F5F3",
+        border: active ? "1px solid #F39200" : "1px solid #e0ddd9",
         borderRadius: 8,
-        color: "#fff",
+        color: active ? "#fff" : "#3A3A3A",
         cursor: "pointer",
         fontSize: 14,
         fontWeight: 700,
@@ -354,10 +355,10 @@ export default function TipForm() {
     scoreBtn: (active: boolean) =>
       ({
         padding: "6px 12px",
-        background: active ? "#2563eb" : "#1a1a1a",
-        border: active ? "1px solid #2563eb" : "1px solid #333",
+        background: active ? "#F39200" : "#F7F5F3",
+        border: active ? "1px solid #F39200" : "1px solid #e0ddd9",
         borderRadius: 8,
-        color: "#fff",
+        color: active ? "#fff" : "#3A3A3A",
         cursor: "pointer",
         fontSize: 13,
         fontWeight: 600,
@@ -365,7 +366,7 @@ export default function TipForm() {
     link: {
       background: "none",
       border: "none",
-      color: "#2563eb",
+      color: "#F39200",
       cursor: "pointer",
       fontSize: 13,
       padding: 0,
@@ -384,8 +385,8 @@ export default function TipForm() {
       <div
         key={m.id}
         style={{
-          background: isExpanded ? "#111827" : "#0d0d0d",
-          border: isExpanded ? `1px solid ${stageColor}66` : "1px solid #1a1a1a",
+          background: isExpanded ? "#fef9f2" : "#ffffff",
+          border: isExpanded ? `1px solid ${stageColor}66` : "1px solid #e0ddd9",
           borderRadius: 10,
           padding: "10px 12px",
           marginTop: 6,
@@ -403,12 +404,12 @@ export default function TipForm() {
         >
           {/* Teams + date */}
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontWeight: 600, fontSize: 13, color: "#fff", lineHeight: 1.4 }}>
+            <div style={{ fontWeight: 600, fontSize: 13, color: "#3A3A3A", lineHeight: 1.4 }}>
               {m.homeTeam.code ?? m.homeTeam.name}
-              <span style={{ color: "#555", margin: "0 4px" }}>vs</span>
+              <span style={{ color: "#7A7A7A", margin: "0 4px" }}>vs</span>
               {m.awayTeam.code ?? m.awayTeam.name}
             </div>
-            <div style={{ fontSize: 11, color: "#666", marginTop: 1 }}>
+            <div style={{ fontSize: 11, color: "#7A7A7A", marginTop: 1 }}>
               {fmtDate(m.kickoff)}
             </div>
           </div>
@@ -420,22 +421,22 @@ export default function TipForm() {
                 display: "flex",
                 alignItems: "center",
                 gap: 6,
-                background: "#052e16",
-                border: "1px solid #166534",
+                background: "#e8f5e9",
+                border: "1px solid #a5d6a7",
                 borderRadius: 8,
                 padding: "4px 10px",
                 fontSize: 12,
-                color: "#4ade80",
+                color: "#2e7d32",
                 fontWeight: 600,
                 flexShrink: 0,
               }}
             >
               <span>{tip.scoreTip}</span>
-              <span style={{ color: "#166534" }}>|</span>
+              <span style={{ color: "#a5d6a7" }}>|</span>
               <span>{pickLabel(tip.winnerPick)}</span>
               {tip.points != null && (
                 <>
-                  <span style={{ color: "#166534" }}>|</span>
+                  <span style={{ color: "#a5d6a7" }}>|</span>
                   <span>{tip.points}P</span>
                 </>
               )}
@@ -456,10 +457,10 @@ export default function TipForm() {
               }}
               style={{
                 padding: "6px 14px",
-                background: isExpanded ? "#1e3a5f" : "#1a1a1a",
-                border: isExpanded ? "1px solid #2563eb" : "1px solid #333",
+                background: isExpanded ? "#F39200" : "#F7F5F3",
+                border: isExpanded ? "1px solid #F39200" : "1px solid #e0ddd9",
                 borderRadius: 8,
-                color: "#fff",
+                color: isExpanded ? "#fff" : "#3A3A3A",
                 cursor: "pointer",
                 fontSize: 12,
                 fontWeight: 600,
@@ -477,29 +478,29 @@ export default function TipForm() {
             style={{
               marginTop: 10,
               paddingTop: 10,
-              borderTop: "1px solid #222",
+              borderTop: "1px solid #e0ddd9",
             }}
           >
             {/* Orakel suggestion */}
             {orakel && (
               <div
                 style={{
-                  background: "#1a0f2e",
-                  border: "1px solid #7c3aed44",
+                  background: "#fef6e8",
+                  border: "1px solid #F3920044",
                   borderRadius: 8,
                   padding: "8px 12px",
                   marginBottom: 10,
                   fontSize: 12,
                 }}
               >
-                <div style={{ color: "#a78bfa", fontWeight: 700, marginBottom: 4 }}>
-                  Novo-Orakel empfiehlt:
+                <div style={{ color: "#F39200", fontWeight: 700, marginBottom: 4 }}>
+                  UT Orakel empfiehlt:
                 </div>
-                <div style={{ color: "#c4b5fd", fontWeight: 600, fontSize: 14 }}>
+                <div style={{ color: "#E76C0A", fontWeight: 600, fontSize: 14 }}>
                   {orakel.scoreTip} ({pickLabel(orakel.winnerPick)})
                 </div>
                 {orakel.reasoning.map((line, i) => (
-                  <div key={i} style={{ color: "#8b5cf6", marginTop: 2 }}>
+                  <div key={i} style={{ color: "#7A7A7A", marginTop: 2 }}>
                     {line}
                   </div>
                 ))}
@@ -508,7 +509,7 @@ export default function TipForm() {
 
             {/* Tendenz */}
             <div style={{ marginBottom: 8 }}>
-              <div style={{ fontSize: 11, color: "#666", marginBottom: 4 }}>TENDENZ</div>
+              <div style={{ fontSize: 11, color: "#7A7A7A", marginBottom: 4 }}>TENDENZ</div>
               <div style={{ display: "flex", gap: 6 }}>
                 {PICKS.map((p) => (
                   <button
@@ -529,7 +530,7 @@ export default function TipForm() {
             {/* Score */}
             {pick && (
               <div style={{ marginBottom: 8 }}>
-                <div style={{ fontSize: 11, color: "#666", marginBottom: 4 }}>ERGEBNIS</div>
+                <div style={{ fontSize: 11, color: "#7A7A7A", marginBottom: 4 }}>ERGEBNIS</div>
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
                   {SCORE_SUGGESTIONS[pick].map((sc) => (
                     <button
@@ -558,7 +559,7 @@ export default function TipForm() {
                   disabled={submitting}
                   style={{
                     padding: "8px 20px",
-                    background: "#2563eb",
+                    background: "#F39200",
                     border: "none",
                     borderRadius: 8,
                     color: "#fff",
@@ -578,10 +579,10 @@ export default function TipForm() {
                   disabled={orakelLoading === m.id}
                   style={{
                     padding: "8px 14px",
-                    background: "#1a0f2e",
-                    border: "1px solid #7c3aed44",
+                    background: "#eef6fb",
+                    border: "1px solid #4293D044",
                     borderRadius: 8,
-                    color: "#a78bfa",
+                    color: "#4293D0",
                     fontSize: 12,
                     fontWeight: 600,
                     cursor: "pointer",
@@ -598,11 +599,11 @@ export default function TipForm() {
                       Orakel fragen
                       <span
                         style={{
-                          background: "#7c3aed33",
+                          background: "#4293D022",
                           padding: "1px 6px",
                           borderRadius: 10,
                           fontSize: 10,
-                          color: "#c4b5fd",
+                          color: "#4293D0",
                         }}
                       >
                         {jokersRemaining}/10
@@ -613,7 +614,7 @@ export default function TipForm() {
               )}
 
               {!orakel && jokersRemaining <= 0 && (
-                <span style={{ fontSize: 11, color: "#666" }}>
+                <span style={{ fontSize: 11, color: "#7A7A7A" }}>
                   Keine Joker mehr
                 </span>
               )}
@@ -627,9 +628,9 @@ export default function TipForm() {
                   padding: "6px 10px",
                   borderRadius: 6,
                   fontSize: 12,
-                  background: matchResult.ok ? "#052e16" : "#3b0712",
-                  color: matchResult.ok ? "#4ade80" : "#f87171",
-                  border: matchResult.ok ? "1px solid #166534" : "1px solid #991b1b",
+                  background: matchResult.ok ? "#e8f5e9" : "#ffebee",
+                  color: matchResult.ok ? "#2e7d32" : "#c62828",
+                  border: matchResult.ok ? "1px solid #a5d6a7" : "1px solid #ef9a9a",
                 }}
               >
                 {matchResult.msg}
@@ -648,7 +649,7 @@ export default function TipForm() {
   if (!currentUser) {
     return (
       <div style={s.section}>
-        <h2 style={{ margin: "0 0 20px", fontSize: 20, color: "#fff" }}>
+        <h2 style={{ margin: "0 0 20px", fontSize: 20, color: "#3A3A3A" }}>
           Jetzt mitspielen
         </h2>
 
@@ -663,7 +664,7 @@ export default function TipForm() {
                   onClick={() => selectUser(u)}
                 >
                   {u.userName}
-                  <span style={{ fontSize: 11, color: "#666", marginLeft: 6 }}>
+                  <span style={{ fontSize: 11, color: "#7A7A7A", marginLeft: 6 }}>
                     {u.location}
                   </span>
                 </button>
@@ -704,7 +705,7 @@ export default function TipForm() {
               style={{
                 width: "100%",
                 padding: "14px",
-                background: "#2563eb",
+                background: "#F39200",
                 border: "none",
                 borderRadius: 10,
                 color: "#fff",
@@ -748,10 +749,10 @@ export default function TipForm() {
         }}
       >
         <div>
-          <h2 style={{ margin: 0, fontSize: 20, color: "#fff" }}>
+          <h2 style={{ margin: 0, fontSize: 20, color: "#3A3A3A" }}>
             Spiele & Tipps
           </h2>
-          <p style={{ margin: "4px 0 0", fontSize: 13, color: "#888" }}>
+          <p style={{ margin: "4px 0 0", fontSize: 13, color: "#7A7A7A" }}>
             {currentUser.userName} &middot; {currentUser.location}
           </p>
         </div>
@@ -762,12 +763,12 @@ export default function TipForm() {
               display: "flex",
               alignItems: "center",
               gap: 4,
-              background: "#1a0f2e",
-              border: "1px solid #7c3aed33",
+              background: "#eef6fb",
+              border: "1px solid #4293D033",
               borderRadius: 20,
               padding: "4px 12px",
               fontSize: 12,
-              color: "#a78bfa",
+              color: "#4293D0",
               fontWeight: 600,
             }}
           >
@@ -781,9 +782,9 @@ export default function TipForm() {
 
       {/* Match list */}
       {loading ? (
-        <p style={{ color: "#666", fontSize: 14 }}>Lade Spiele...</p>
+        <p style={{ color: "#7A7A7A", fontSize: 14 }}>Lade Spiele...</p>
       ) : matches.length === 0 ? (
-        <p style={{ color: "#666", fontSize: 14 }}>Keine anstehenden Spiele.</p>
+        <p style={{ color: "#7A7A7A", fontSize: 14 }}>Keine anstehenden Spiele.</p>
       ) : (
         <div>
           {groupMatchesByStage(matches).map((sg) => {
@@ -849,23 +850,23 @@ export default function TipForm() {
                       <div
                         key={group}
                         style={{
-                          background: "#111827",
+                          background: "#f8fbfd",
                           borderRadius: 10,
                           padding: "10px 12px",
-                          border: "1px solid #1e3a5f",
+                          border: "1px solid #4293D033",
                         }}
                       >
                         <div
                           style={{
                             fontSize: 11,
                             fontWeight: 700,
-                            color: "#3b82f6",
+                            color: "#4293D0",
                             marginBottom: 4,
                             textTransform: "uppercase",
                             letterSpacing: "0.08em",
                             textAlign: "center",
                             padding: "2px 0 6px",
-                            borderBottom: "1px solid #1e3a5f",
+                            borderBottom: "1px solid #4293D033",
                           }}
                         >
                           {group.replace("GROUP_", "Gruppe ")}

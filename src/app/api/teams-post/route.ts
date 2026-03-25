@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readPredictions } from "../../../lib/store";
 
-const AGENT_ID = "novo-orakel";
+const AGENT_ID = "ut-orakel";
 
 /**
  * GET /api/teams-post?type=leaderboard

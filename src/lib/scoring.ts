@@ -1,5 +1,5 @@
 /**
- * Tippspiel scoring (NOVO-Orakel WM 2026):
+ * Tippspiel scoring (UT Orakel WM 2026):
  *   4P exaktes Ergebnis
  *   3P richtige Tordifferenz
  *   2P richtige Tendenz (Sieg/Unentschieden/Niederlage)

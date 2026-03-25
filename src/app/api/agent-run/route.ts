@@ -4,8 +4,8 @@ import { getTeamRecentMatches, buildTeamElo, predictFromElo } from "../../../lib
 import { buildTipFromPrediction, type TipStyle } from "../../../lib/tip-engine";
 import { upsertPrediction, readPredictions, type PredictionRecord } from "../../../lib/store";
 
-const AGENT_ID = "novo-orakel";
-const AGENT_NAME = "NOVO-Orakel";
+const AGENT_ID = "ut-orakel";
+const AGENT_NAME = "UT Orakel";
 const VALID_STYLES: TipStyle[] = ["safe", "balanced", "risky"];
 
 // ---------------------------------------------------------------------------
@@ -81,7 +81,7 @@ interface MatchResult {
 
 function buildTeamsPost(results: MatchResult[], rank: number, style: TipStyle): string {
   const lines: string[] = [];
-  lines.push("NOVO-Orakel:");
+  lines.push("UT Orakel:");
   lines.push("");
 
   const successful = results.filter((r) => r.ok && r.home && r.away);
@@ -206,7 +206,7 @@ export async function POST(req: NextRequest) {
         rank,
         style,
         count: 0,
-        teamsPost: "NOVO-Orakel:\n\nKeine Spiele heute. Pause.",
+        teamsPost: "UT Orakel:\n\nKeine Spiele heute. Pause.",
         results: [],
       });
     }

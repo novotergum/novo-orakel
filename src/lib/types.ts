@@ -1,4 +1,4 @@
-/// Shared types for prediction inputs/outputs (NOVO-Orakel)
+/// Shared types for prediction inputs/outputs (UT Orakel)
 
 export interface TeamStats {
   elo: number; // e.g., 1500–2200

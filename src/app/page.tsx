@@ -62,10 +62,11 @@ const medal = (i: number) => {
 };
 
 const sCard: React.CSSProperties = {
-  background: "#141414",
+  background: "#ffffff",
   borderRadius: 12,
   padding: "20px 24px",
-  border: "1px solid #222",
+  border: "1px solid #e0ddd9",
+  boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
 };
 
 export default async function Home() {
@@ -78,19 +79,20 @@ export default async function Home() {
         <div
           style={{
             display: "inline-block",
-            background: "#1a1a2e",
+            background: "#fff",
             borderRadius: 16,
             padding: "12px 28px",
             marginBottom: 12,
-            border: "1px solid #2563eb33",
+            border: "1px solid #F3920033",
+            boxShadow: "0 2px 8px rgba(243,146,0,0.10)",
           }}
         >
           <span style={{ fontSize: 32 }}>{"\u26BD"}</span>
         </div>
-        <h1 style={{ fontSize: 28, margin: "8px 0 0", color: "#fff" }}>
-          NOVO-Orakel
+        <h1 style={{ fontSize: 28, margin: "8px 0 0", color: "#3A3A3A" }}>
+          UT Orakel
         </h1>
-        <p style={{ fontSize: 14, color: "#888", marginTop: 4 }}>
+        <p style={{ fontSize: 14, color: "#7A7A7A", marginTop: 4 }}>
           WM 2026 Tippspiel &ndash; Mensch gegen Maschine
         </p>
       </header>
@@ -107,13 +109,13 @@ export default async function Home() {
           }}
         >
           <div style={{ ...sCard, textAlign: "center" }}>
-            <div style={{ fontSize: 12, color: "#888", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+            <div style={{ fontSize: 12, color: "#7A7A7A", textTransform: "uppercase", letterSpacing: "0.05em" }}>
               Mensch
             </div>
-            <div style={{ fontSize: 32, fontWeight: 800, color: "#4ade80", marginTop: 4 }}>
+            <div style={{ fontSize: 32, fontWeight: 800, color: "#E5172D", marginTop: 4 }}>
               {humanAvg.toFixed(1)}
             </div>
-            <div style={{ fontSize: 12, color: "#666" }}>
+            <div style={{ fontSize: 12, color: "#7A7A7A" }}>
               {"\u00D8"} Punkte &middot; {humanCount} Spieler
             </div>
           </div>
@@ -121,20 +123,20 @@ export default async function Home() {
             style={{
               fontSize: 20,
               fontWeight: 800,
-              color: "#555",
+              color: "#575756",
               textAlign: "center",
             }}
           >
             VS
           </div>
           <div style={{ ...sCard, textAlign: "center" }}>
-            <div style={{ fontSize: 12, color: "#888", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+            <div style={{ fontSize: 12, color: "#7A7A7A", textTransform: "uppercase", letterSpacing: "0.05em" }}>
               Maschine
             </div>
-            <div style={{ fontSize: 32, fontWeight: 800, color: "#60a5fa", marginTop: 4 }}>
+            <div style={{ fontSize: 32, fontWeight: 800, color: "#4293D0", marginTop: 4 }}>
               {agentAvg.toFixed(1)}
             </div>
-            <div style={{ fontSize: 12, color: "#666" }}>
+            <div style={{ fontSize: 12, color: "#7A7A7A" }}>
               {"\u00D8"} Punkte &middot; {agentCount} Agent{agentCount !== 1 ? "s" : ""}
             </div>
           </div>
@@ -146,7 +148,7 @@ export default async function Home() {
         <h2
           style={{
             fontSize: 16,
-            color: "#999",
+            color: "#575756",
             textTransform: "uppercase",
             letterSpacing: "0.05em",
             marginBottom: 12,
@@ -155,7 +157,7 @@ export default async function Home() {
           Leaderboard
         </h2>
         {board.length === 0 ? (
-          <p style={{ textAlign: "center", color: "#666", padding: 20 }}>
+          <p style={{ textAlign: "center", color: "#7A7A7A", padding: 20 }}>
             Noch keine Tipps abgegeben. Sei der Erste!
           </p>
         ) : (
@@ -171,9 +173,9 @@ export default async function Home() {
               <thead>
                 <tr
                   style={{
-                    borderBottom: "2px solid #333",
+                    borderBottom: "2px solid #e0ddd9",
                     textAlign: "left",
-                    color: "#999",
+                    color: "#7A7A7A",
                     fontSize: 11,
                     textTransform: "uppercase",
                     letterSpacing: "0.05em",
@@ -199,8 +201,8 @@ export default async function Home() {
                   <tr
                     key={entry.userId}
                     style={{
-                      borderBottom: "1px solid #222",
-                      background: i % 2 === 0 ? "transparent" : "#111",
+                      borderBottom: "1px solid #e0ddd9",
+                      background: i % 2 === 0 ? "transparent" : "#f0eeeb",
                     }}
                   >
                     <td
@@ -213,7 +215,7 @@ export default async function Home() {
                       {medal(i)}
                     </td>
                     <td style={{ padding: "12px 10px" }}>
-                      <span style={{ color: "#fff", fontWeight: 600 }}>
+                      <span style={{ color: "#3A3A3A", fontWeight: 600 }}>
                         {entry.userName}
                       </span>
                       {entry.source === "agent" && (
@@ -222,7 +224,7 @@ export default async function Home() {
                             marginLeft: 8,
                             fontSize: 10,
                             padding: "2px 6px",
-                            background: "#2563eb",
+                            background: "#4293D0",
                             color: "#fff",
                             borderRadius: 4,
                             verticalAlign: "middle",
@@ -232,16 +234,16 @@ export default async function Home() {
                         </span>
                       )}
                     </td>
-                    <td style={{ padding: "12px 10px", textAlign: "right", color: "#888" }}>
+                    <td style={{ padding: "12px 10px", textAlign: "right", color: "#7A7A7A" }}>
                       {entry.tips}
                     </td>
-                    <td style={{ padding: "12px 10px", textAlign: "right", color: "#4ade80" }}>
+                    <td style={{ padding: "12px 10px", textAlign: "right", color: "#2e7d32" }}>
                       {entry.exact}
                     </td>
-                    <td style={{ padding: "12px 10px", textAlign: "right", color: "#a78bfa" }}>
+                    <td style={{ padding: "12px 10px", textAlign: "right", color: "#65597F" }}>
                       {entry.diffCorrect}
                     </td>
-                    <td style={{ padding: "12px 10px", textAlign: "right", color: "#fbbf24" }}>
+                    <td style={{ padding: "12px 10px", textAlign: "right", color: "#F39200" }}>
                       {entry.tendencyCorrect}
                     </td>
                     <td
@@ -250,7 +252,7 @@ export default async function Home() {
                         textAlign: "right",
                         fontWeight: 700,
                         fontSize: 18,
-                        color: "#fff",
+                        color: "#3A3A3A",
                       }}
                     >
                       {entry.points}
@@ -272,7 +274,7 @@ export default async function Home() {
           marginTop: 48,
           textAlign: "center",
           fontSize: 12,
-          color: "#555",
+          color: "#7A7A7A",
           lineHeight: 1.8,
         }}
       >
@@ -281,7 +283,7 @@ export default async function Home() {
         K.O.-Bonus: Achtelfinale 1.5x &middot; Viertelfinale 2x &middot;
         Halbfinale 2.5x &middot; Finale 3x
         <br />
-        Powered by NOVO-Orakel &middot; Prediction Engine v1
+        Powered by <span style={{ color: "#F39200", fontWeight: 600 }}>UT Orakel</span> &middot; Prediction Engine v1
       </footer>
     </div>
   );

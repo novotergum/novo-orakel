@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { readPredictions } from "../../../lib/store";
 
-const AGENT_ID = "novo-orakel";
+const AGENT_ID = "ut-orakel";
 
 interface PlayerEntry {
   userId: string;

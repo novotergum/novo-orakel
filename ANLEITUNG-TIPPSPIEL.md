@@ -1,4 +1,4 @@
-# NOVO-Orakel – WM 2026 Tippspiel
+# UT Orakel – WM 2026 Tippspiel
 
 ## Anleitung für das Team bei United Therapy
 
@@ -6,9 +6,9 @@
 
 ## 1. Konzept: Mensch gegen Maschine
 
-Das WM-Tippspiel zur FIFA Weltmeisterschaft 2026 ist ein Vorhersage-Wettbewerb, bei dem **alle Kolleg:innen bei United Therapy** gegen eine KI antreten – das **NOVO-Orakel**.
+Das WM-Tippspiel zur FIFA Weltmeisterschaft 2026 ist ein Vorhersage-Wettbewerb, bei dem **alle Kolleg:innen bei United Therapy** gegen eine KI antreten – das **UT Orakel**.
 
-Jede:r Teilnehmer:in tippt die Ergebnisse der WM-Spiele. Das NOVO-Orakel gibt ebenfalls automatisierte Tipps ab, basierend auf Elo-Ratings, Formkurven und statistischen Modellen. Am Ende zeigt sich: Sind wir als Menschen besser als die Maschine?
+Jede:r Teilnehmer:in tippt die Ergebnisse der WM-Spiele. Das UT Orakel gibt ebenfalls automatisierte Tipps ab, basierend auf Elo-Ratings, Formkurven und statistischen Modellen. Am Ende zeigt sich: Sind wir als Menschen besser als die Maschine?
 
 **Ziel:** Spass haben, mitfiebern und nebenbei schauen, ob Bauchgefühl oder Algorithmus gewinnt.
 
@@ -72,7 +72,7 @@ Je weiter das Turnier fortschreitet, desto mehr zählen die Punkte:
 
 ## 4. Leaderboard
 
-Das Leaderboard zeigt die aktuelle Rangliste aller Teilnehmer:innen – **inklusive des NOVO-Orakels**.
+Das Leaderboard zeigt die aktuelle Rangliste aller Teilnehmer:innen – **inklusive des UT Orakels**.
 
 ### Was wird angezeigt?
 
@@ -90,9 +90,9 @@ Oben auf der Seite wird der Durchschnitt aller menschlichen Spieler:innen gegen 
 
 ---
 
-## 5. Das NOVO-Orakel (KI-Agent)
+## 5. Das UT Orakel (KI-Agent)
 
-Das NOVO-Orakel ist der KI-Mitspieler und nutzt folgende Datenquellen:
+Das UT Orakel ist der KI-Mitspieler und nutzt folgende Datenquellen:
 
 - **Elo-Ratings** der Teams (berechnet aus historischen Ergebnissen)
 - **Aktuelle Formkurve** (letzte Spiele)
@@ -140,7 +140,7 @@ Das Tippspiel ist in einen **Microsoft Teams Kanal** integriert. Dort werden aut
 ### Leaderboard-Update
 - Regelmässige Updates mit der aktuellen Top 10
 - Analyse: Wer dominiert? Gibt es ein knappes Rennen?
-- Wie schlägt sich das NOVO-Orakel gegen die Menschen?
+- Wie schlägt sich das UT Orakel gegen die Menschen?
 
 ### Tippabgabe-Benachrichtigung
 - Updates wenn neue Tipprunden starten oder Deadlines nahen
@@ -153,7 +153,7 @@ Die folgenden Prozesse laufen automatisiert über Make.com Szenarien:
 
 | Automatisierung | Beschreibung |
 |-----------------|--------------|
-| **Täglicher Agent-Run** | Das NOVO-Orakel gibt jeden Tag automatisch seine Tipps für anstehende Spiele ab |
+| **Täglicher Agent-Run** | Das UT Orakel gibt jeden Tag automatisch seine Tipps für anstehende Spiele ab |
 | **Ergebnis-Auflösung** | Nach Spielende werden Ergebnisse abgerufen und alle Tipps ausgewertet |
 | **Teams-Benachrichtigungen** | Erinnerungen, Ergebnisse und Leaderboard-Updates werden automatisch in den Teams-Kanal gepostet |
 
@@ -205,8 +205,8 @@ Es zählt das Ergebnis nach 90 Minuten (bzw. nach Verlängerung bei K.O.-Spielen
 **Muss ich jedes Spiel tippen?**
 Nein, aber wer mehr tippt, hat mehr Chancen auf Punkte. Nicht abgegebene Tipps bringen 0 Punkte.
 
-**Wer ist das NOVO-Orakel?**
-Eine KI, die auf Basis von Elo-Ratings, Formkurven und statistischen Modellen automatisch tippt. Es spielt unter dem Namen "novo-orakel" mit im Leaderboard.
+**Wer ist das UT Orakel?**
+Eine KI, die auf Basis von Elo-Ratings, Formkurven und statistischen Modellen automatisch tippt. Es spielt unter dem Namen "ut-orakel" mit im Leaderboard.
 
 **Was passiert mit meinen Joker, wenn ich sie nicht nutze?**
 Ungenutzte Joker verfallen am Ende des Turniers. Also ruhig einsetzen!
