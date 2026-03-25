@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Redis } from "@upstash/redis";
 import { getTeamRecentMatches, buildTeamElo, predictFromElo } from "../../../lib/elo";
-import { buildTipFromPrediction } from "../../../lib/tip-engine";
+import { buildTipFromPrediction, type TipStyle } from "../../../lib/tip-engine";
 
 const MAX_JOKERS = 10;
 
@@ -85,6 +85,7 @@ export async function POST(req: NextRequest) {
           draw: probs.draw,
           awayWin: probs.away_win,
         },
+        topScores: prediction.topScores,
       },
       "balanced",
       homeTeam,

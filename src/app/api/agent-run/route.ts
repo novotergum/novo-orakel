@@ -137,6 +137,7 @@ async function tipMatch(
         draw: probs.draw,
         awayWin: probs.away_win,
       },
+      topScores: prediction.topScores,
     },
     style,
     match.homeTeam.name,

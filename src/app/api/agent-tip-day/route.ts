@@ -49,6 +49,7 @@ async function tipSingleMatch(match: MatchInput, style: TipStyle) {
         draw: probs.draw,
         awayWin: probs.away_win,
       },
+      topScores: prediction.topScores,
     },
     style,
     match.homeTeam,

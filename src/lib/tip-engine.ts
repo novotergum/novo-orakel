@@ -7,6 +7,12 @@ export type TipStyle = "safe" | "balanced" | "risky";
 export type Outcome = "home_win" | "draw" | "away_win";
 export type WinnerPick = "1" | "X" | "2";
 
+export interface ScoreCandidate {
+  home: number;
+  away: number;
+  prob: number;
+}
+
 export interface TipInput {
   prediction: string;
   confidence: number;
@@ -15,6 +21,7 @@ export interface TipInput {
     draw: number;
     awayWin: number;
   };
+  topScores?: ScoreCandidate[];
 }
 
 export interface TipResult {
@@ -65,11 +72,39 @@ function pickOutcome(
 // Map outcome + style to a concrete score tip
 // ---------------------------------------------------------------------------
 
-const SCORE_MAP: Record<Outcome, Record<TipStyle, string>> = {
+const SCORE_FALLBACK: Record<Outcome, Record<TipStyle, string>> = {
   home_win: { safe: "1:0", balanced: "2:1", risky: "3:1" },
   draw: { safe: "1:1", balanced: "1:1", risky: "2:2" },
   away_win: { safe: "0:1", balanced: "1:2", risky: "1:3" },
 };
+
+function matchesOutcome(s: ScoreCandidate, outcome: Outcome): boolean {
+  if (outcome === "home_win") return s.home > s.away;
+  if (outcome === "away_win") return s.away > s.home;
+  return s.home === s.away;
+}
+
+function pickScoreFromTopScores(
+  topScores: ScoreCandidate[],
+  outcome: Outcome,
+  style: TipStyle,
+): string {
+  // Filter candidates matching our outcome
+  const matching = topScores.filter((s) => matchesOutcome(s, outcome));
+  if (!matching.length) return SCORE_FALLBACK[outcome][style];
+
+  if (style === "safe") {
+    // Pick most probable matching score
+    return `${matching[0].home}:${matching[0].away}`;
+  }
+  if (style === "risky") {
+    // Pick a less obvious but still plausible score (2nd or 3rd choice)
+    const pick = matching[Math.min(matching.length - 1, 2)];
+    return `${pick.home}:${pick.away}`;
+  }
+  // balanced: pick the top matching score
+  return `${matching[0].home}:${matching[0].away}`;
+}
 
 function pickWinner(outcome: Outcome): WinnerPick {
   if (outcome === "home_win") return "1";
@@ -144,7 +179,9 @@ export function buildTipFromPrediction(
   const probs = input.probabilities;
   const outcome = pickOutcome(probs, style);
   const winnerPick = pickWinner(outcome);
-  const scoreTip = SCORE_MAP[outcome][style];
+  const scoreTip = input.topScores?.length
+    ? pickScoreFromTopScores(input.topScores, outcome, style)
+    : SCORE_FALLBACK[outcome][style];
   const pickProbability = outcomeProbability(probs, outcome);
   const reasoning = buildReasoning(probs, outcome, style, homeTeam, awayTeam);
 

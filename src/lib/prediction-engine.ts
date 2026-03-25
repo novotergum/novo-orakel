@@ -78,6 +78,16 @@ function bestScore(g: number[][]) {
   return { home: best.h, away: best.a, prob: best.p };
 }
 
+function topScores(g: number[][], n = 5) {
+  const all: { home: number; away: number; prob: number }[] = [];
+  for (let h = 0; h < g.length; h++) {
+    for (let a = 0; a < g[h].length; a++) {
+      all.push({ home: h, away: a, prob: g[h][a] });
+    }
+  }
+  return all.sort((a, b) => b.prob - a.prob).slice(0, n);
+}
+
 export function predictMatch(home: TeamStats, away: TeamStats) {
   const rel = relativeStrength(home, away);
   const { homeXg, awayXg } = expectedGoals(rel);
@@ -98,10 +108,13 @@ export function predictMatch(home: TeamStats, away: TeamStats) {
 
   const reasoning = `RelStrength=${rel.toFixed(3)}, xG(H/A)=${homeXg.toFixed(2)}/${awayXg.toFixed(2)}, top=${top.home}:${top.away} p=${top.prob.toFixed(2)}, probs(H/D/A)=${probs.home_win.toFixed(2)}/${probs.draw.toFixed(2)}/${probs.away_win.toFixed(2)}`;
 
+  const topN = topScores(g, 5);
+
   return {
     prediction: `${top.home}:${top.away}`,
     probabilities: probs,
     confidence: Number(confidence.toFixed(2)),
     reasoning,
+    topScores: topN,
   } as const;
 }
