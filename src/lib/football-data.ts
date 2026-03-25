@@ -1,4 +1,7 @@
 const BASE_URL = "https://api.football-data.org/v4";
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 Minuten (Matches aendern sich oefter als Team-Historie)
+
+const matchesCache = new Map<string, { data: NormalizedMatch[]; ts: number }>();
 
 export type Team = {
   id: number;
@@ -42,6 +45,13 @@ export async function getMatches(params?: {
   dateTo?: string;
   status?: string;
 }): Promise<NormalizedMatch[]> {
+  // Cache key from params
+  const cacheKey = JSON.stringify(params ?? {});
+  const cached = matchesCache.get(cacheKey);
+  if (cached && Date.now() - cached.ts < CACHE_TTL_MS) {
+    return cached.data;
+  }
+
   const token = process.env.FOOTBALL_DATA_API_KEY;
   if (!token) {
     throw new Error("FOOTBALL_DATA_API_KEY is not set");
@@ -90,6 +100,16 @@ export async function getMatches(params?: {
       away: m.score?.fullTime?.away ?? null,
     },
   }));
+
+  // Store in cache
+  matchesCache.set(cacheKey, { data: mapped, ts: Date.now() });
+
+  // Evict old entries (max 20 cache keys)
+  if (matchesCache.size > 20) {
+    const oldest = [...matchesCache.entries()]
+      .sort((a, b) => a[1].ts - b[1].ts)[0];
+    if (oldest) matchesCache.delete(oldest[0]);
+  }
 
   return mapped;
 }

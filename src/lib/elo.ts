@@ -8,6 +8,13 @@ import type { TeamStats } from "./types";
 const BASE_URL = "https://api.football-data.org/v4";
 const START_ELO = 1500;
 const K = 32;
+const CACHE_TTL_MS = 60 * 60 * 1000; // 1 Stunde
+
+// ---------------------------------------------------------------------------
+// In-memory cache for team matches (avoids hitting API rate limit)
+// ---------------------------------------------------------------------------
+
+const teamMatchesCache = new Map<number, { data: FDTeamMatch[]; ts: number }>();
 
 // ---------------------------------------------------------------------------
 // Types
@@ -40,6 +47,12 @@ export async function getTeamRecentMatches(
   teamId: number,
   limit = 10,
 ): Promise<FDTeamMatch[]> {
+  // Check in-memory cache first
+  const cached = teamMatchesCache.get(teamId);
+  if (cached && Date.now() - cached.ts < CACHE_TTL_MS) {
+    return cached.data;
+  }
+
   const token = process.env.FOOTBALL_DATA_API_KEY;
   if (!token) throw new Error("FOOTBALL_DATA_API_KEY is not set");
 
@@ -59,6 +72,17 @@ export async function getTeamRecentMatches(
   }
 
   const data: TeamMatchesResponse = await res.json();
+
+  // Store in cache
+  teamMatchesCache.set(teamId, { data: data.matches, ts: Date.now() });
+
+  // Evict old entries if cache grows too large (max 100 teams)
+  if (teamMatchesCache.size > 100) {
+    const oldest = [...teamMatchesCache.entries()]
+      .sort((a, b) => a[1].ts - b[1].ts)[0];
+    if (oldest) teamMatchesCache.delete(oldest[0]);
+  }
+
   return data.matches;
 }
 
