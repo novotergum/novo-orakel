@@ -39,8 +39,8 @@ export async function POST(req: NextRequest) {
     ]);
 
     // Build Elo + stats
-    const homeElo = buildTeamElo(homeMatches, body.match.homeTeamId);
-    const awayElo = buildTeamElo(awayMatches, body.match.awayTeamId);
+    const homeElo = buildTeamElo(homeMatches, body.match.homeTeamId, body.match.homeTeam);
+    const awayElo = buildTeamElo(awayMatches, body.match.awayTeamId, body.match.awayTeam);
 
     // Predict
     const prediction = predictFromElo(

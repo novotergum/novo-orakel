@@ -119,8 +119,8 @@ async function tipMatch(
     getTeamRecentMatches(match.awayTeam.id),
   ]);
 
-  const homeElo = buildTeamElo(homeMatches, match.homeTeam.id);
-  const awayElo = buildTeamElo(awayMatches, match.awayTeam.id);
+  const homeElo = buildTeamElo(homeMatches, match.homeTeam.id, match.homeTeam.name);
+  const awayElo = buildTeamElo(awayMatches, match.awayTeam.id, match.awayTeam.name);
 
   const prediction = predictFromElo(
     { ...homeElo.stats, name: match.homeTeam.name },

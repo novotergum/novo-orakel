@@ -67,8 +67,8 @@ export async function POST(req: NextRequest) {
       getTeamRecentMatches(awayTeamId),
     ]);
 
-    const homeElo = buildTeamElo(homeMatches, homeTeamId);
-    const awayElo = buildTeamElo(awayMatches, awayTeamId);
+    const homeElo = buildTeamElo(homeMatches, homeTeamId, homeTeam);
+    const awayElo = buildTeamElo(awayMatches, awayTeamId, awayTeam);
 
     const prediction = predictFromElo(
       { ...homeElo.stats, name: homeTeam },

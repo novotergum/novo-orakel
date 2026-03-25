@@ -28,8 +28,8 @@ async function tipSingleMatch(match: MatchInput, style: TipStyle) {
   ]);
 
   // Build Elo + stats
-  const homeElo = buildTeamElo(homeMatches, match.homeTeamId);
-  const awayElo = buildTeamElo(awayMatches, match.awayTeamId);
+  const homeElo = buildTeamElo(homeMatches, match.homeTeamId, match.homeTeam);
+  const awayElo = buildTeamElo(awayMatches, match.awayTeamId, match.awayTeam);
 
   // Predict
   const prediction = predictFromElo(
