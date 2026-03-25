@@ -22,14 +22,15 @@ function relativeStrength(home: TeamStats, away: TeamStats) {
 }
 
 function expectedGoals(rel: number) {
-  // Map relative strength to expected goals around a ~2.4 total goals baseline
-  const total = 2.4;
-  const homeShare = 1 / (1 + Math.exp(-2.2 * rel)); // 0..1
+  // Map relative strength to expected goals around a ~2.7 total goals baseline
+  // (WC average is ~2.5-2.7 goals/game, higher baseline gives more varied scores)
+  const total = 2.7;
+  const homeShare = 1 / (1 + Math.exp(-2.5 * rel)); // steeper curve for more spread
   const homeXg = Math.min(
-    Math.max(total * (0.35 + (0.3 * (homeShare - 0.5)) / 0.5), 0.2),
+    Math.max(total * (0.30 + (0.40 * (homeShare - 0.5)) / 0.5), 0.3),
     3.5,
   );
-  const awayXg = Math.min(Math.max(total - homeXg, 0.1), 3.0);
+  const awayXg = Math.min(Math.max(total - homeXg, 0.2), 3.0);
   return { homeXg, awayXg };
 }
 
@@ -108,7 +109,7 @@ export function predictMatch(home: TeamStats, away: TeamStats) {
 
   const reasoning = `RelStrength=${rel.toFixed(3)}, xG(H/A)=${homeXg.toFixed(2)}/${awayXg.toFixed(2)}, top=${top.home}:${top.away} p=${top.prob.toFixed(2)}, probs(H/D/A)=${probs.home_win.toFixed(2)}/${probs.draw.toFixed(2)}/${probs.away_win.toFixed(2)}`;
 
-  const topN = topScores(g, 5);
+  const topN = topScores(g, 10);
 
   return {
     prediction: `${top.home}:${top.away}`,
