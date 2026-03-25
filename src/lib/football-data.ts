@@ -134,20 +134,20 @@ function teamId(name: string): number {
 // ---------------------------------------------------------------------------
 
 function parseKickoff(date: string, time?: string): string {
-  if (!time) return new Date(`${date}T00:00:00Z`).toISOString();
+  if (!time) return new Date(`${date}T12:00:00Z`).toISOString();
 
-  // time format: "13:00 UTC-6" or "20:00 UTC-6"
-  const match = time.match(/^(\d{1,2}):(\d{2})\s*UTC([+-]\d+)?$/);
-  if (!match) return new Date(`${date}T00:00:00Z`).toISOString();
+  // time format: "13:00 UTC-6" or "20:00 UTC-4"
+  const m = time.match(/^(\d{1,2}):(\d{2})\s*UTC([+-]\d+)?$/);
+  if (!m) return new Date(`${date}T12:00:00Z`).toISOString();
 
-  const hours = parseInt(match[1]);
-  const minutes = match[2];
-  const offset = match[3] ? parseInt(match[3]) : 0;
+  const hours = parseInt(m[1]);
+  const minutes = parseInt(m[2]);
+  const offset = m[3] ? parseInt(m[3]) : 0;
 
-  // Convert to UTC
-  const utcHours = hours - offset;
-  const h = String(utcHours).padStart(2, "0");
-  return new Date(`${date}T${h}:${minutes}:00Z`).toISOString();
+  // Convert local time to UTC: local = UTC + offset, so UTC = local - offset
+  const d = new Date(`${date}T00:00:00Z`);
+  d.setUTCHours(hours - offset, minutes, 0, 0);
+  return d.toISOString();
 }
 
 // ---------------------------------------------------------------------------
