@@ -1,11 +1,8 @@
 /**
- * Match data layer.
+ * Match data layer — powered by WC2026 API (api.wc2026api.com)
  *
- * Primary source (fixtures/schedule):  openfootball/worldcup.json on GitHub
- *   - No API key, no rate limit, complete WC 2026 data
- *
- * Secondary source (live results):     football-data.org v4
- *   - Used only for FINISHED match scores (resolve-all)
+ * Single source for all match data: fixtures, live scores, results.
+ * No rate-limit issues, stable IDs, dedicated WC 2026 API.
  */
 
 // ---------------------------------------------------------------------------
@@ -30,318 +27,196 @@ export type NormalizedMatch = {
 };
 
 // ---------------------------------------------------------------------------
-// openfootball types
+// WC2026 API types
 // ---------------------------------------------------------------------------
 
-interface OFMatch {
+interface WCMatch {
+  id: number;
+  match_number: number;
   round: string;
-  date: string;
-  time?: string;
-  team1: string;
-  team2: string;
-  group?: string;
-  ground?: string;
-  score?: { ft: [number, number] };
-}
-
-interface OFData {
-  name: string;
-  matches: OFMatch[];
-}
-
-interface OFTeamMeta {
-  name: string;
-  fifa_code: string | null;
-  flag_icon: string | null;
-  group: string | null;
+  group_name: string | null;
+  home_team_id: number;
+  home_team: string;
+  home_team_code: string;
+  home_team_flag: string | null;
+  away_team_id: number;
+  away_team: string;
+  away_team_code: string;
+  away_team_flag: string | null;
+  stadium_id: number;
+  stadium: string;
+  stadium_city: string;
+  stadium_country: string;
+  kickoff_utc: string;
+  home_score: number | null;
+  away_score: number | null;
+  status: string; // "scheduled", "live", "completed"
 }
 
 // ---------------------------------------------------------------------------
 // Cache
 // ---------------------------------------------------------------------------
 
-const CACHE_TTL_MS = 10 * 60 * 1000; // 10 min (GitHub raw doesn't change often)
-const FD_CACHE_TTL_MS = 5 * 60 * 1000; // 5 min for football-data.org
-
-let ofCache: { data: OFData; teams: OFTeamMeta[]; ts: number } | null = null;
-const fdCache = new Map<string, { data: NormalizedMatch[]; ts: number }>();
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 min
+const cache = new Map<string, { data: NormalizedMatch[]; ts: number }>();
 
 // ---------------------------------------------------------------------------
-// openfootball: fetch & parse
-// ---------------------------------------------------------------------------
-
-const OF_BASE = "https://raw.githubusercontent.com/openfootball/worldcup.json/master/2026";
-
-async function fetchOpenFootball(): Promise<{ data: OFData; teams: OFTeamMeta[] }> {
-  if (ofCache && Date.now() - ofCache.ts < CACHE_TTL_MS) {
-    return { data: ofCache.data, teams: ofCache.teams };
-  }
-
-  const [matchesRes, teamsRes] = await Promise.all([
-    fetch(`${OF_BASE}/worldcup.json`, { cache: "no-store" }),
-    fetch(`${OF_BASE}/worldcup.teams_meta.json`, { cache: "no-store" }),
-  ]);
-
-  if (!matchesRes.ok) throw new Error(`openfootball matches fetch failed: ${matchesRes.status}`);
-  if (!teamsRes.ok) throw new Error(`openfootball teams fetch failed: ${teamsRes.status}`);
-
-  const data: OFData = await matchesRes.json();
-  const teams: OFTeamMeta[] = await teamsRes.json();
-
-  ofCache = { data, teams, ts: Date.now() };
-  return { data, teams };
-}
-
-// ---------------------------------------------------------------------------
-// Map openfootball round names to our stage constants
+// Map WC2026 API round to our stage constants
 // ---------------------------------------------------------------------------
 
 function mapStage(round: string): string | null {
-  const r = round.toLowerCase();
-  if (r.startsWith("matchday")) return "GROUP_STAGE";
-  if (r.includes("round of 32")) return "ROUND_OF_32";
-  if (r.includes("round of 16")) return "LAST_16";
-  if (r.includes("quarter")) return "QUARTER_FINALS";
-  if (r.includes("semi")) return "SEMI_FINALS";
-  if (r.includes("third")) return "THIRD_PLACE";
-  if (r === "final") return "FINAL";
-  return null;
-}
-
-// ---------------------------------------------------------------------------
-// Stable numeric ID from team names (deterministic hash)
-// ---------------------------------------------------------------------------
-
-function stableId(team1: string, team2: string, date: string): number {
-  const str = `${date}:${team1}:${team2}`;
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    hash = ((hash << 5) - hash + str.charCodeAt(i)) | 0;
+  switch (round) {
+    case "group": return "GROUP_STAGE";
+    case "R32": return "ROUND_OF_32";
+    case "R16": return "LAST_16";
+    case "QF": return "QUARTER_FINALS";
+    case "SF": return "SEMI_FINALS";
+    case "3rd": return "THIRD_PLACE";
+    case "final": return "FINAL";
+    default: return null;
   }
-  return Math.abs(hash);
 }
 
-function teamId(name: string): number {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = ((hash << 5) - hash + name.charCodeAt(i)) | 0;
+// Map WC2026 API status to our status constants
+function mapStatus(status: string): string {
+  switch (status) {
+    case "completed": return "FINISHED";
+    case "live": return "IN_PLAY";
+    case "scheduled": return "SCHEDULED";
+    default: return "SCHEDULED";
   }
-  return Math.abs(hash);
+}
+
+// Map our status filter to WC2026 API status
+function mapStatusFilter(status: string): string | null {
+  switch (status.toUpperCase()) {
+    case "FINISHED": return "completed";
+    case "IN_PLAY": return "live";
+    case "SCHEDULED":
+    case "TIMED": return "scheduled";
+    default: return null;
+  }
 }
 
 // ---------------------------------------------------------------------------
-// Parse kickoff time from openfootball date + time
+// Main: getMatches
 // ---------------------------------------------------------------------------
 
-function parseKickoff(date: string, time?: string): string {
-  if (!time) return new Date(`${date}T12:00:00Z`).toISOString();
-
-  // time format: "13:00 UTC-6" or "20:00 UTC-4"
-  const m = time.match(/^(\d{1,2}):(\d{2})\s*UTC([+-]\d+)?$/);
-  if (!m) return new Date(`${date}T12:00:00Z`).toISOString();
-
-  const hours = parseInt(m[1]);
-  const minutes = parseInt(m[2]);
-  const offset = m[3] ? parseInt(m[3]) : 0;
-
-  // Convert local time to UTC: local = UTC + offset, so UTC = local - offset
-  const d = new Date(`${date}T00:00:00Z`);
-  d.setUTCHours(hours - offset, minutes, 0, 0);
-  return d.toISOString();
-}
-
-// ---------------------------------------------------------------------------
-// Determine match status from kickoff + score
-// ---------------------------------------------------------------------------
-
-function matchStatus(kickoff: string, score?: { ft: [number, number] }): string {
-  if (score) return "FINISHED";
-  const now = Date.now();
-  const kick = new Date(kickoff).getTime();
-  if (now >= kick + 120 * 60 * 1000) return "FINISHED"; // 2h after kickoff
-  if (now >= kick) return "IN_PLAY";
-  return "SCHEDULED";
-}
-
-// ---------------------------------------------------------------------------
-// Main: getMatches (drop-in replacement)
-// ---------------------------------------------------------------------------
+const API_BASE = "https://api.wc2026api.com";
 
 export async function getMatches(params?: {
   dateFrom?: string;
   dateTo?: string;
   status?: string;
 }): Promise<NormalizedMatch[]> {
-  const statusFilter = params?.status?.split(",").map((s) => s.trim()) ?? [];
-  const needsFinished = statusFilter.includes("FINISHED");
-
-  // For FINISHED matches: use football-data.org (live scores)
-  if (needsFinished && statusFilter.length === 1) {
-    return getMatchesFromFootballData(params);
+  const cacheKey = JSON.stringify(params ?? {});
+  const cached = cache.get(cacheKey);
+  if (cached && Date.now() - cached.ts < CACHE_TTL_MS) {
+    return cached.data;
   }
 
-  // For schedule/upcoming: use openfootball
-  const { data, teams } = await fetchOpenFootball();
-
-  const teamCodeMap = new Map<string, string>();
-  for (const t of teams) {
-    if (t.fifa_code) teamCodeMap.set(t.name, t.fifa_code);
+  const token = process.env.WC2026_API_KEY;
+  if (!token) {
+    throw new Error("WC2026_API_KEY is not set");
   }
 
-  const mapped: NormalizedMatch[] = data.matches.map((m) => {
-    const kickoff = parseKickoff(m.date, m.time);
-    const status = matchStatus(kickoff, m.score);
-    const id = stableId(m.team1, m.team2, m.date);
+  // Determine API status filter
+  const statusFilters = params?.status?.split(",").map((s) => s.trim()) ?? [];
+  const apiStatuses = statusFilters
+    .map(mapStatusFilter)
+    .filter((s): s is string => s !== null);
 
-    return {
-      id,
-      kickoff,
-      status,
-      stage: mapStage(m.round),
-      group: m.group ?? null,
-      homeTeam: {
-        id: teamId(m.team1),
-        name: m.team1,
-        code: teamCodeMap.get(m.team1) ?? null,
-      },
-      awayTeam: {
-        id: teamId(m.team2),
-        name: m.team2,
-        code: teamCodeMap.get(m.team2) ?? null,
-      },
-      score: {
-        home: m.score?.ft?.[0] ?? null,
-        away: m.score?.ft?.[1] ?? null,
-      },
-    };
-  });
+  // Fetch matches (possibly multiple calls for different statuses, or one call without filter)
+  let allApiMatches: WCMatch[] = [];
 
-  // Apply filters
+  if (apiStatuses.length === 0 || apiStatuses.length > 2) {
+    // Fetch all
+    const res = await fetchWC(token, "/matches");
+    allApiMatches = res;
+  } else {
+    // Fetch per status to use API filtering
+    for (const st of [...new Set(apiStatuses)]) {
+      const res = await fetchWC(token, `/matches?status=${st}`);
+      allApiMatches.push(...res);
+    }
+  }
+
+  // Normalize
+  const mapped: NormalizedMatch[] = allApiMatches.map((m) => ({
+    id: m.id,
+    kickoff: m.kickoff_utc,
+    status: mapStatus(m.status),
+    stage: mapStage(m.round),
+    group: m.group_name ? `Group ${m.group_name}` : null,
+    homeTeam: {
+      id: m.home_team_id,
+      name: m.home_team,
+      code: m.home_team_code || null,
+    },
+    awayTeam: {
+      id: m.away_team_id,
+      name: m.away_team,
+      code: m.away_team_code || null,
+    },
+    score: {
+      home: m.home_score,
+      away: m.away_score,
+    },
+  }));
+
+  // Apply date filters client-side
   let filtered = mapped;
-
-  if (statusFilter.length > 0) {
-    filtered = filtered.filter((m) => {
-      // TIMED and SCHEDULED are both "upcoming"
-      if (statusFilter.includes("TIMED") || statusFilter.includes("SCHEDULED")) {
-        if (m.status === "SCHEDULED" || m.status === "TIMED") return true;
-      }
-      return statusFilter.includes(m.status);
-    });
-  }
 
   if (params?.dateFrom) {
     const from = new Date(params.dateFrom).getTime();
     filtered = filtered.filter((m) => new Date(m.kickoff).getTime() >= from);
   }
-
   if (params?.dateTo) {
     const to = new Date(params.dateTo).getTime();
     filtered = filtered.filter((m) => new Date(m.kickoff).getTime() <= to);
   }
 
+  // Apply status filter client-side (for mixed filters like "SCHEDULED,TIMED")
+  if (statusFilters.length > 0) {
+    filtered = filtered.filter((m) => {
+      if (statusFilters.includes("TIMED") || statusFilters.includes("SCHEDULED")) {
+        if (m.status === "SCHEDULED" || m.status === "TIMED") return true;
+      }
+      return statusFilters.includes(m.status);
+    });
+  }
+
   // Sort by kickoff
   filtered.sort((a, b) => new Date(a.kickoff).getTime() - new Date(b.kickoff).getTime());
+
+  // Cache
+  cache.set(cacheKey, { data: filtered, ts: Date.now() });
+  if (cache.size > 20) {
+    const oldest = [...cache.entries()].sort((a, b) => a[1].ts - b[1].ts)[0];
+    if (oldest) cache.delete(oldest[0]);
+  }
 
   return filtered;
 }
 
 // ---------------------------------------------------------------------------
-// football-data.org: only for FINISHED matches (live scores)
+// HTTP helper
 // ---------------------------------------------------------------------------
 
-const FD_BASE_URL = "https://api.football-data.org/v4";
-
-async function getMatchesFromFootballData(params?: {
-  dateFrom?: string;
-  dateTo?: string;
-  status?: string;
-}): Promise<NormalizedMatch[]> {
-  const cacheKey = JSON.stringify(params ?? {});
-  const cached = fdCache.get(cacheKey);
-  if (cached && Date.now() - cached.ts < FD_CACHE_TTL_MS) {
-    return cached.data;
-  }
-
-  const token = process.env.FOOTBALL_DATA_API_KEY;
-  if (!token) {
-    // Fallback: return openfootball data with scores (if manually updated)
-    return getMatchesFromOpenFootball(params);
-  }
-
-  const competition = process.env.FOOTBALL_DATA_COMPETITION_CODE || "WC";
-  const url = new URL(`${FD_BASE_URL}/competitions/${competition}/matches`);
-
-  if (params?.dateFrom) url.searchParams.set("dateFrom", params.dateFrom);
-  if (params?.dateTo) url.searchParams.set("dateTo", params.dateTo);
-  if (params?.status) url.searchParams.set("status", params.status);
-
-  const res = await fetch(url.toString(), {
-    headers: { "X-Auth-Token": token },
+async function fetchWC(token: string, path: string): Promise<WCMatch[]> {
+  const res = await fetch(`${API_BASE}${path}`, {
+    headers: { Authorization: `Bearer ${token}` },
     cache: "no-store",
   });
 
   if (!res.ok) {
-    if (res.status === 429) {
-      // Rate limited: fall back to openfootball
-      return getMatchesFromOpenFootball(params);
-    }
-    const msg = `football-data Fehler: ${res.status} ${res.statusText}`;
+    const msg = res.status === 429
+      ? "Zu viele Anfragen – bitte warte einen Moment und versuche es erneut."
+      : `WC2026 API Fehler: ${res.status} ${res.statusText}`;
     throw new Error(msg);
   }
 
-  type FDMatch = {
-    id: number;
-    utcDate: string;
-    status: string;
-    stage?: string | null;
-    group?: string | null;
-    homeTeam: { id: number; name: string; tla?: string | null };
-    awayTeam: { id: number; name: string; tla?: string | null };
-    score: { fullTime: { home?: number | null; away?: number | null } };
-  };
-
-  const data: { matches: FDMatch[] } = await res.json();
-
-  const mapped: NormalizedMatch[] = data.matches.map((m) => ({
-    id: m.id,
-    kickoff: m.utcDate,
-    status: m.status,
-    stage: m.stage ?? null,
-    group: m.group ?? null,
-    homeTeam: {
-      id: m.homeTeam.id,
-      name: m.homeTeam.name,
-      code: m.homeTeam.tla ?? null,
-    },
-    awayTeam: {
-      id: m.awayTeam.id,
-      name: m.awayTeam.name,
-      code: m.awayTeam.tla ?? null,
-    },
-    score: {
-      home: m.score?.fullTime?.home ?? null,
-      away: m.score?.fullTime?.away ?? null,
-    },
-  }));
-
-  fdCache.set(cacheKey, { data: mapped, ts: Date.now() });
-
-  if (fdCache.size > 20) {
-    const oldest = [...fdCache.entries()].sort((a, b) => a[1].ts - b[1].ts)[0];
-    if (oldest) fdCache.delete(oldest[0]);
-  }
-
-  return mapped;
-}
-
-// Fallback: openfootball for finished matches (when football-data.org is unavailable)
-async function getMatchesFromOpenFootball(params?: {
-  status?: string;
-}): Promise<NormalizedMatch[]> {
-  const all = await getMatches({ ...params, status: undefined });
-  const statusFilter = params?.status?.split(",").map((s) => s.trim()) ?? [];
-  if (statusFilter.length === 0) return all;
-  return all.filter((m) => statusFilter.includes(m.status));
+  return res.json();
 }
 
 export const FootballData = { getMatches };
