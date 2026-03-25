@@ -99,23 +99,32 @@ function groupMatchesByStage(matches: Match[]): StageGroup[] {
     });
 }
 
-const FIFA_FLAGS: Record<string, string> = {
-  MEX: "🇲🇽", RSA: "🇿🇦", KOR: "🇰🇷", CAN: "🇨🇦",
-  QAT: "🇶🇦", SUI: "🇨🇭", BRA: "🇧🇷", HAI: "🇭🇹",
-  MAR: "🇲🇦", SCO: "🏴󠁧󠁢󠁳󠁣󠁴󠁿", USA: "🇺🇸", PAR: "🇵🇾",
-  AUS: "🇦🇺", GER: "🇩🇪", CUW: "🇨🇼", NED: "🇳🇱",
-  JPN: "🇯🇵", CIV: "🇨🇮", TUN: "🇹🇳", ESP: "🇪🇸",
-  CPV: "🇨🇻", BEL: "🇧🇪", EGY: "🇪🇬", KSA: "🇸🇦",
-  URU: "🇺🇾", IRN: "🇮🇷", NZL: "🇳🇿", FRA: "🇫🇷",
-  SEN: "🇸🇳", NOR: "🇳🇴", ARG: "🇦🇷", ALG: "🇩🇿",
-  AUT: "🇦🇹", JOR: "🇯🇴", POR: "🇵🇹", UZB: "🇺🇿",
-  COL: "🇨🇴", ENG: "🏴󠁧󠁢󠁥󠁮󠁧󠁿", CRO: "🇭🇷", GHA: "🇬🇭",
-  PAN: "🇵🇦", IDN: "🇮🇩", BHR: "🇧🇭",
+// FIFA code → ISO 3166-1 alpha-2 (for flag CDN)
+const FIFA_TO_ISO: Record<string, string> = {
+  MEX: "mx", RSA: "za", KOR: "kr", CAN: "ca", QAT: "qa", SUI: "ch",
+  BRA: "br", HAI: "ht", MAR: "ma", SCO: "gb-sct", USA: "us", PAR: "py",
+  AUS: "au", GER: "de", CUW: "cw", NED: "nl", JPN: "jp", CIV: "ci",
+  TUN: "tn", ESP: "es", CPV: "cv", BEL: "be", EGY: "eg", KSA: "sa",
+  URU: "uy", IRN: "ir", NZL: "nz", FRA: "fr", SEN: "sn", NOR: "no",
+  ARG: "ar", ALG: "dz", AUT: "at", JOR: "jo", POR: "pt", UZB: "uz",
+  COL: "co", ENG: "gb-eng", CRO: "hr", GHA: "gh", PAN: "pa",
+  IDN: "id", BHR: "bh",
 };
 
-function getFlagEmoji(code: string | null): string {
-  if (!code) return "";
-  return FIFA_FLAGS[code] ?? "";
+function FlagImg({ code }: { code: string | null }) {
+  if (!code) return null;
+  const iso = FIFA_TO_ISO[code];
+  if (!iso) return null;
+  return (
+    <img
+      src={`https://flagcdn.com/20x15/${iso}.png`}
+      srcSet={`https://flagcdn.com/40x30/${iso}.png 2x`}
+      width={20}
+      height={15}
+      alt={code}
+      style={{ verticalAlign: "middle", marginRight: 4, borderRadius: 2 }}
+    />
+  );
 }
 
 const PICKS = ["1", "X", "2"] as const;
@@ -453,9 +462,9 @@ export default function TipForm() {
           {/* Teams + date */}
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontWeight: 600, fontSize: 13, color: "#3A3A3A", lineHeight: 1.4 }}>
-              {getFlagEmoji(m.homeTeam.code)}{getFlagEmoji(m.homeTeam.code) ? " " : ""}{m.homeTeam.code ?? m.homeTeam.name}
+              <FlagImg code={m.homeTeam.code} />{m.homeTeam.code ?? m.homeTeam.name}
               <span style={{ color: "#7A7A7A", margin: "0 4px" }}>vs</span>
-              {getFlagEmoji(m.awayTeam.code)}{getFlagEmoji(m.awayTeam.code) ? " " : ""}{m.awayTeam.code ?? m.awayTeam.name}
+              <FlagImg code={m.awayTeam.code} />{m.awayTeam.code ?? m.awayTeam.name}
             </div>
             <div style={{ fontSize: 11, color: "#7A7A7A", marginTop: 1 }}>
               {fmtDate(m.kickoff)}
