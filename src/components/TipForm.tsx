@@ -100,18 +100,17 @@ function groupMatchesByStage(matches: Match[]): StageGroup[] {
 }
 
 const FIFA_FLAGS: Record<string, string> = {
-  MEX: "\u{1F1F2}\u{1F1FD}", RSA: "\u{1F1FF}\u{1F1E6}", KOR: "\u{1F1F0}\u{1F1F7}", CAN: "\u{1F1E8}\u{1F1E6}",
-  QAT: "\u{1F1F6}\u{1F1E6}", SUI: "\u{1F1E8}\u{1F1ED}", BRA: "\u{1F1E7}\u{1F1F7}", HAI: "\u{1F1ED}\u{1F1F9}",
-  MAR: "\u{1F1F2}\u{1F1E6}", SCO: "\u{1F3F4}\u{E0067}\u{E0062}\u{E0073}\u{E0063}\u{E0074}\u{E007F}",
-  USA: "\u{1F1FA}\u{1F1F8}", PAR: "\u{1F1F5}\u{1F1FE}", AUS: "\u{1F1E6}\u{1F1FA}", GER: "\u{1F1E9}\u{1F1EA}",
-  CUW: "\u{1F1E8}\u{1F1FC}", NED: "\u{1F1F3}\u{1F1F1}", JPN: "\u{1F1EF}\u{1F1F5}", CIV: "\u{1F1E8}\u{1F1EE}",
-  TUN: "\u{1F1F9}\u{1F1F3}", ESP: "\u{1F1EA}\u{1F1F8}", CPV: "\u{1F1E8}\u{1F1FB}", BEL: "\u{1F1E7}\u{1F1EA}",
-  EGY: "\u{1F1EA}\u{1F1EC}", KSA: "\u{1F1F8}\u{1F1E6}", URU: "\u{1F1FA}\u{1F1FE}", IRN: "\u{1F1EE}\u{1F1F7}",
-  NZL: "\u{1F1F3}\u{1F1FF}", FRA: "\u{1F1EB}\u{1F1F7}", SEN: "\u{1F1F8}\u{1F1F3}", NOR: "\u{1F1F3}\u{1F1F4}",
-  ARG: "\u{1F1E6}\u{1F1F7}", ALG: "\u{1F1E9}\u{1F1FF}", AUT: "\u{1F1E6}\u{1F1F9}", JOR: "\u{1F1EF}\u{1F1F4}",
-  POR: "\u{1F1F5}\u{1F1F9}", UZB: "\u{1F1FA}\u{1F1FF}", COL: "\u{1F1E8}\u{1F1F4}",
-  ENG: "\u{1F3F4}\u{E0067}\u{E0062}\u{E0065}\u{E006E}\u{E0067}\u{E007F}",
-  CRO: "\u{1F1ED}\u{1F1F7}", GHA: "\u{1F1EC}\u{1F1ED}", PAN: "\u{1F1F5}\u{1F1E6}",
+  MEX: "🇲🇽", RSA: "🇿🇦", KOR: "🇰🇷", CAN: "🇨🇦",
+  QAT: "🇶🇦", SUI: "🇨🇭", BRA: "🇧🇷", HAI: "🇭🇹",
+  MAR: "🇲🇦", SCO: "🏴󠁧󠁢󠁳󠁣󠁴󠁿", USA: "🇺🇸", PAR: "🇵🇾",
+  AUS: "🇦🇺", GER: "🇩🇪", CUW: "🇨🇼", NED: "🇳🇱",
+  JPN: "🇯🇵", CIV: "🇨🇮", TUN: "🇹🇳", ESP: "🇪🇸",
+  CPV: "🇨🇻", BEL: "🇧🇪", EGY: "🇪🇬", KSA: "🇸🇦",
+  URU: "🇺🇾", IRN: "🇮🇷", NZL: "🇳🇿", FRA: "🇫🇷",
+  SEN: "🇸🇳", NOR: "🇳🇴", ARG: "🇦🇷", ALG: "🇩🇿",
+  AUT: "🇦🇹", JOR: "🇯🇴", POR: "🇵🇹", UZB: "🇺🇿",
+  COL: "🇨🇴", ENG: "🏴󠁧󠁢󠁥󠁮󠁧󠁿", CRO: "🇭🇷", GHA: "🇬🇭",
+  PAN: "🇵🇦", IDN: "🇮🇩", BHR: "🇧🇭",
 };
 
 function getFlagEmoji(code: string | null): string {
