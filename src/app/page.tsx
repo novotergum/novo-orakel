@@ -278,6 +278,9 @@ export default async function Home() {
       >
         4P exakt &middot; 3P Tordifferenz &middot; 2P Tendenz &middot; 0P daneben
         <br />
+        K.O.-Bonus: Achtelfinale 1.5x &middot; Viertelfinale 2x &middot;
+        Halbfinale 2.5x &middot; Finale 3x
+        <br />
         Powered by NOVO-Orakel &middot; Prediction Engine v1
       </footer>
     </div>

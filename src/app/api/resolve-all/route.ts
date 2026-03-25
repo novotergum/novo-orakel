@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getMatches } from "../../../lib/football-data";
 import { readPredictions, writePredictions } from "../../../lib/store";
-import { parseScoreTip, scoreTip, upsetBonus } from "../../../lib/scoring";
+import { parseScoreTip, scoreTip, upsetBonus, stageMultiplier } from "../../../lib/scoring";
 
 /**
  * POST /api/resolve-all
@@ -70,14 +70,16 @@ export async function POST() {
 
         try {
           const parsed = parseScoreTip(r.scoreTip);
-          let points = scoreTip(parsed.home, parsed.away, actualHome, actualAway);
+          let basePoints = scoreTip(parsed.home, parsed.away, actualHome, actualAway);
 
           const pickProb = typeof r.pickProbability === "number" ? r.pickProbability : 1;
           const bonus = upsetBonus(r.winnerPick, actualHome, actualAway, pickProb);
           if (bonus > 0) matchUpsets++;
-          points += bonus;
 
-          r.points = points;
+          // K.O.-Multiplikator: stage aus Prediction oder aus Match-Daten
+          const stage = r.stage || m.stage;
+          const multiplier = stageMultiplier(stage);
+          r.points = Math.round((basePoints + bonus) * multiplier);
           matchResolved++;
           matchNew++;
         } catch {

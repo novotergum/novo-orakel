@@ -34,6 +34,7 @@ export interface PredictionRecord {
   scoreTip: string;
   style?: string;
   location?: string; // NOVOTERGUM-Standort
+  stage?: string; // Turnierphase (GROUP_STAGE, LAST_16, ...)
   pickProbability?: number; // Wahrscheinlichkeit des getippten Outcomes (fuer Upset-Bonus)
   createdAt: string;
   points?: number;

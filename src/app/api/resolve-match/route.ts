@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readPredictions, writePredictions } from "../../../lib/store";
-import { parseScoreTip, scoreTip, upsetBonus } from "../../../lib/scoring";
+import { parseScoreTip, scoreTip, upsetBonus, stageMultiplier } from "../../../lib/scoring";
 
 interface ResolveBody {
   matchId: number;
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
       if (r.matchId !== body.matchId) continue;
       try {
         const parsed = parseScoreTip(r.scoreTip);
-        let points = scoreTip(
+        let basePoints = scoreTip(
           parsed.home,
           parsed.away,
           body.actualHome,
@@ -47,9 +47,10 @@ export async function POST(req: NextRequest) {
           pickProb,
         );
         if (bonus > 0) upsets++;
-        points += bonus;
 
-        r.points = points;
+        // K.O.-Multiplikator anwenden
+        const multiplier = stageMultiplier(r.stage);
+        r.points = Math.round((basePoints + bonus) * multiplier);
         updated++;
       } catch {
         r.points = 0;

@@ -41,19 +41,20 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Deadline-Logik: Keine Tipps nach Anpfiff
+    // Deadline-Logik & Stage ermitteln
+    let stage: string | undefined;
     try {
       const matches = await getMatches();
       const match = matches.find((m) => m.id === body.matchId);
       if (match) {
         const kickoff = new Date(match.kickoff).getTime();
-        const now = Date.now();
-        if (now >= kickoff) {
+        if (Date.now() >= kickoff) {
           return NextResponse.json(
             { error: "Tippabgabe geschlossen" },
             { status: 400 },
           );
         }
+        if (match.stage) stage = match.stage;
       }
     } catch {
       // If match lookup fails, allow the tip (graceful degradation)
@@ -69,6 +70,7 @@ export async function POST(req: NextRequest) {
       scoreTip: body.scoreTip,
       style: body.style,
       location: body.location,
+      stage,
       createdAt: new Date().toISOString(),
     };
 

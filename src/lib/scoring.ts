@@ -5,6 +5,14 @@
  *   2P richtige Tendenz (Sieg/Unentschieden/Niederlage)
  *   0P falsch
  *   +5P Upset-Bonus (korrekte Prediction bei < 35% Wahrscheinlichkeit)
+ *
+ * K.O.-Runden-Multiplikator:
+ *   Gruppenphase:  1x
+ *   Achtelfinale:  1.5x
+ *   Viertelfinale: 2x
+ *   Halbfinale:    2.5x
+ *   Spiel um Platz 3: 2x
+ *   Finale:        3x
  */
 
 type Tendency = "1" | "X" | "2";
@@ -46,6 +54,36 @@ export function scoreTip(
  * Upset-Bonus: +5 wenn die getippte Tendenz korrekt war
  * UND die Wahrscheinlichkeit des getippten Outcomes < 0.35.
  */
+/**
+ * Multiplikator basierend auf der Turnierphase.
+ * Punkte werden gerundet (Math.round).
+ */
+export function stageMultiplier(stage: string | null | undefined): number {
+  switch (stage) {
+    case "LAST_16":
+      return 1.5;
+    case "QUARTER_FINALS":
+      return 2;
+    case "SEMI_FINALS":
+      return 2.5;
+    case "THIRD_PLACE":
+      return 2;
+    case "FINAL":
+      return 3;
+    default:
+      return 1;
+  }
+}
+
+export const STAGE_LABELS: Record<string, string> = {
+  GROUP_STAGE: "Gruppenphase",
+  LAST_16: "Achtelfinale",
+  QUARTER_FINALS: "Viertelfinale",
+  SEMI_FINALS: "Halbfinale",
+  THIRD_PLACE: "Spiel um Platz 3",
+  FINAL: "Finale",
+};
+
 export function upsetBonus(
   winnerPick: "1" | "X" | "2",
   actualHome: number,

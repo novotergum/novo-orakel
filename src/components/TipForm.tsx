@@ -6,6 +6,8 @@ interface Match {
   id: number;
   kickoff: string;
   status: string;
+  stage: string | null;
+  group: string | null;
   homeTeam: { id: number; name: string; code: string | null };
   awayTeam: { id: number; name: string; code: string | null };
 }
@@ -14,6 +16,45 @@ interface UserProfile {
   userId: string;
   userName: string;
   location: string;
+}
+
+const STAGE_LABELS: Record<string, string> = {
+  GROUP_STAGE: "Gruppenphase",
+  LAST_16: "Achtelfinale",
+  QUARTER_FINALS: "Viertelfinale",
+  SEMI_FINALS: "Halbfinale",
+  THIRD_PLACE: "Spiel um Platz 3",
+  FINAL: "Finale",
+};
+
+const STAGE_MULTIPLIERS: Record<string, string> = {
+  LAST_16: "1.5x",
+  QUARTER_FINALS: "2x",
+  SEMI_FINALS: "2.5x",
+  THIRD_PLACE: "2x",
+  FINAL: "3x",
+};
+
+const STAGE_ORDER = [
+  "GROUP_STAGE",
+  "LAST_16",
+  "QUARTER_FINALS",
+  "SEMI_FINALS",
+  "THIRD_PLACE",
+  "FINAL",
+];
+
+function groupMatchesByStage(matches: Match[]) {
+  const groups = new Map<string, Match[]>();
+  for (const m of matches) {
+    const key = m.stage || "GROUP_STAGE";
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(m);
+  }
+  // Sort by stage order
+  return STAGE_ORDER
+    .filter((s) => groups.has(s))
+    .map((s) => ({ stage: s, matches: groups.get(s)! }));
 }
 
 const PICKS = ["1", "X", "2"] as const;
@@ -369,26 +410,75 @@ export default function TipForm() {
             Keine anstehenden Spiele.
           </p>
         ) : (
-          <div style={{ maxHeight: 240, overflowY: "auto" }}>
-            {matches.map((m) => (
-              <button
-                key={m.id}
-                style={s.matchBtn(selectedMatch?.id === m.id)}
-                onClick={() => {
-                  setSelectedMatch(m);
-                  setPick("");
-                  setScore("");
-                  setResult(null);
-                }}
-              >
-                <span style={{ fontWeight: 600 }}>
-                  {m.homeTeam.name} vs {m.awayTeam.name}
-                </span>
-                <br />
-                <span style={{ fontSize: 12, color: "#888" }}>
-                  {fmtDate(m.kickoff)}
-                </span>
-              </button>
+          <div style={{ maxHeight: 320, overflowY: "auto" }}>
+            {groupMatchesByStage(matches).map(({ stage, matches: stageMatches }) => (
+              <div key={stage} style={{ marginBottom: 12 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "6px 10px",
+                    marginBottom: 4,
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: "#999",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
+                    }}
+                  >
+                    {STAGE_LABELS[stage] ?? stage}
+                    {stage !== "GROUP_STAGE" && (
+                      <span style={{ color: "#f59e0b", marginLeft: 4 }}>
+                        {STAGE_LABELS[stage] ? "" : ""}
+                      </span>
+                    )}
+                  </span>
+                  {STAGE_MULTIPLIERS[stage] && (
+                    <span
+                      style={{
+                        fontSize: 10,
+                        padding: "2px 6px",
+                        background: "#78350f",
+                        color: "#fbbf24",
+                        borderRadius: 4,
+                        fontWeight: 700,
+                      }}
+                    >
+                      {STAGE_MULTIPLIERS[stage]} Punkte
+                    </span>
+                  )}
+                </div>
+                {stageMatches.map((m) => (
+                  <button
+                    key={m.id}
+                    style={s.matchBtn(selectedMatch?.id === m.id)}
+                    onClick={() => {
+                      setSelectedMatch(m);
+                      setPick("");
+                      setScore("");
+                      setResult(null);
+                    }}
+                  >
+                    <span style={{ fontWeight: 600 }}>
+                      {m.homeTeam.name} vs {m.awayTeam.name}
+                    </span>
+                    {m.group && (
+                      <span style={{ fontSize: 11, color: "#666", marginLeft: 8 }}>
+                        {m.group.replace("GROUP_", "Gr. ")}
+                      </span>
+                    )}
+                    <br />
+                    <span style={{ fontSize: 12, color: "#888" }}>
+                      {fmtDate(m.kickoff)}
+                    </span>
+                  </button>
+                ))}
+              </div>
             ))}
           </div>
         )}
