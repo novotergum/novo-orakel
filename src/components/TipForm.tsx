@@ -388,7 +388,9 @@ export default function TipForm() {
     const isExpanded = expandedMatch === m.id;
     const orakel = orakelResults[m.id];
     const matchResult = result?.matchId === m.id ? result : null;
-    const teamsKnown = !!(m.homeTeam.id && m.awayTeam.id && m.homeTeam.name && m.awayTeam.name);
+    const isTBD = (t: { name: string; code: string | null }) =>
+      !t.name || t.code?.startsWith("PO") || /winner|path/i.test(t.name) || /^(1|2)[A-L]$/.test(t.name) || /^[WL]\d+$/.test(t.name);
+    const teamsKnown = !isTBD(m.homeTeam) && !isTBD(m.awayTeam);
 
     return (
       <div
