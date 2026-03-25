@@ -99,6 +99,26 @@ function groupMatchesByStage(matches: Match[]): StageGroup[] {
     });
 }
 
+const FIFA_FLAGS: Record<string, string> = {
+  MEX: "\u{1F1F2}\u{1F1FD}", RSA: "\u{1F1FF}\u{1F1E6}", KOR: "\u{1F1F0}\u{1F1F7}", CAN: "\u{1F1E8}\u{1F1E6}",
+  QAT: "\u{1F1F6}\u{1F1E6}", SUI: "\u{1F1E8}\u{1F1ED}", BRA: "\u{1F1E7}\u{1F1F7}", HAI: "\u{1F1ED}\u{1F1F9}",
+  MAR: "\u{1F1F2}\u{1F1E6}", SCO: "\u{1F3F4}\u{E0067}\u{E0062}\u{E0073}\u{E0063}\u{E0074}\u{E007F}",
+  USA: "\u{1F1FA}\u{1F1F8}", PAR: "\u{1F1F5}\u{1F1FE}", AUS: "\u{1F1E6}\u{1F1FA}", GER: "\u{1F1E9}\u{1F1EA}",
+  CUW: "\u{1F1E8}\u{1F1FC}", NED: "\u{1F1F3}\u{1F1F1}", JPN: "\u{1F1EF}\u{1F1F5}", CIV: "\u{1F1E8}\u{1F1EE}",
+  TUN: "\u{1F1F9}\u{1F1F3}", ESP: "\u{1F1EA}\u{1F1F8}", CPV: "\u{1F1E8}\u{1F1FB}", BEL: "\u{1F1E7}\u{1F1EA}",
+  EGY: "\u{1F1EA}\u{1F1EC}", KSA: "\u{1F1F8}\u{1F1E6}", URU: "\u{1F1FA}\u{1F1FE}", IRN: "\u{1F1EE}\u{1F1F7}",
+  NZL: "\u{1F1F3}\u{1F1FF}", FRA: "\u{1F1EB}\u{1F1F7}", SEN: "\u{1F1F8}\u{1F1F3}", NOR: "\u{1F1F3}\u{1F1F4}",
+  ARG: "\u{1F1E6}\u{1F1F7}", ALG: "\u{1F1E9}\u{1F1FF}", AUT: "\u{1F1E6}\u{1F1F9}", JOR: "\u{1F1EF}\u{1F1F4}",
+  POR: "\u{1F1F5}\u{1F1F9}", UZB: "\u{1F1FA}\u{1F1FF}", COL: "\u{1F1E8}\u{1F1F4}",
+  ENG: "\u{1F3F4}\u{E0067}\u{E0062}\u{E0065}\u{E006E}\u{E0067}\u{E007F}",
+  CRO: "\u{1F1ED}\u{1F1F7}", GHA: "\u{1F1EC}\u{1F1ED}", PAN: "\u{1F1F5}\u{1F1E6}",
+};
+
+function getFlagEmoji(code: string | null): string {
+  if (!code) return "";
+  return FIFA_FLAGS[code] ?? "";
+}
+
 const PICKS = ["1", "X", "2"] as const;
 
 const SCORE_SUGGESTIONS: Record<string, string[]> = {
@@ -120,6 +140,13 @@ export default function TipForm() {
   const [regCode, setRegCode] = useState("");
 
   const [regError, setRegError] = useState("");
+
+  // Clock for countdowns (ticks every 30s)
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(id);
+  }, []);
 
   // Match + tip state
   const [matches, setMatches] = useState<Match[]>([]);
@@ -301,6 +328,17 @@ export default function TipForm() {
     });
   };
 
+  const countdownInfo = (iso: string): { text: string; color: string } => {
+    const diff = new Date(iso).getTime() - now;
+    if (diff <= 0) return { text: "Deadline vorbei", color: "#c62828" };
+    const mins = Math.floor(diff / 60_000);
+    const hrs = Math.floor(mins / 60);
+    const days = Math.floor(hrs / 24);
+    if (days > 0) return { text: `in ${days} ${days === 1 ? "Tag" : "Tagen"}`, color: "#7A7A7A" };
+    if (hrs > 0) return { text: `in ${hrs} Std`, color: hrs < 2 ? "#E76C0A" : "#7A7A7A" };
+    return { text: `in ${mins} Min`, color: "#c62828" };
+  };
+
   const pickLabel = (p: string) => {
     if (p === "1") return "Heim";
     if (p === "2") return "Ausw.";
@@ -416,12 +454,16 @@ export default function TipForm() {
           {/* Teams + date */}
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontWeight: 600, fontSize: 13, color: "#3A3A3A", lineHeight: 1.4 }}>
-              {m.homeTeam.code ?? m.homeTeam.name}
+              {getFlagEmoji(m.homeTeam.code)}{getFlagEmoji(m.homeTeam.code) ? " " : ""}{m.homeTeam.code ?? m.homeTeam.name}
               <span style={{ color: "#7A7A7A", margin: "0 4px" }}>vs</span>
-              {m.awayTeam.code ?? m.awayTeam.name}
+              {getFlagEmoji(m.awayTeam.code)}{getFlagEmoji(m.awayTeam.code) ? " " : ""}{m.awayTeam.code ?? m.awayTeam.name}
             </div>
             <div style={{ fontSize: 11, color: "#7A7A7A", marginTop: 1 }}>
               {fmtDate(m.kickoff)}
+              {" "}
+              <span style={{ fontSize: 10, color: countdownInfo(m.kickoff).color, fontWeight: 500 }}>
+                {countdownInfo(m.kickoff).text}
+              </span>
             </div>
           </div>
 

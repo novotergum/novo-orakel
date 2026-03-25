@@ -198,7 +198,14 @@ export async function POST(req: NextRequest) {
     const { style: autoStyle, rank } = await determineAgentStyle();
     const style = styleOverride ?? autoStyle;
 
-    const matches = await getMatches({ status: "SCHEDULED,TIMED" });
+    const allMatches = await getMatches({ status: "SCHEDULED,TIMED" });
+
+    // Only tip matches whose kickoff date (UTC) is today
+    const todayUTC = new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
+    const matches = allMatches.filter(
+      (m: { kickoff?: string }) =>
+        m.kickoff && m.kickoff.slice(0, 10) === todayUTC,
+    );
 
     if (!matches.length) {
       return NextResponse.json({
