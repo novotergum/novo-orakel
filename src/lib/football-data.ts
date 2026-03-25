@@ -72,9 +72,10 @@ export async function getMatches(params?: {
   });
 
   if (!res.ok) {
-    throw new Error(
-      `football-data request failed: ${res.status} ${res.statusText}`,
-    );
+    const msg = res.status === 429
+      ? "Zu viele Anfragen – bitte warte einen Moment und versuche es erneut."
+      : `football-data Fehler: ${res.status} ${res.statusText}`;
+    throw new Error(msg);
   }
 
   const data: MatchesResponse = await res.json();
