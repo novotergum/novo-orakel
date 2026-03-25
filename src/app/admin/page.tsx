@@ -96,6 +96,37 @@ export default function AdminPage() {
     }
   }
 
+  async function flushLeaderboard() {
+    if (!confirm("Alle Tipps und Punkte loeschen? Das Leaderboard wird komplett zurueckgesetzt.")) return;
+    setActionMsg("");
+    try {
+      const res = await fetch(`/api/admin?secret=${encodeURIComponent(secret)}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "flushLeaderboard" }),
+      });
+      const data = await res.json();
+      setActionMsg(data.ok ? "Leaderboard geflusht" : (data.error ?? "Fehler"));
+      if (data.ok) loadUsers(secret);
+    } catch { setActionMsg("Netzwerkfehler"); }
+  }
+
+  async function flushAll() {
+    if (!confirm("ALLES loeschen? Alle User, Tipps, Punkte, Joker werden unwiderruflich entfernt.")) return;
+    if (!confirm("Bist du wirklich sicher?")) return;
+    setActionMsg("");
+    try {
+      const res = await fetch(`/api/admin?secret=${encodeURIComponent(secret)}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "flushAll" }),
+      });
+      const data = await res.json();
+      setActionMsg(data.ok ? data.message : (data.error ?? "Fehler"));
+      if (data.ok) loadUsers(secret);
+    } catch { setActionMsg("Netzwerkfehler"); }
+  }
+
   function logout() {
     setAuthenticated(false);
     setSecret("");
@@ -314,6 +345,22 @@ export default function AdminPage() {
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* Danger zone */}
+      <div style={{ ...s.card, borderColor: "#ef9a9a" }}>
+        <h3 style={{ margin: "0 0 12px", fontSize: 15, color: "#c62828" }}>Danger Zone</h3>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <button style={s.btn("#E5172D")} onClick={flushLeaderboard}>
+            Leaderboard flushen
+          </button>
+          <button style={s.btn("#7A7A7A")} onClick={flushAll}>
+            Alles loeschen (User + Tipps)
+          </button>
+        </div>
+        <p style={{ margin: "10px 0 0", fontSize: 12, color: "#7A7A7A" }}>
+          Leaderboard flushen entfernt alle Tipps und Punkte. User bleiben erhalten.
+        </p>
       </div>
     </div>
   );

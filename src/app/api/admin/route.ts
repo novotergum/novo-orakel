@@ -137,7 +137,10 @@ export async function PUT(req: NextRequest) {
 
 /**
  * DELETE /api/admin?secret=xxx
- * Delete a user and optionally their tips: { userId, deleteTips? }
+ * Actions:
+ *   { action: "flushLeaderboard" }  — delete ALL tips/predictions
+ *   { action: "flushAll" }          — delete ALL tips + ALL users + jokers
+ *   { userId, deleteTips? }         — delete a single user
  */
 export async function DELETE(req: NextRequest) {
   if (!checkAuth(req)) {
@@ -146,7 +149,34 @@ export async function DELETE(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { userId, deleteTips } = body;
+    const { action, userId, deleteTips } = body;
+
+    // Flush all predictions (leaderboard reset)
+    if (action === "flushLeaderboard") {
+      await writePredictions([]);
+      return NextResponse.json({ ok: true, action: "flushLeaderboard", message: "Alle Tipps geloescht" });
+    }
+
+    // Flush everything: predictions + users + jokers
+    if (action === "flushAll") {
+      const redis = getRedis();
+      // Delete all predictions
+      await writePredictions([]);
+      // Delete all users
+      const userKeys = await redis.smembers(USERS_KEY);
+      if (userKeys.length) {
+        const pipeline = redis.pipeline();
+        for (const k of userKeys) {
+          pipeline.del(k);
+          // Extract userId from key "user:xxx" to delete joker
+          const uid = k.replace("user:", "");
+          pipeline.del(`joker:${uid}`);
+        }
+        pipeline.del(USERS_KEY);
+        await pipeline.exec();
+      }
+      return NextResponse.json({ ok: true, action: "flushAll", message: `Alles geloescht (${userKeys.length} User)` });
+    }
 
     if (!userId) {
       return NextResponse.json({ error: "userId required" }, { status: 400 });
