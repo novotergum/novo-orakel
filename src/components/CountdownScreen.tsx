@@ -18,6 +18,35 @@ function calcTimeLeft() {
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
+// Kuratierte Sterne — handplatziert für ein ausgewogenes Bild
+const stars = [
+  { x: 5, y: 8, size: 2, orange: false, delay: 0 },
+  { x: 15, y: 22, size: 3, orange: true, delay: 0.8 },
+  { x: 28, y: 5, size: 2, orange: false, delay: 1.5 },
+  { x: 38, y: 35, size: 2, orange: false, delay: 0.3 },
+  { x: 50, y: 12, size: 3, orange: false, delay: 2.1 },
+  { x: 62, y: 28, size: 2, orange: true, delay: 1.0 },
+  { x: 72, y: 7, size: 2, orange: false, delay: 0.5 },
+  { x: 85, y: 18, size: 3, orange: false, delay: 1.8 },
+  { x: 92, y: 32, size: 2, orange: false, delay: 0.2 },
+  { x: 10, y: 45, size: 2, orange: false, delay: 2.5 },
+  { x: 22, y: 58, size: 2, orange: true, delay: 0.7 },
+  { x: 42, y: 52, size: 3, orange: false, delay: 1.3 },
+  { x: 55, y: 65, size: 2, orange: false, delay: 2.0 },
+  { x: 68, y: 48, size: 2, orange: false, delay: 0.4 },
+  { x: 78, y: 60, size: 3, orange: true, delay: 1.6 },
+  { x: 88, y: 72, size: 2, orange: false, delay: 0.9 },
+  { x: 8, y: 78, size: 2, orange: false, delay: 2.3 },
+  { x: 33, y: 82, size: 2, orange: false, delay: 1.1 },
+  { x: 48, y: 88, size: 3, orange: false, delay: 0.6 },
+  { x: 65, y: 85, size: 2, orange: true, delay: 1.9 },
+  { x: 82, y: 90, size: 2, orange: false, delay: 0.1 },
+  { x: 95, y: 55, size: 2, orange: false, delay: 2.7 },
+  { x: 3, y: 62, size: 3, orange: false, delay: 1.4 },
+  { x: 18, y: 92, size: 2, orange: false, delay: 0.8 },
+  { x: 75, y: 38, size: 2, orange: false, delay: 2.2 },
+];
+
 export default function CountdownScreen() {
   const [time, setTime] = useState(calcTimeLeft);
 
@@ -42,22 +71,22 @@ export default function CountdownScreen() {
         padding: "40px 20px",
       }}
     >
-      {/* Sterne-Hintergrund */}
+      {/* Sterne-Hintergrund — kuratiert */}
       <div style={{ position: "absolute", inset: 0, overflow: "hidden", pointerEvents: "none" }}>
-        {Array.from({ length: 60 }).map((_, i) => (
+        {stars.map((s, i) => (
           <div
             key={i}
             style={{
               position: "absolute",
-              width: i % 3 === 0 ? 3 : 2,
-              height: i % 3 === 0 ? 3 : 2,
+              width: s.size,
+              height: s.size,
               borderRadius: "50%",
-              background: i % 5 === 0 ? "#F39200" : "#ffffff",
-              opacity: 0.3 + (i % 5) * 0.15,
-              left: `${(i * 17.3) % 100}%`,
-              top: `${(i * 13.7) % 100}%`,
-              animation: `twinkle ${2 + (i % 3)}s ease-in-out infinite`,
-              animationDelay: `${(i * 0.3) % 3}s`,
+              background: s.orange ? "#F39200" : "#ffffff",
+              opacity: 0.4,
+              left: `${s.x}%`,
+              top: `${s.y}%`,
+              animation: `twinkle ${2.5 + (i % 2)}s ease-in-out infinite`,
+              animationDelay: `${s.delay}s`,
             }}
           />
         ))}
@@ -66,34 +95,30 @@ export default function CountdownScreen() {
       {/* CSS-Animationen */}
       <style>{`
         @keyframes twinkle {
-          0%, 100% { opacity: 0.2; transform: scale(1); }
-          50% { opacity: 1; transform: scale(1.5); }
+          0%, 100% { opacity: 0.15; transform: scale(1); }
+          50% { opacity: 0.7; transform: scale(1.3); }
         }
         @keyframes float {
           0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-12px); }
-        }
-        @keyframes glow {
-          0%, 100% { box-shadow: 0 0 20px rgba(120,180,255,0.4), 0 0 40px rgba(120,180,255,0.2); }
-          50% { box-shadow: 0 0 30px rgba(120,180,255,0.7), 0 0 60px rgba(120,180,255,0.3), 0 0 80px rgba(243,146,0,0.15); }
+          50% { transform: translateY(-14px); }
         }
         @keyframes orbGlow {
-          0%, 100% { box-shadow: 0 0 15px rgba(120,180,255,0.5), 0 0 30px rgba(120,180,255,0.3), inset 0 0 15px rgba(200,220,255,0.3); }
-          50% { box-shadow: 0 0 25px rgba(120,180,255,0.8), 0 0 50px rgba(120,180,255,0.4), 0 0 70px rgba(243,146,0,0.2), inset 0 0 20px rgba(200,220,255,0.5); }
+          0%, 100% { box-shadow: 0 0 10px rgba(120,180,255,0.3), inset 0 0 10px rgba(200,220,255,0.2); }
+          50% { box-shadow: 0 0 18px rgba(120,180,255,0.5), inset 0 0 14px rgba(200,220,255,0.3); }
         }
         @keyframes pulseRing {
-          0% { transform: scale(1); opacity: 0.6; }
-          100% { transform: scale(2.5); opacity: 0; }
+          0% { transform: scale(1); opacity: 0.4; }
+          100% { transform: scale(2.2); opacity: 0; }
         }
       `}</style>
 
-      {/* Krabbe als Zauberer */}
+      {/* Krabbe als Zauberer — 15-20% groesser */}
       <div
         style={{
           position: "relative",
-          width: 220,
-          height: 280,
-          marginBottom: 64,
+          width: 260,
+          height: 330,
+          marginBottom: 56,
           animation: "float 4s ease-in-out infinite",
         }}
       >
@@ -112,29 +137,29 @@ export default function CountdownScreen() {
             style={{
               width: 0,
               height: 0,
-              borderLeft: "40px solid transparent",
-              borderRight: "40px solid transparent",
-              borderBottom: "70px solid #1a3a8a",
+              borderLeft: "46px solid transparent",
+              borderRight: "46px solid transparent",
+              borderBottom: "82px solid #1a3a8a",
               margin: "0 auto",
               position: "relative",
             }}
           >
             {/* Sterne auf dem Hut */}
-            <div style={{ position: "absolute", top: 25, left: -10, fontSize: 10, color: "#FFD700" }}>
+            <div style={{ position: "absolute", top: 30, left: -12, fontSize: 12, color: "#FFD700" }}>
               &#9733;
             </div>
-            <div style={{ position: "absolute", top: 40, left: 8, fontSize: 8, color: "#FFD700" }}>
+            <div style={{ position: "absolute", top: 48, left: 10, fontSize: 9, color: "#FFD700" }}>
               &#9733;
             </div>
-            <div style={{ position: "absolute", top: 15, left: 5, fontSize: 6, color: "#C0C0C0" }}>
+            <div style={{ position: "absolute", top: 18, left: 6, fontSize: 7, color: "#C0C0C0" }}>
               &#9733;
             </div>
           </div>
           {/* Hutrand */}
           <div
             style={{
-              width: 110,
-              height: 14,
+              width: 128,
+              height: 16,
               background: "linear-gradient(to bottom, #C0C0C0, #8a8a8a)",
               borderRadius: "50%",
               margin: "-4px auto 0",
@@ -142,15 +167,16 @@ export default function CountdownScreen() {
           />
         </div>
 
-        {/* Krabbe-Bild */}
-        <div style={{ position: "absolute", top: 70, left: "50%", transform: "translateX(-50%)", zIndex: 2 }}>
+        {/* Krabbe-Bild — lokal gehostet */}
+        <div style={{ position: "absolute", top: 82, left: "50%", transform: "translateX(-50%)", zIndex: 2 }}>
           <img
-            src="https://openclaws.io/images/picture.png"
+            src="/krabbe.png"
             alt="UT Orakel Krabbe"
-            width={140}
-            height={140}
+            width={164}
+            height={164}
             style={{
-              filter: "drop-shadow(0 0 20px rgba(243,146,0,0.3))",
+              display: "block",
+              filter: "drop-shadow(0 0 12px rgba(243,146,0,0.15))",
             }}
           />
         </div>
@@ -169,21 +195,21 @@ export default function CountdownScreen() {
           <div
             style={{
               position: "absolute",
-              width: 56,
-              height: 56,
+              width: 66,
+              height: 66,
               borderRadius: "50%",
-              border: "2px solid rgba(120,180,255,0.4)",
+              border: "1px solid rgba(120,180,255,0.25)",
               top: "50%",
               left: "50%",
               transform: "translate(-50%, -50%)",
-              animation: "pulseRing 2.5s ease-out infinite",
+              animation: "pulseRing 3s ease-out infinite",
             }}
           />
           {/* Kugel */}
           <div
             style={{
-              width: 56,
-              height: 56,
+              width: 66,
+              height: 66,
               borderRadius: "50%",
               background: "radial-gradient(circle at 35% 35%, rgba(200,220,255,0.9), rgba(80,130,220,0.6) 40%, rgba(30,50,120,0.8) 100%)",
               animation: "orbGlow 3s ease-in-out infinite",
@@ -194,24 +220,24 @@ export default function CountdownScreen() {
             <div
               style={{
                 position: "absolute",
-                width: 16,
-                height: 10,
+                width: 18,
+                height: 12,
                 borderRadius: "50%",
-                background: "rgba(255,255,255,0.6)",
-                top: 12,
-                left: 14,
+                background: "rgba(255,255,255,0.5)",
+                top: 14,
+                left: 16,
                 transform: "rotate(-30deg)",
               }}
             />
-            {/* Fußball-Emoji in der Kugel */}
+            {/* Fussball-Emoji in der Kugel */}
             <div
               style={{
                 position: "absolute",
                 top: "50%",
                 left: "50%",
                 transform: "translate(-50%, -50%)",
-                fontSize: 20,
-                opacity: 0.7,
+                fontSize: 24,
+                opacity: 0.6,
               }}
             >
               {"\u26BD"}
@@ -239,7 +265,7 @@ export default function CountdownScreen() {
           style={{
             display: "block",
             opacity: 0.85,
-            filter: "drop-shadow(0 0 8px rgba(243,146,0,0.3))",
+            filter: "drop-shadow(0 0 6px rgba(243,146,0,0.2))",
           }}
         />
         <div>
@@ -268,14 +294,16 @@ export default function CountdownScreen() {
         </div>
       </div>
 
-      {/* Countdown */}
+      {/* Countdown — responsiv */}
       <div
         style={{
           display: "flex",
-          gap: 16,
+          gap: "clamp(8px, 3vw, 16px)",
           marginBottom: 40,
           position: "relative",
           zIndex: 1,
+          flexWrap: "wrap",
+          justifyContent: "center",
         }}
       >
         {[
@@ -287,21 +315,20 @@ export default function CountdownScreen() {
           <div key={item.label} style={{ textAlign: "center" }}>
             <div
               style={{
-                width: 72,
-                height: 80,
+                width: "clamp(60px, 18vw, 80px)",
+                height: "clamp(68px, 20vw, 88px)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                background: "rgba(255,255,255,0.06)",
+                background: "rgba(255,255,255,0.05)",
                 borderRadius: 12,
-                border: "1px solid rgba(255,255,255,0.1)",
+                border: "1px solid rgba(255,255,255,0.08)",
                 backdropFilter: "blur(8px)",
-                animation: "glow 4s ease-in-out infinite",
               }}
             >
               <span
                 style={{
-                  fontSize: 36,
+                  fontSize: "clamp(28px, 8vw, 40px)",
                   fontWeight: 800,
                   fontVariantNumeric: "tabular-nums",
                   color: "#F39200",
@@ -341,21 +368,6 @@ export default function CountdownScreen() {
         <br />
         Mensch gegen Maschine &ndash; bald geht&apos;s los!
       </p>
-
-      {/* Footer */}
-      <div
-        style={{
-          position: "absolute",
-          bottom: 24,
-          fontSize: 11,
-          color: "rgba(255,255,255,0.25)",
-          letterSpacing: "0.05em",
-        }}
-      >
-        Powered by{" "}
-        <span style={{ color: "#F39200" }}>UT Orakel</span> &middot; Prediction
-        Engine v1
-      </div>
     </div>
   );
 }
