@@ -1,7 +1,11 @@
 import { readPredictions } from "../lib/store";
 import TipForm from "../components/TipForm";
+import CountdownScreen from "../components/CountdownScreen";
 
 export const dynamic = "force-dynamic";
+
+const WM_START = new Date("2026-06-11T00:00:00+02:00");
+const SHOW_MAIN_AT = new Date(WM_START.getTime() - 7 * 24 * 60 * 60 * 1000);
 
 interface LeaderboardEntry {
   userId: string;
@@ -70,6 +74,11 @@ const sCard: React.CSSProperties = {
 };
 
 export default async function Home() {
+  // Countdown-Screen bis 1 Woche vor WM-Start zeigen
+  if (new Date() < SHOW_MAIN_AT) {
+    return <CountdownScreen />;
+  }
+
   const { board, humanAvg, agentAvg, humanCount, agentCount } = await getData();
 
   return (

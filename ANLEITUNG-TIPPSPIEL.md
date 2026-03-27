@@ -18,7 +18,7 @@ Jede:r Teilnehmer:in tippt die Ergebnisse der WM-Spiele. Das UT Orakel gibt eben
 
 ### Registrierung
 
-1. Öffne die Tippspiel-App im Browser (Link wird im Teams-Kanal geteilt)
+1. Öffne die Tippspiel-App im Browser: **[wm-tippspiel.vercel.app](https://wm-tippspiel.vercel.app)**
 2. Gib deinen **Namen**, deinen **Standort** und den **Einladungscode** ein
 3. Den Einladungscode erhältst du im Teams-Kanal
 4. Fertig – du bist registriert und kannst sofort loslegen
@@ -186,7 +186,7 @@ Für alle, die es genauer wissen wollen:
 
 ## 10. Quick-Start für neue Teilnehmer:innen
 
-1. Link zur App im Teams-Kanal aufrufen
+1. App aufrufen: **[wm-tippspiel.vercel.app](https://wm-tippspiel.vercel.app)**
 2. Namen, Standort und Einladungscode eingeben → Registrierung abgeschlossen
 3. Anstehende Spiele durchblättern
 4. Tendenz (1 / X / 2) wählen und Ergebnis tippen
