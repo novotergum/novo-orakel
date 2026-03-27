@@ -6,6 +6,7 @@ interface AdminUser {
   userId: string;
   userName: string;
   location: string;
+  stake?: number;
   registeredAt: string;
   tips: number;
   points: number;
@@ -236,7 +237,9 @@ export default function AdminPage() {
           UT Orakel Admin
         </h1>
         <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-          <span style={{ fontSize: 12, color: "#7A7A7A" }}>{users.length} User</span>
+          <span style={{ fontSize: 12, color: "#7A7A7A" }}>
+            {users.length} User &middot; Pott: {users.reduce((s, u) => s + (u.stake ?? 0), 0)}&euro;
+          </span>
           <button style={s.btnOutline} onClick={() => loadUsers(secret)}>
             Aktualisieren
           </button>
@@ -267,6 +270,7 @@ export default function AdminPage() {
             <tr>
               <th style={s.th}>Name</th>
               <th style={s.th}>Standort</th>
+              <th style={s.th}>Einsatz</th>
               <th style={s.th}>Tipps</th>
               <th style={s.th}>Punkte</th>
               <th style={s.th}>Joker</th>
@@ -293,6 +297,7 @@ export default function AdminPage() {
                         onChange={(e) => setEditLocation(e.target.value)}
                       />
                     </td>
+                    <td style={{ ...s.td, color: "#F39200", fontWeight: 600 }}>{u.stake ? `${u.stake}\u20AC` : "\u2013"}</td>
                     <td style={s.td}>{u.tips}</td>
                     <td style={s.td}>{u.points}</td>
                     <td style={s.td}>{u.jokersUsed}/10</td>
@@ -312,6 +317,7 @@ export default function AdminPage() {
                   <>
                     <td style={{ ...s.td, fontWeight: 600 }}>{u.userName}</td>
                     <td style={s.td}>{u.location}</td>
+                    <td style={{ ...s.td, color: "#F39200", fontWeight: 600 }}>{u.stake ? `${u.stake}\u20AC` : "\u2013"}</td>
                     <td style={s.td}>{u.tips}</td>
                     <td style={s.td}>{u.points}</td>
                     <td style={s.td}>{u.jokersUsed}/10</td>
