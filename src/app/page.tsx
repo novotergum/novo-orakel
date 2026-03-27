@@ -97,7 +97,7 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
     <div
       style={{
         minHeight: "100vh",
-        background: "linear-gradient(180deg, #0d0d1f 0%, #141428 200px, #f5f5f7 200px)",
+        background: "linear-gradient(180deg, #0d0d1f 0%, #0d0d1f 260px, #f5f5f7 260px)",
         fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
       }}
     >
