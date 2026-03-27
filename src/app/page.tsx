@@ -45,7 +45,6 @@ async function getData() {
     }
   }
 
-  // A. Besserer Sortierer
   const board = [...playerMap.values()].sort((a, b) =>
     b.points - a.points ||
     b.exact - a.exact ||
@@ -61,7 +60,6 @@ async function getData() {
   const humanAvg = humans.length ? humanPts / humans.length : 0;
   const agentAvg = agents.length ? agentPts / agents.length : 0;
 
-  // C. Gewinnerstatus
   const delta = humanAvg - agentAvg;
   const leaderText =
     humans.length === 0 && agents.length === 0
@@ -72,15 +70,11 @@ async function getData() {
       ? `Menschen f\u00FChren mit ${delta.toFixed(1)} Punkten im Schnitt`
       : `Maschinen f\u00FChren mit ${Math.abs(delta).toFixed(1)} Punkten im Schnitt`;
 
-  return { board, humanAvg, agentAvg, humanCount: humans.length, agentCount: agents.length, leaderText };
-}
+  const leaderSide: "human" | "agent" | "tie" =
+    Math.abs(delta) < 0.05 ? "tie" : delta > 0 ? "human" : "agent";
 
-const medal = (i: number) => {
-  if (i === 0) return "\u{1F947}";
-  if (i === 1) return "\u{1F948}";
-  if (i === 2) return "\u{1F949}";
-  return `${i + 1}`;
-};
+  return { board, humanAvg, agentAvg, humanCount: humans.length, agentCount: agents.length, leaderText, leaderSide };
+}
 
 const card: React.CSSProperties = {
   background: "#ffffff",
@@ -95,7 +89,7 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
     return <CountdownScreen />;
   }
 
-  const { board, humanAvg, agentAvg, humanCount, agentCount, leaderText } = await getData();
+  const { board, humanAvg, agentAvg, humanCount, agentCount, leaderText, leaderSide } = await getData();
   const top3 = board.slice(0, 3);
   const rest = board.slice(3);
 
@@ -103,46 +97,67 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
     <div
       style={{
         minHeight: "100vh",
-        background: "linear-gradient(180deg, #0d0d1f 0%, #141428 120px, #f5f5f7 120px)",
+        background: "linear-gradient(180deg, #0d0d1f 0%, #141428 200px, #f5f5f7 200px)",
         fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
       }}
     >
       <div style={{ maxWidth: 720, margin: "0 auto", padding: "0 20px" }}>
-        {/* ── Hero/Header ── */}
-        <header style={{ textAlign: "center", padding: "40px 0 48px", color: "#fff" }}>
+        {/* ── 3. Header massiv staerken ── */}
+        <header style={{ textAlign: "center", padding: "48px 0 56px", color: "#fff" }}>
           <img
             src="/ut-logo.png"
             alt="UT Logo"
-            width={56}
-            height={58}
-            style={{ display: "block", margin: "0 auto 16px", opacity: 0.9 }}
+            width={68}
+            height={71}
+            style={{ display: "block", margin: "0 auto 20px" }}
           />
-          <h1 style={{ fontSize: 32, fontWeight: 800, margin: 0, letterSpacing: "0.01em" }}>
+          <h1 style={{ fontSize: 40, fontWeight: 800, margin: 0, letterSpacing: "-0.01em" }}>
             <span style={{ color: "#4293D0" }}>UT</span>{" "}
             <span style={{ color: "#ffffff" }}>Orakel</span>
           </h1>
           <p
             style={{
-              fontSize: 15,
-              color: "rgba(255,255,255,0.55)",
-              margin: "6px 0 0",
+              fontSize: 16,
+              color: "rgba(255,255,255,0.5)",
+              margin: "8px 0 0",
               letterSpacing: "0.06em",
               textTransform: "uppercase",
+              fontWeight: 500,
             }}
           >
             WM 2026 &ndash; Mensch gegen Maschine
           </p>
+          {/* CTA Anchor */}
+          <a
+            href="#tipform"
+            style={{
+              display: "inline-block",
+              marginTop: 24,
+              padding: "12px 36px",
+              background: "#F39200",
+              color: "#fff",
+              fontSize: 15,
+              fontWeight: 700,
+              borderRadius: 10,
+              textDecoration: "none",
+              letterSpacing: "0.02em",
+              boxShadow: "0 4px 16px rgba(243,146,0,0.35)",
+              transition: "transform 0.15s",
+            }}
+          >
+            Jetzt tippen
+          </a>
         </header>
 
-        {/* ── Mensch vs. Maschine Highlight ── */}
+        {/* ── 2. Mensch vs. Maschine — Gewinner hervorheben ── */}
         {(humanCount > 0 || agentCount > 0) && (
-          <section style={{ marginBottom: 32 }}>
+          <section style={{ marginBottom: 36 }}>
             <div
               style={{
                 display: "grid",
                 gridTemplateColumns: "1fr auto 1fr",
                 gap: 12,
-                alignItems: "center",
+                alignItems: "stretch",
               }}
             >
               {/* Mensch */}
@@ -150,9 +165,20 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
                 style={{
                   ...card,
                   textAlign: "center",
-                  borderTop: "3px solid #E5172D",
+                  borderTop: `3px solid #E5172D`,
+                  transform: leaderSide === "human" ? "scale(1.03)" : "none",
+                  boxShadow: leaderSide === "human"
+                    ? "0 4px 24px rgba(229,23,45,0.15)"
+                    : "0 2px 12px rgba(0,0,0,0.04)",
+                  opacity: leaderSide === "agent" ? 0.7 : 1,
+                  transition: "all 0.3s",
                 }}
               >
+                {leaderSide === "human" && (
+                  <div style={{ fontSize: 10, color: "#E5172D", fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 4 }}>
+                    {"\u25B2"} Vorne
+                  </div>
+                )}
                 <div
                   style={{
                     fontSize: 11,
@@ -164,32 +190,34 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
                 >
                   Mensch
                 </div>
-                <div style={{ fontSize: 40, fontWeight: 800, color: "#E5172D", marginTop: 8, lineHeight: 1 }}>
+                <div style={{ fontSize: 44, fontWeight: 800, color: "#E5172D", marginTop: 8, lineHeight: 1 }}>
                   {humanAvg.toFixed(1)}
                 </div>
-                <div style={{ fontSize: 12, color: "#999", marginTop: 6 }}>
+                <div style={{ fontSize: 12, color: "#999", marginTop: 8 }}>
                   {"\u00D8"} Punkte &middot; {humanCount} Spieler
                 </div>
               </div>
 
               {/* VS */}
-              <div
-                style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: "50%",
-                  background: "#1a1a3e",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 13,
-                  fontWeight: 800,
-                  color: "#fff",
-                  letterSpacing: "0.05em",
-                  boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
-                }}
-              >
-                VS
+              <div style={{ display: "flex", alignItems: "center" }}>
+                <div
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: "50%",
+                    background: "#1a1a3e",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 13,
+                    fontWeight: 800,
+                    color: "#fff",
+                    letterSpacing: "0.05em",
+                    boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+                  }}
+                >
+                  VS
+                </div>
               </div>
 
               {/* Maschine */}
@@ -197,9 +225,20 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
                 style={{
                   ...card,
                   textAlign: "center",
-                  borderTop: "3px solid #4293D0",
+                  borderTop: `3px solid #4293D0`,
+                  transform: leaderSide === "agent" ? "scale(1.03)" : "none",
+                  boxShadow: leaderSide === "agent"
+                    ? "0 4px 24px rgba(66,147,208,0.15)"
+                    : "0 2px 12px rgba(0,0,0,0.04)",
+                  opacity: leaderSide === "human" ? 0.7 : 1,
+                  transition: "all 0.3s",
                 }}
               >
+                {leaderSide === "agent" && (
+                  <div style={{ fontSize: 10, color: "#4293D0", fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 4 }}>
+                    {"\u25B2"} Vorne
+                  </div>
+                )}
                 <div
                   style={{
                     fontSize: 11,
@@ -211,25 +250,28 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
                 >
                   Maschine
                 </div>
-                <div style={{ fontSize: 40, fontWeight: 800, color: "#4293D0", marginTop: 8, lineHeight: 1 }}>
+                <div style={{ fontSize: 44, fontWeight: 800, color: "#4293D0", marginTop: 8, lineHeight: 1 }}>
                   {agentAvg.toFixed(1)}
                 </div>
-                <div style={{ fontSize: 12, color: "#999", marginTop: 6 }}>
+                <div style={{ fontSize: 12, color: "#999", marginTop: 8 }}>
                   {"\u00D8"} Punkte &middot; {agentCount} Agent{agentCount !== 1 ? "s" : ""}
                 </div>
               </div>
             </div>
 
-            {/* Statuszeile */}
+            {/* 4. Status-Text sichtbarer */}
             {leaderText && (
               <div
                 style={{
                   textAlign: "center",
-                  marginTop: 12,
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: "#555",
-                  letterSpacing: "0.02em",
+                  marginTop: 16,
+                  padding: "10px 20px",
+                  background: leaderSide === "human" ? "rgba(229,23,45,0.06)" : leaderSide === "agent" ? "rgba(66,147,208,0.06)" : "rgba(0,0,0,0.03)",
+                  borderRadius: 10,
+                  fontSize: 14,
+                  fontWeight: 700,
+                  color: leaderSide === "human" ? "#E5172D" : leaderSide === "agent" ? "#4293D0" : "#555",
+                  letterSpacing: "0.01em",
                 }}
               >
                 {leaderText}
@@ -238,59 +280,65 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
           </section>
         )}
 
-        {/* ── Top 3 Podium ── */}
+        {/* ── 1. Top 3 Podium — Platz 1 deutlich groesser ── */}
         {top3.length > 0 && (
-          <section style={{ marginBottom: 32 }}>
+          <section style={{ marginBottom: 36 }}>
             <h2
               style={{
                 fontSize: 13,
                 color: "#999",
                 textTransform: "uppercase",
                 letterSpacing: "0.08em",
-                marginBottom: 16,
+                marginBottom: 20,
                 fontWeight: 600,
               }}
             >
               Podium
             </h2>
-            <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
+            <div style={{ display: "flex", gap: 12, justifyContent: "center", alignItems: "flex-end" }}>
               {top3.map((entry, i) => {
                 const colors = ["#F39200", "#8a8a8a", "#A0522D"];
-                const sizes = [52, 40, 36];
+                const isFirst = i === 0;
                 return (
                   <div
                     key={entry.userId}
                     style={{
                       ...card,
-                      flex: 1,
+                      flex: isFirst ? 1.3 : 1,
                       textAlign: "center",
                       position: "relative",
-                      paddingTop: 36,
-                      borderTop: `3px solid ${colors[i]}`,
+                      paddingTop: isFirst ? 44 : 36,
+                      paddingBottom: isFirst ? 28 : 24,
+                      borderTop: `${isFirst ? 4 : 3}px solid ${colors[i]}`,
+                      boxShadow: isFirst
+                        ? `0 4px 24px ${colors[i]}22, 0 2px 12px rgba(0,0,0,0.06)`
+                        : "0 2px 12px rgba(0,0,0,0.04)",
                     }}
                   >
+                    {/* Rang-Badge */}
                     <div
                       style={{
                         position: "absolute",
-                        top: -18,
+                        top: isFirst ? -22 : -18,
                         left: "50%",
                         transform: "translateX(-50%)",
-                        width: 36,
-                        height: 36,
+                        width: isFirst ? 44 : 36,
+                        height: isFirst ? 44 : 36,
                         borderRadius: "50%",
                         background: colors[i],
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        fontSize: 16,
+                        fontSize: isFirst ? 20 : 16,
                         fontWeight: 800,
                         color: "#fff",
-                        boxShadow: `0 2px 8px ${colors[i]}44`,
+                        boxShadow: `0 3px 12px ${colors[i]}55`,
                       }}
                     >
                       {i + 1}
                     </div>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: "#2a2a2a", marginBottom: 4 }}>
+
+                    <div style={{ fontSize: isFirst ? 18 : 15, fontWeight: 700, color: "#2a2a2a", marginBottom: 4 }}>
                       {entry.userName}
                     </div>
                     {entry.source === "agent" && (
@@ -311,16 +359,21 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
                     )}
                     <div
                       style={{
-                        fontSize: sizes[i],
+                        fontSize: isFirst ? 56 : 40,
                         fontWeight: 800,
                         color: colors[i],
                         lineHeight: 1,
-                        margin: "8px 0 4px",
+                        margin: isFirst ? "12px 0 6px" : "8px 0 4px",
                       }}
                     >
                       {entry.points}
                     </div>
-                    <div style={{ fontSize: 11, color: "#999" }}>Punkte</div>
+                    <div style={{ fontSize: isFirst ? 12 : 11, color: "#999" }}>Punkte</div>
+                    {isFirst && (
+                      <div style={{ fontSize: 11, color: "#bbb", marginTop: 4 }}>
+                        {entry.exact} exakt &middot; {entry.tips} Tipps
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -330,7 +383,7 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
 
         {/* ── Leaderboard (ab Platz 4) ── */}
         {rest.length > 0 && (
-          <section style={{ marginBottom: 32 }}>
+          <section style={{ marginBottom: 36 }}>
             <h2
               style={{
                 fontSize: 13,
@@ -446,19 +499,19 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
               textAlign: "center",
               padding: 40,
               color: "#999",
-              marginBottom: 32,
+              marginBottom: 36,
             }}
           >
             Noch keine Tipps abgegeben. Sei der Erste!
           </div>
         )}
 
-        {/* ── Tip Form ── */}
-        <section style={{ marginBottom: 32 }}>
+        {/* ── 5. Tippen-CTA staerker ── */}
+        <section id="tipform" style={{ marginBottom: 36 }}>
           <TipForm />
         </section>
 
-        {/* ── Regeln (B. Footer entschlackt) ── */}
+        {/* ── Regeln ── */}
         <footer
           style={{
             textAlign: "center",
