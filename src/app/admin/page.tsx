@@ -411,9 +411,28 @@ export default function AdminPage() {
                   padding: "6px 0",
                   borderBottom: "1px solid #f0ede9",
                   color: "#3A3A3A",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
                 }}
               >
-                {email}
+                <span>{email}</span>
+                <button
+                  style={{ background: "none", border: "none", color: "#c62828", cursor: "pointer", fontSize: 12, padding: "2px 6px" }}
+                  onClick={async () => {
+                    if (!confirm(`"${email}" abmelden?`)) return;
+                    try {
+                      await fetch(`/api/newsletter?secret=${encodeURIComponent(secret)}`, {
+                        method: "DELETE",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ email }),
+                      });
+                      setNlEmails((prev) => prev.filter((e) => e !== email));
+                    } catch { /* ignore */ }
+                  }}
+                >
+                  &times;
+                </button>
               </div>
             ))}
           </div>

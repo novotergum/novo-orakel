@@ -41,6 +41,31 @@ export async function POST(req: NextRequest) {
 }
 
 /**
+ * DELETE /api/newsletter — E-Mail abmelden (Admin)
+ * Body: { email } + ?secret=xxx
+ */
+export async function DELETE(req: NextRequest) {
+  const secret = req.nextUrl.searchParams.get("secret");
+  if (secret !== process.env.ADMIN_SECRET) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  try {
+    const body = await req.json();
+    const email = body?.email?.trim()?.toLowerCase();
+    if (!email) {
+      return NextResponse.json({ error: "email required" }, { status: 400 });
+    }
+    const redis = getRedis();
+    await redis.srem(NL_KEY, email);
+    return NextResponse.json({ ok: true, removed: email });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : "Unknown error";
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
+}
+
+/**
  * GET /api/newsletter — Alle angemeldeten E-Mails (Admin-Export)
  */
 export async function GET(req: NextRequest) {
