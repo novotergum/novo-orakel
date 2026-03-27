@@ -3,6 +3,89 @@ import { readPredictions, type PredictionRecord } from "../../../lib/store";
 import { Redis } from "@upstash/redis";
 
 // ---------------------------------------------------------------------------
+// WM News via web search
+// ---------------------------------------------------------------------------
+
+interface WMNewsItem {
+  title: string;
+  snippet: string;
+  url: string;
+  category: "injury" | "highlight" | "scandal" | "fun" | "general";
+}
+
+async function fetchWMNews(): Promise<WMNewsItem[]> {
+  const queries = [
+    { q: "FIFA World Cup 2026 news injuries transfers", cat: "injury" as const },
+    { q: "FIFA WM 2026 highlights spannung ueberraschung", cat: "highlight" as const },
+    { q: "FIFA World Cup 2026 funny moments skandal kontroverse", cat: "fun" as const },
+  ];
+
+  const allNews: WMNewsItem[] = [];
+
+  for (const { q, cat } of queries) {
+    try {
+      const res = await fetch(
+        `https://www.googleapis.com/customsearch/v1?key=${process.env.GOOGLE_SEARCH_KEY}&cx=${process.env.GOOGLE_SEARCH_CX}&q=${encodeURIComponent(q)}&num=3&dateRestrict=d7&lr=lang_de|lang_en`,
+        { cache: "no-store" },
+      );
+      if (res.ok) {
+        const data = await res.json();
+        for (const item of data.items ?? []) {
+          allNews.push({
+            title: item.title ?? "",
+            snippet: (item.snippet ?? "").slice(0, 160),
+            url: item.link ?? "",
+            category: cat,
+          });
+        }
+      }
+    } catch {
+      // Fallback: continue without this query
+    }
+  }
+
+  // Deduplicate by URL and limit
+  const seen = new Set<string>();
+  return allNews.filter((n) => {
+    if (seen.has(n.url)) return false;
+    seen.add(n.url);
+    return true;
+  }).slice(0, 5);
+}
+
+// Fallback if no Google API keys: scrape headlines from a public source
+async function fetchWMNewsFallback(): Promise<WMNewsItem[]> {
+  try {
+    const res = await fetch("https://www.kicker.de/fifa-wm-2026/news", {
+      headers: { "User-Agent": "Mozilla/5.0" },
+      cache: "no-store",
+    });
+    if (!res.ok) return [];
+    const html = await res.text();
+    // Extract headlines from kicker
+    const tagRegex = new RegExp("<[^>]+>", "g");
+    const headlineRegex = new RegExp('<h3[^>]*>.*?<a[^>]*href="([^"]*)"[^>]*>(.*?)</a>', "gs");
+    const matches = [...html.matchAll(headlineRegex)];
+    return matches.slice(0, 5).map((m) => ({
+      title: m[2].replace(tagRegex, "").trim(),
+      snippet: "",
+      url: m[1].startsWith("http") ? m[1] : `https://www.kicker.de${m[1]}`,
+      category: "general" as const,
+    }));
+  } catch {
+    return [];
+  }
+}
+
+async function getWMNews(): Promise<WMNewsItem[]> {
+  if (process.env.GOOGLE_SEARCH_KEY && process.env.GOOGLE_SEARCH_CX) {
+    const news = await fetchWMNews();
+    if (news.length > 0) return news;
+  }
+  return fetchWMNewsFallback();
+}
+
+// ---------------------------------------------------------------------------
 // Auth
 // ---------------------------------------------------------------------------
 
@@ -222,6 +305,7 @@ function buildHTML(
   standorte: StandortEntry[],
   funFacts: string[],
   mvm: { humanAvg: number; agentAvg: number; leader: string },
+  wmNews: WMNewsItem[],
 ): string {
   const leaderboardRows = board.slice(0, 10).map((p, i) => {
     const medal = i === 0 ? "\uD83E\uDD47" : i === 1 ? "\uD83E\uDD48" : i === 2 ? "\uD83E\uDD49" : `${i + 1}.`;
@@ -328,6 +412,23 @@ function buildHTML(
       </ul>
     </div>` : ""}
 
+    <!-- WM News -->
+    ${wmNews.length > 0 ? `
+    <div style="padding:0 24px 24px;">
+      <h2 style="margin:0 0 16px;font-size:16px;color:#333;text-transform:uppercase;letter-spacing:0.06em;">
+        WM-News der Woche
+      </h2>
+      ${wmNews.map((n) => {
+        const catEmoji = n.category === "injury" ? "\uD83E\uDE79" : n.category === "highlight" ? "\u26A1" : n.category === "scandal" ? "\uD83D\uDEA8" : n.category === "fun" ? "\uD83D\uDE02" : "\uD83D\uDCF0";
+        return `<div style="margin-bottom:12px;padding:12px 16px;background:#f9f9f9;border-radius:10px;border-left:3px solid #F39200;">
+          <div style="font-size:14px;font-weight:600;color:#333;margin-bottom:4px;">
+            ${catEmoji} <a href="${n.url}" style="color:#333;text-decoration:none;">${n.title}</a>
+          </div>
+          ${n.snippet ? `<div style="font-size:12px;color:#777;line-height:1.5;">${n.snippet}</div>` : ""}
+        </div>`;
+      }).join("\n")}
+    </div>` : ""}
+
     <!-- CTA -->
     <div style="padding:24px;text-align:center;border-top:1px solid #eee;">
       <a href="https://wm-tippspiel.vercel.app" style="display:inline-block;padding:12px 32px;background:#F39200;color:#fff;font-size:15px;font-weight:700;border-radius:10px;text-decoration:none;">
@@ -363,6 +464,7 @@ export async function GET(req: NextRequest) {
     const { board } = buildStats(records);
     const standorte = buildStandorte(records);
     const funFacts = generateFunFacts(board, records);
+    const wmNews = await getWMNews();
 
     // Mensch vs. Maschine
     const humans = board.filter((p) => p.source === "human");
@@ -389,13 +491,14 @@ export async function GET(req: NextRequest) {
         leaderboard: board.slice(0, 15).map(({ scoreTips, picks, ...rest }) => rest),
         standorte,
         funFacts,
+        wmNews,
         menschVsMaschine: { humanAvg, agentAvg, leader },
         subscriberCount,
       });
     }
 
     // HTML response
-    const html = buildHTML(board, standorte, funFacts, { humanAvg, agentAvg, leader });
+    const html = buildHTML(board, standorte, funFacts, { humanAvg, agentAvg, leader }, wmNews);
     return new NextResponse(html, {
       headers: { "Content-Type": "text/html; charset=utf-8" },
     });
