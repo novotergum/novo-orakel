@@ -73,7 +73,30 @@ async function getData() {
   const leaderSide: "human" | "agent" | "tie" =
     Math.abs(delta) < 0.05 ? "tie" : delta > 0 ? "human" : "agent";
 
-  return { board, humanAvg, agentAvg, humanCount: humans.length, agentCount: agents.length, leaderText, leaderSide };
+  // Pott berechnen
+  let totalPot = 0;
+  try {
+    const { Redis } = await import("@upstash/redis");
+    const redis = new Redis({
+      url: process.env.UPSTASH_REDIS_REST_URL!,
+      token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+    });
+    const userKeys = await redis.smembers("users:all");
+    if (userKeys.length) {
+      const pipeline = redis.pipeline();
+      for (const k of userKeys) pipeline.get(k);
+      const results = await pipeline.exec();
+      for (const r of results) {
+        if (r && typeof r === "object" && "stake" in r) {
+          totalPot += (r as { stake?: number }).stake ?? 0;
+        }
+      }
+    }
+  } catch {
+    // graceful fallback
+  }
+
+  return { board, humanAvg, agentAvg, humanCount: humans.length, agentCount: agents.length, leaderText, leaderSide, totalPot };
 }
 
 const card: React.CSSProperties = {
@@ -89,7 +112,7 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
     return <CountdownScreen />;
   }
 
-  const { board, humanAvg, agentAvg, humanCount, agentCount, leaderText, leaderSide } = await getData();
+  const { board, humanAvg, agentAvg, humanCount, agentCount, leaderText, leaderSide, totalPot } = await getData();
   const top3 = board.slice(0, 3);
   const rest = board.slice(3);
 
@@ -127,6 +150,27 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
           >
             WM 2026 &ndash; Mensch gegen Maschine
           </p>
+          {/* Pott */}
+          {totalPot > 0 && (
+            <div
+              style={{
+                display: "inline-block",
+                marginTop: 20,
+                padding: "8px 24px",
+                background: "rgba(243,146,0,0.12)",
+                borderRadius: 8,
+                border: "1px solid rgba(243,146,0,0.25)",
+              }}
+            >
+              <span style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+                Pott
+              </span>
+              <span style={{ fontSize: 24, fontWeight: 800, color: "#F39200", marginLeft: 12 }}>
+                {totalPot}{"\u20AC"}
+              </span>
+            </div>
+          )}
+
           {/* CTA Anchor */}
           <a
             href="#tipform"

@@ -18,6 +18,7 @@ export interface UserProfile {
   userId: string;
   userName: string;
   location: string;
+  stake?: number;
   registeredAt: string;
 }
 
@@ -68,11 +69,21 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Einsatz validieren (2-5€)
+    const stake = Number(body.stake);
+    if (!stake || stake < 2 || stake > 5 || !Number.isInteger(stake)) {
+      return NextResponse.json(
+        { error: "Einsatz muss zwischen 2\u20AC und 5\u20AC liegen" },
+        { status: 400 },
+      );
+    }
+
     const userId = body.userName.trim().toLowerCase().replace(/\s+/g, "-");
     const profile: UserProfile = {
       userId,
       userName: body.userName.trim(),
       location: body.location.trim(),
+      stake,
       registeredAt: new Date().toISOString(),
     };
 
