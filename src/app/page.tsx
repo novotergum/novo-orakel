@@ -150,27 +150,6 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
           >
             WM 2026 &ndash; Mensch gegen Maschine
           </p>
-          {/* Pott */}
-          {totalPot > 0 && (
-            <div
-              style={{
-                display: "inline-block",
-                marginTop: 20,
-                padding: "8px 24px",
-                background: "rgba(243,146,0,0.12)",
-                borderRadius: 8,
-                border: "1px solid rgba(243,146,0,0.25)",
-              }}
-            >
-              <span style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", letterSpacing: "0.06em", textTransform: "uppercase" }}>
-                Pott
-              </span>
-              <span style={{ fontSize: 24, fontWeight: 800, color: "#F39200", marginLeft: 12 }}>
-                {totalPot}{"\u20AC"}
-              </span>
-            </div>
-          )}
-
           {/* CTA Anchor */}
           <a
             href="#tipform"
@@ -319,6 +298,11 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
                 }}
               >
                 {leaderText}
+                {totalPot > 0 && (
+                  <span style={{ color: "#F39200" }}>
+                    {" "}&middot; Pott: {totalPot}{"\u20AC"}
+                  </span>
+                )}
               </div>
             )}
           </section>
