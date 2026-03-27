@@ -25,6 +25,8 @@ export default function AdminPage() {
   const [editName, setEditName] = useState("");
   const [editLocation, setEditLocation] = useState("");
   const [actionMsg, setActionMsg] = useState("");
+  const [nlEmails, setNlEmails] = useState<string[]>([]);
+  const [nlLoading, setNlLoading] = useState(false);
 
   const loadUsers = useCallback(async (s: string) => {
     setLoading(true);
@@ -36,6 +38,8 @@ export default function AdminPage() {
         setUsers(data.users ?? []);
         setAuthenticated(true);
         localStorage.setItem(LS_SECRET_KEY, s);
+        // Newsletter-Abonnenten laden
+        loadNewsletter(s);
       } else {
         setError(data.error ?? "Fehler");
         setAuthenticated(false);
@@ -44,6 +48,20 @@ export default function AdminPage() {
       setError("Netzwerkfehler");
     }
     setLoading(false);
+  }, []);
+
+  const loadNewsletter = useCallback(async (s: string) => {
+    setNlLoading(true);
+    try {
+      const res = await fetch(`/api/newsletter?secret=${encodeURIComponent(s)}`);
+      const data = await res.json();
+      if (res.ok) {
+        setNlEmails(data.emails ?? []);
+      }
+    } catch {
+      // ignore
+    }
+    setNlLoading(false);
   }, []);
 
   // Auto-login from localStorage
@@ -351,6 +369,55 @@ export default function AdminPage() {
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* Newsletter-Abonnenten */}
+      <div style={s.card}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+          <h3 style={{ margin: 0, fontSize: 15, color: "#F39200" }}>
+            Newsletter-Abonnenten ({nlEmails.length})
+          </h3>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button style={s.btnOutline} onClick={() => loadNewsletter(secret)}>
+              {nlLoading ? "..." : "Aktualisieren"}
+            </button>
+            {nlEmails.length > 0 && (
+              <button
+                style={s.btn("#4293D0")}
+                onClick={() => {
+                  const csv = nlEmails.join("\n");
+                  const blob = new Blob([csv], { type: "text/csv" });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = `newsletter-abonnenten-${new Date().toISOString().slice(0, 10)}.csv`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                }}
+              >
+                CSV Export
+              </button>
+            )}
+          </div>
+        </div>
+        {nlEmails.length === 0 ? (
+          <p style={{ color: "#7A7A7A", fontSize: 13, margin: 0 }}>Noch keine Abonnenten.</p>
+        ) : (
+          <div style={{ maxHeight: 200, overflowY: "auto", fontSize: 13 }}>
+            {nlEmails.map((email) => (
+              <div
+                key={email}
+                style={{
+                  padding: "6px 0",
+                  borderBottom: "1px solid #f0ede9",
+                  color: "#3A3A3A",
+                }}
+              >
+                {email}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Danger zone */}
