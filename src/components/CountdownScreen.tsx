@@ -368,6 +368,192 @@ export default function CountdownScreen() {
         <br />
         Mensch gegen Maschine &ndash; bald geht&apos;s los!
       </p>
+
+      {/* ── Info-Bereich ── */}
+      <div
+        style={{
+          position: "relative",
+          zIndex: 1,
+          width: "100%",
+          maxWidth: 600,
+          marginTop: 56,
+        }}
+      >
+        {/* Fakten-Kästchen */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(4, 1fr)",
+            gap: 10,
+            marginBottom: 32,
+          }}
+        >
+          {[
+            { emoji: "\uD83C\uDF0D", val: "48", label: "Teams" },
+            { emoji: "\u26BD", val: "104", label: "Spiele" },
+            { emoji: "\uD83D\uDCCD", val: "3", label: "L\u00E4nder" },
+            { emoji: "\uD83C\uDFC6", val: "1", label: "Champion" },
+          ].map((item) => (
+            <div
+              key={item.label}
+              style={{
+                background: "rgba(255,255,255,0.05)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                borderRadius: 12,
+                padding: "16px 8px",
+                textAlign: "center",
+              }}
+            >
+              <div style={{ fontSize: 20, marginBottom: 4 }}>{item.emoji}</div>
+              <div style={{ fontSize: 24, fontWeight: 800, color: "#F39200" }}>{item.val}</div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                {item.label}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Das Konzept */}
+        <div
+          style={{
+            background: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(255,255,255,0.08)",
+            borderRadius: 14,
+            padding: "24px 28px",
+            marginBottom: 16,
+          }}
+        >
+          <h3 style={{ fontSize: 16, fontWeight: 700, margin: "0 0 10px", color: "#fff" }}>
+            Das Konzept
+          </h3>
+          <p style={{ fontSize: 14, color: "rgba(255,255,255,0.55)", lineHeight: 1.7, margin: 0 }}>
+            Jede:r tippt Spielergebnisse. F&uuml;r richtige Tendenz, Tordifferenz und
+            Exakt-Treffer gibt es Punkte. Das <span style={{ color: "#F39200", fontWeight: 600 }}>UT Orakel</span> (KI)
+            tippt bei jedem Spiel mit &ndash; und taucht in der Gesamtwertung auf.
+            Kann das Team die Maschine schlagen?
+          </p>
+        </div>
+
+        {/* Spielregeln */}
+        <div
+          style={{
+            background: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(255,255,255,0.08)",
+            borderRadius: 14,
+            padding: "24px 28px",
+            marginBottom: 16,
+          }}
+        >
+          <h3 style={{ fontSize: 16, fontWeight: 700, margin: "0 0 12px", color: "#fff" }}>
+            Spielregeln
+          </h3>
+          <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", lineHeight: 1.9 }}>
+            {[
+              "Richtige Tendenz (Sieg / Unentschieden / Niederlage) = 2 Punkte",
+              "Richtige Tordifferenz = 3 Punkte",
+              "Exaktes Ergebnis = 4 Punkte",
+              "K.O.-Bonus: Achtelfinale 1.5x \u2013 Finale 3x",
+              "Das UT Orakel (KI) spielt als eigener Teilnehmer mit",
+            ].map((rule) => (
+              <div key={rule} style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
+                <span style={{ color: "#F39200", fontSize: 10 }}>{"\u25B8"}</span>
+                <span>{rule}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Preise */}
+        <div
+          style={{
+            background: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(255,255,255,0.08)",
+            borderRadius: 14,
+            padding: "24px 28px",
+            marginBottom: 16,
+          }}
+        >
+          <h3 style={{ fontSize: 16, fontWeight: 700, margin: "0 0 12px", color: "#fff" }}>
+            Preise
+          </h3>
+          <div style={{ display: "flex", gap: 12 }}>
+            {[
+              { place: "1.", emoji: "\uD83C\uDFC6", label: "Hauptpreis", color: "#F39200" },
+              { place: "2.", emoji: "\uD83E\uDD48", label: "Zweiter Preis", color: "#8a8a8a" },
+              { place: "3.", emoji: "\uD83E\uDD49", label: "Dritter Preis", color: "#A0522D" },
+            ].map((p) => (
+              <div
+                key={p.place}
+                style={{
+                  flex: 1,
+                  textAlign: "center",
+                  background: "rgba(255,255,255,0.03)",
+                  borderRadius: 10,
+                  padding: "14px 8px",
+                  border: "1px solid rgba(255,255,255,0.06)",
+                }}
+              >
+                <div style={{ fontSize: 24 }}>{p.emoji}</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: p.color, marginTop: 4 }}>{p.place} Platz</div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>{p.label}</div>
+              </div>
+            ))}
+          </div>
+          <p style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", textAlign: "center", margin: "12px 0 0" }}>
+            Details werden mit der Registrierungser&ouml;ffnung bekanntgegeben.
+          </p>
+        </div>
+
+        {/* Termine */}
+        <div
+          style={{
+            background: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(255,255,255,0.08)",
+            borderRadius: 14,
+            padding: "24px 28px",
+            marginBottom: 16,
+          }}
+        >
+          <h3 style={{ fontSize: 16, fontWeight: 700, margin: "0 0 16px", color: "#fff" }}>
+            Alle Termine
+          </h3>
+          <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", lineHeight: 1.6 }}>
+            {[
+              { date: "4. Juni 2026", text: "Registrierung \u00F6ffnet", highlight: true },
+              { date: "11. Juni 2026", text: "Anpfiff! WM-Er\u00F6ffnung & erster Tipp" },
+              { date: "19. Juli 2026", text: "Finale & Siegerehrung" },
+            ].map((t) => (
+              <div
+                key={t.date}
+                style={{
+                  display: "flex",
+                  gap: 16,
+                  padding: "10px 0",
+                  borderBottom: "1px solid rgba(255,255,255,0.06)",
+                  alignItems: "center",
+                }}
+              >
+                <div
+                  style={{
+                    minWidth: 110,
+                    fontSize: 13,
+                    fontWeight: 700,
+                    color: t.highlight ? "#F39200" : "rgba(255,255,255,0.6)",
+                  }}
+                >
+                  {t.date}
+                </div>
+                <div>{t.text}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <p style={{ fontSize: 11, color: "rgba(255,255,255,0.25)", textAlign: "center", marginTop: 24, letterSpacing: "0.04em" }}>
+          Nur f&uuml;r United Therapy Mitarbeiter:innen
+        </p>
+      </div>
     </div>
   );
 }
