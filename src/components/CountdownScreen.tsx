@@ -33,8 +33,7 @@ export default function CountdownScreen() {
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        justifyContent: "flex-start",
-        paddingTop: "6vh",
+        justifyContent: "center",
         background: "radial-gradient(ellipse at 50% 30%, #1a1a3e 0%, #0d0d1f 100%)",
         color: "#fff",
         fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
@@ -94,7 +93,7 @@ export default function CountdownScreen() {
           position: "relative",
           width: 220,
           height: 280,
-          marginBottom: 48,
+          marginBottom: 64,
           animation: "float 4s ease-in-out infinite",
         }}
       >
