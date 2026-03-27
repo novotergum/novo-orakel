@@ -88,15 +88,16 @@ export default async function Home() {
         <div
           style={{
             display: "inline-block",
-            background: "#fff",
-            borderRadius: 16,
-            padding: "12px 28px",
             marginBottom: 12,
-            border: "1px solid #F3920033",
-            boxShadow: "0 2px 8px rgba(243,146,0,0.10)",
           }}
         >
-          <span style={{ fontSize: 32 }}>{"\u26BD"}</span>
+          <img
+            src="/ut-logo.png"
+            alt="UT Logo"
+            width={64}
+            height={67}
+            style={{ display: "block" }}
+          />
         </div>
         <h1 style={{ fontSize: 28, margin: "8px 0 0", color: "#3A3A3A" }}>
           UT Orakel

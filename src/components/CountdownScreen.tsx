@@ -220,6 +220,20 @@ export default function CountdownScreen() {
         </div>
       </div>
 
+      {/* UT Logo */}
+      <div style={{ position: "relative", zIndex: 1, marginBottom: 12 }}>
+        <img
+          src="/ut-logo.png"
+          alt="UT Logo"
+          width={72}
+          height={75}
+          style={{
+            display: "block",
+            filter: "drop-shadow(0 0 12px rgba(243,146,0,0.4))",
+          }}
+        />
+      </div>
+
       {/* Titel */}
       <h1
         style={{
