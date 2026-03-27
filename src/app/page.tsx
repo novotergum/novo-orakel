@@ -73,9 +73,9 @@ const sCard: React.CSSProperties = {
   boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
 };
 
-export default async function Home() {
-  // Countdown-Screen bis 1 Woche vor WM-Start zeigen
-  if (new Date() < SHOW_MAIN_AT) {
+export default async function Home({ searchParams }: { searchParams: { view?: string } }) {
+  // Countdown-Screen bis 1 Woche vor WM-Start zeigen (?view=main überspringt)
+  if (new Date() < SHOW_MAIN_AT && searchParams.view !== "main") {
     return <CountdownScreen />;
   }
 
