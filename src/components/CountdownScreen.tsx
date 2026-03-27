@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, FormEvent } from "react";
 
 const WM_START = new Date("2026-06-11T00:00:00+02:00"); // WM 2026 Kick-off
 
@@ -49,11 +49,39 @@ const stars = [
 
 export default function CountdownScreen() {
   const [time, setTime] = useState(calcTimeLeft);
+  const [email, setEmail] = useState("");
+  const [nlStatus, setNlStatus] = useState<"idle" | "loading" | "ok" | "error">("idle");
+  const [nlMsg, setNlMsg] = useState("");
 
   useEffect(() => {
     const id = setInterval(() => setTime(calcTimeLeft()), 1000);
     return () => clearInterval(id);
   }, []);
+
+  async function subscribeNewsletter(e: FormEvent) {
+    e.preventDefault();
+    if (!email.trim()) return;
+    setNlStatus("loading");
+    try {
+      const res = await fetch("/api/newsletter", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setNlStatus("ok");
+        setNlMsg("Du bist dabei! Wir melden uns.");
+        setEmail("");
+      } else {
+        setNlStatus("error");
+        setNlMsg(data.error ?? "Fehler");
+      }
+    } catch {
+      setNlStatus("error");
+      setNlMsg("Netzwerkfehler");
+    }
+  }
 
   return (
     <div
@@ -549,9 +577,88 @@ export default function CountdownScreen() {
           </div>
         </div>
 
+        {/* Newsletter */}
+        <div
+          style={{
+            background: "rgba(243,146,0,0.06)",
+            border: "1px solid rgba(243,146,0,0.15)",
+            borderRadius: 14,
+            padding: "28px 28px",
+            marginBottom: 16,
+            textAlign: "center",
+          }}
+        >
+          <h3 style={{ fontSize: 16, fontWeight: 700, margin: "0 0 6px", color: "#fff" }}>
+            Jetzt informiert bleiben
+          </h3>
+          <p style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", margin: "0 0 16px", lineHeight: 1.6 }}>
+            Registrierung &ouml;ffnet am 4. Juni. Trag dich ein und du bekommst
+            automatisch eine E-Mail &ndash; plus alle Infos zu Punktesystem, Preisen
+            und wie du gegen das UT Orakel antrittst.
+          </p>
+          {nlStatus === "ok" ? (
+            <div
+              style={{
+                padding: "12px 20px",
+                background: "rgba(46,125,50,0.15)",
+                borderRadius: 10,
+                color: "#66bb6a",
+                fontSize: 14,
+                fontWeight: 600,
+              }}
+            >
+              {nlMsg}
+            </div>
+          ) : (
+            <form onSubmit={subscribeNewsletter} style={{ display: "flex", gap: 10 }}>
+              <input
+                type="email"
+                required
+                placeholder="deine@email.de"
+                value={email}
+                onChange={(e) => { setEmail(e.target.value); setNlStatus("idle"); }}
+                style={{
+                  flex: 1,
+                  padding: "12px 16px",
+                  background: "rgba(255,255,255,0.06)",
+                  border: "1px solid rgba(255,255,255,0.12)",
+                  borderRadius: 10,
+                  color: "#fff",
+                  fontSize: 14,
+                  outline: "none",
+                }}
+              />
+              <button
+                type="submit"
+                disabled={nlStatus === "loading"}
+                style={{
+                  padding: "12px 24px",
+                  background: "#F39200",
+                  border: "none",
+                  borderRadius: 10,
+                  color: "#fff",
+                  fontSize: 14,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  opacity: nlStatus === "loading" ? 0.6 : 1,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {nlStatus === "loading" ? "..." : "Anmelden"}
+              </button>
+            </form>
+          )}
+          {nlStatus === "error" && (
+            <div style={{ marginTop: 8, fontSize: 12, color: "#ef5350" }}>{nlMsg}</div>
+          )}
+          <p style={{ fontSize: 11, color: "rgba(255,255,255,0.25)", margin: "12px 0 0" }}>
+            Nur f&uuml;r United Therapy Mitarbeiter:innen &middot; Jederzeit abmeldbar
+          </p>
+        </div>
+
         {/* Footer */}
         <p style={{ fontSize: 11, color: "rgba(255,255,255,0.25)", textAlign: "center", marginTop: 24, letterSpacing: "0.04em" }}>
-          Nur f&uuml;r United Therapy Mitarbeiter:innen
+          United Therapy GmbH
         </p>
       </div>
     </div>
