@@ -93,7 +93,7 @@ export default function CountdownScreen() {
           position: "relative",
           width: 220,
           height: 280,
-          marginBottom: 32,
+          marginBottom: 48,
           animation: "float 4s ease-in-out infinite",
         }}
       >
