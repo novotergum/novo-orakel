@@ -18,6 +18,8 @@ Jede:r Teilnehmer:in tippt die Ergebnisse der WM-Spiele. Das UT Orakel gibt eben
 
 ### Registrierung
 
+Die Tippspiel-App öffnet sich am **4. Juni 2026** – eine Woche vor WM-Start – zur Registrierung und Tippabgabe. Bis dahin zeigt die Seite einen Countdown zum Turnier.
+
 1. Öffne die Tippspiel-App im Browser: **[wm-tippspiel.vercel.app](https://wm-tippspiel.vercel.app)**
 2. Gib deinen **Namen**, deinen **Standort** und den **Einladungscode** ein
 3. Den Einladungscode erhältst du im Teams-Kanal
@@ -128,7 +130,7 @@ Die verbleibenden Joker werden im Tippformular angezeigt (z.B. "Joker: 7/10").
 
 ## 7. Microsoft Teams Kanal
 
-Das Tippspiel ist in einen **Microsoft Teams Kanal** integriert. Dort werden automatisch folgende Nachrichten gepostet:
+Das Tippspiel ist in einen **Microsoft Teams Kanal** integriert. Der Kanal ist die zentrale Anlaufstelle für Austausch, Updates zu Spielen und Ergebnissen sowie Leaderboard-Meldungen. Dort werden automatisch folgende Nachrichten gepostet:
 
 ### Spieltag-Erinnerung
 - Wird vor den Spielen des Tages gepostet
@@ -186,13 +188,13 @@ Für alle, die es genauer wissen wollen:
 
 ## 10. Quick-Start für neue Teilnehmer:innen
 
-1. App aufrufen: **[wm-tippspiel.vercel.app](https://wm-tippspiel.vercel.app)**
+1. Ab dem **4. Juni 2026** die App aufrufen: **[wm-tippspiel.vercel.app](https://wm-tippspiel.vercel.app)**
 2. Namen, Standort und Einladungscode eingeben → Registrierung abgeschlossen
 3. Anstehende Spiele durchblättern
 4. Tendenz (1 / X / 2) wählen und Ergebnis tippen
 5. Optional: Orakel-Joker nutzen für KI-Empfehlung
 6. Tipp absenden – fertig!
-7. Im Teams-Kanal auf dem Laufenden bleiben
+7. Im Teams-Kanal auf dem Laufenden bleiben – dort gibt es Updates zu Spielen, Ergebnissen und Leaderboard
 8. Im Leaderboard die eigene Position checken
 
 ---
