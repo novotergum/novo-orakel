@@ -13,70 +13,52 @@ interface WMNewsItem {
   category: "injury" | "highlight" | "scandal" | "fun" | "general";
 }
 
-async function fetchFromSource(url: string, linkBase: string): Promise<WMNewsItem[]> {
-  try {
-    const res = await fetch(url, {
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; UTOrakel/1.0)" },
-      cache: "no-store",
-    });
-    if (!res.ok) return [];
-    const html = await res.text();
-    const tagRegex = new RegExp("<[^>]+>", "g");
-    // Match common headline patterns
-    const patterns = [
-      new RegExp('<h[23][^>]*>\\s*<a[^>]*href="([^"]*)"[^>]*>([\\s\\S]*?)</a>', "gi"),
-      new RegExp('<a[^>]*href="([^"]*)"[^>]*class="[^"]*title[^"]*"[^>]*>([\\s\\S]*?)</a>', "gi"),
-    ];
-    const results: WMNewsItem[] = [];
-    for (const pattern of patterns) {
-      for (const m of html.matchAll(pattern)) {
-        const title = m[2].replace(tagRegex, "").trim();
-        if (title.length < 10 || title.length > 200) continue;
-        const href = m[1].startsWith("http") ? m[1] : `${linkBase}${m[1]}`;
-        results.push({ title, snippet: "", url: href, category: "general" });
-      }
-      if (results.length >= 5) break;
-    }
-    return results.slice(0, 5);
-  } catch {
-    return [];
-  }
-}
-
 async function getWMNews(): Promise<WMNewsItem[]> {
-  const sources = [
-    { url: "https://www.kicker.de/fifa-wm-2026/news", base: "https://www.kicker.de" },
-    { url: "https://www.sportschau.de/fussball/fifa-wm-2026", base: "https://www.sportschau.de" },
-    { url: "https://sport.sky.de/fussball/wm", base: "https://sport.sky.de" },
+  const token = process.env.BRAVE_SEARCH_KEY;
+  if (!token) return [];
+
+  const queries = [
+    { q: "FIFA WM 2026 Verletzungen Spieler news", cat: "injury" as const },
+    { q: "FIFA World Cup 2026 highlights ueberraschung", cat: "highlight" as const },
+    { q: "WM 2026 lustig kurios skandal", cat: "fun" as const },
   ];
 
-  for (const src of sources) {
-    const news = await fetchFromSource(src.url, src.base);
-    if (news.length > 0) return news;
-  }
+  const allNews: WMNewsItem[] = [];
+  const seen = new Set<string>();
 
-  // Fallback: Google Custom Search if configured
-  if (process.env.GOOGLE_SEARCH_KEY && process.env.GOOGLE_SEARCH_CX) {
+  for (const { q, cat } of queries) {
     try {
       const res = await fetch(
-        `https://www.googleapis.com/customsearch/v1?key=${process.env.GOOGLE_SEARCH_KEY}&cx=${process.env.GOOGLE_SEARCH_CX}&q=${encodeURIComponent("FIFA WM 2026 news")}&num=5&dateRestrict=d7`,
-        { cache: "no-store" },
+        `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(q)}&count=3&freshness=pw`,
+        {
+          headers: {
+            Accept: "application/json",
+            "X-Subscription-Token": token,
+          },
+          cache: "no-store",
+        },
       );
-      if (res.ok) {
-        const data = await res.json();
-        return (data.items ?? []).slice(0, 5).map((item: Record<string, string>) => ({
+      if (!res.ok) continue;
+      const data = await res.json();
+      for (const item of data.web?.results ?? []) {
+        if (seen.has(item.url)) continue;
+        seen.add(item.url);
+        const snippet = (item.description ?? "")
+          .replace(/<[^>]+>/g, "")
+          .slice(0, 160);
+        allNews.push({
           title: item.title ?? "",
-          snippet: (item.snippet ?? "").slice(0, 160),
-          url: item.link ?? "",
-          category: "general" as const,
-        }));
+          snippet,
+          url: item.url ?? "",
+          category: cat,
+        });
       }
     } catch {
-      // ignore
+      // continue with next query
     }
   }
 
-  return [];
+  return allNews.slice(0, 5);
 }
 
 // ---------------------------------------------------------------------------
