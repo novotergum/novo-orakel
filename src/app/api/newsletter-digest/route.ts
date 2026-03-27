@@ -13,76 +13,70 @@ interface WMNewsItem {
   category: "injury" | "highlight" | "scandal" | "fun" | "general";
 }
 
-async function fetchWMNews(): Promise<WMNewsItem[]> {
-  const queries = [
-    { q: "FIFA World Cup 2026 news injuries transfers", cat: "injury" as const },
-    { q: "FIFA WM 2026 highlights spannung ueberraschung", cat: "highlight" as const },
-    { q: "FIFA World Cup 2026 funny moments skandal kontroverse", cat: "fun" as const },
-  ];
-
-  const allNews: WMNewsItem[] = [];
-
-  for (const { q, cat } of queries) {
-    try {
-      const res = await fetch(
-        `https://www.googleapis.com/customsearch/v1?key=${process.env.GOOGLE_SEARCH_KEY}&cx=${process.env.GOOGLE_SEARCH_CX}&q=${encodeURIComponent(q)}&num=3&dateRestrict=d7&lr=lang_de|lang_en`,
-        { cache: "no-store" },
-      );
-      if (res.ok) {
-        const data = await res.json();
-        for (const item of data.items ?? []) {
-          allNews.push({
-            title: item.title ?? "",
-            snippet: (item.snippet ?? "").slice(0, 160),
-            url: item.link ?? "",
-            category: cat,
-          });
-        }
-      }
-    } catch {
-      // Fallback: continue without this query
-    }
-  }
-
-  // Deduplicate by URL and limit
-  const seen = new Set<string>();
-  return allNews.filter((n) => {
-    if (seen.has(n.url)) return false;
-    seen.add(n.url);
-    return true;
-  }).slice(0, 5);
-}
-
-// Fallback if no Google API keys: scrape headlines from a public source
-async function fetchWMNewsFallback(): Promise<WMNewsItem[]> {
+async function fetchFromSource(url: string, linkBase: string): Promise<WMNewsItem[]> {
   try {
-    const res = await fetch("https://www.kicker.de/fifa-wm-2026/news", {
-      headers: { "User-Agent": "Mozilla/5.0" },
+    const res = await fetch(url, {
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; UTOrakel/1.0)" },
       cache: "no-store",
     });
     if (!res.ok) return [];
     const html = await res.text();
-    // Extract headlines from kicker
     const tagRegex = new RegExp("<[^>]+>", "g");
-    const headlineRegex = new RegExp('<h3[^>]*>.*?<a[^>]*href="([^"]*)"[^>]*>(.*?)</a>', "gs");
-    const matches = [...html.matchAll(headlineRegex)];
-    return matches.slice(0, 5).map((m) => ({
-      title: m[2].replace(tagRegex, "").trim(),
-      snippet: "",
-      url: m[1].startsWith("http") ? m[1] : `https://www.kicker.de${m[1]}`,
-      category: "general" as const,
-    }));
+    // Match common headline patterns
+    const patterns = [
+      new RegExp('<h[23][^>]*>\\s*<a[^>]*href="([^"]*)"[^>]*>([\\s\\S]*?)</a>', "gi"),
+      new RegExp('<a[^>]*href="([^"]*)"[^>]*class="[^"]*title[^"]*"[^>]*>([\\s\\S]*?)</a>', "gi"),
+    ];
+    const results: WMNewsItem[] = [];
+    for (const pattern of patterns) {
+      for (const m of html.matchAll(pattern)) {
+        const title = m[2].replace(tagRegex, "").trim();
+        if (title.length < 10 || title.length > 200) continue;
+        const href = m[1].startsWith("http") ? m[1] : `${linkBase}${m[1]}`;
+        results.push({ title, snippet: "", url: href, category: "general" });
+      }
+      if (results.length >= 5) break;
+    }
+    return results.slice(0, 5);
   } catch {
     return [];
   }
 }
 
 async function getWMNews(): Promise<WMNewsItem[]> {
-  if (process.env.GOOGLE_SEARCH_KEY && process.env.GOOGLE_SEARCH_CX) {
-    const news = await fetchWMNews();
+  const sources = [
+    { url: "https://www.kicker.de/fifa-wm-2026/news", base: "https://www.kicker.de" },
+    { url: "https://www.sportschau.de/fussball/fifa-wm-2026", base: "https://www.sportschau.de" },
+    { url: "https://sport.sky.de/fussball/wm", base: "https://sport.sky.de" },
+  ];
+
+  for (const src of sources) {
+    const news = await fetchFromSource(src.url, src.base);
     if (news.length > 0) return news;
   }
-  return fetchWMNewsFallback();
+
+  // Fallback: Google Custom Search if configured
+  if (process.env.GOOGLE_SEARCH_KEY && process.env.GOOGLE_SEARCH_CX) {
+    try {
+      const res = await fetch(
+        `https://www.googleapis.com/customsearch/v1?key=${process.env.GOOGLE_SEARCH_KEY}&cx=${process.env.GOOGLE_SEARCH_CX}&q=${encodeURIComponent("FIFA WM 2026 news")}&num=5&dateRestrict=d7`,
+        { cache: "no-store" },
+      );
+      if (res.ok) {
+        const data = await res.json();
+        return (data.items ?? []).slice(0, 5).map((item: Record<string, string>) => ({
+          title: item.title ?? "",
+          snippet: (item.snippet ?? "").slice(0, 160),
+          url: item.link ?? "",
+          category: "general" as const,
+        }));
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  return [];
 }
 
 // ---------------------------------------------------------------------------
