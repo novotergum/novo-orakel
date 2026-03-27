@@ -2,7 +2,7 @@
 
 import { useState, useEffect, FormEvent } from "react";
 
-const WM_START = new Date("2026-06-11T00:00:00+02:00"); // WM 2026 Kick-off
+const WM_START = new Date("2026-06-11T00:00:00+02:00");
 
 function calcTimeLeft() {
   const now = new Date().getTime();
@@ -18,7 +18,6 @@ function calcTimeLeft() {
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
-// Kuratierte Sterne — handplatziert für ein ausgewogenes Bild
 const stars = [
   { x: 5, y: 8, size: 2, orange: false, delay: 0 },
   { x: 15, y: 22, size: 3, orange: true, delay: 0.8 },
@@ -46,6 +45,13 @@ const stars = [
   { x: 18, y: 92, size: 2, orange: false, delay: 0.8 },
   { x: 75, y: 38, size: 2, orange: false, delay: 2.2 },
 ];
+
+const card: React.CSSProperties = {
+  background: "rgba(255,255,255,0.04)",
+  border: "1px solid rgba(255,255,255,0.08)",
+  borderRadius: 14,
+  padding: "20px 24px",
+};
 
 export default function CountdownScreen() {
   const [time, setTime] = useState(calcTimeLeft);
@@ -90,16 +96,15 @@ export default function CountdownScreen() {
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        justifyContent: "center",
         background: "radial-gradient(ellipse at 50% 30%, #1a1a3e 0%, #0d0d1f 100%)",
         color: "#fff",
         fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
         overflow: "hidden",
         position: "relative",
-        padding: "40px 20px",
+        padding: "0 20px",
       }}
     >
-      {/* Sterne-Hintergrund — kuratiert */}
+      {/* Sterne */}
       <div style={{ position: "absolute", inset: 0, overflow: "hidden", pointerEvents: "none" }}>
         {stars.map((s, i) => (
           <div
@@ -120,7 +125,6 @@ export default function CountdownScreen() {
         ))}
       </div>
 
-      {/* CSS-Animationen */}
       <style>{`
         @keyframes twinkle {
           0%, 100% { opacity: 0.15; transform: scale(1); }
@@ -140,509 +144,136 @@ export default function CountdownScreen() {
         }
       `}</style>
 
-      {/* Krabbe als Zauberer — 15-20% groesser */}
-      <div
-        style={{
-          position: "relative",
-          width: 260,
-          height: 330,
-          marginBottom: 56,
-          animation: "float 4s ease-in-out infinite",
-        }}
-      >
-        {/* Zauberhut */}
-        <div
-          style={{
-            position: "absolute",
-            top: 0,
-            left: "50%",
-            transform: "translateX(-50%)",
-            zIndex: 3,
-          }}
-        >
-          {/* Hutspitze */}
-          <div
-            style={{
-              width: 0,
-              height: 0,
-              borderLeft: "46px solid transparent",
-              borderRight: "46px solid transparent",
-              borderBottom: "82px solid #1a3a8a",
-              margin: "0 auto",
-              position: "relative",
-            }}
-          >
-            {/* Sterne auf dem Hut */}
-            <div style={{ position: "absolute", top: 30, left: -12, fontSize: 12, color: "#FFD700" }}>
-              &#9733;
-            </div>
-            <div style={{ position: "absolute", top: 48, left: 10, fontSize: 9, color: "#FFD700" }}>
-              &#9733;
-            </div>
-            <div style={{ position: "absolute", top: 18, left: 6, fontSize: 7, color: "#C0C0C0" }}>
-              &#9733;
-            </div>
-          </div>
-          {/* Hutrand */}
-          <div
-            style={{
-              width: 128,
-              height: 16,
-              background: "linear-gradient(to bottom, #C0C0C0, #8a8a8a)",
-              borderRadius: "50%",
-              margin: "-4px auto 0",
-            }}
-          />
-        </div>
-
-        {/* Krabbe-Bild — lokal gehostet */}
-        <div style={{ position: "absolute", top: 82, left: "50%", transform: "translateX(-50%)", zIndex: 2 }}>
-          <img
-            src="/krabbe.png"
-            alt="UT Orakel Krabbe"
-            width={164}
-            height={164}
-            style={{
-              display: "block",
-              filter: "drop-shadow(0 0 12px rgba(243,146,0,0.15))",
-            }}
-          />
-        </div>
-
-        {/* Zauberkugel */}
-        <div
-          style={{
-            position: "absolute",
-            bottom: 0,
-            left: "50%",
-            transform: "translateX(-50%)",
-            zIndex: 4,
-          }}
-        >
-          {/* Puls-Ring */}
-          <div
-            style={{
-              position: "absolute",
-              width: 66,
-              height: 66,
-              borderRadius: "50%",
-              border: "1px solid rgba(120,180,255,0.25)",
-              top: "50%",
-              left: "50%",
-              transform: "translate(-50%, -50%)",
-              animation: "pulseRing 3s ease-out infinite",
-            }}
-          />
-          {/* Kugel */}
-          <div
-            style={{
-              width: 66,
-              height: 66,
-              borderRadius: "50%",
-              background: "radial-gradient(circle at 35% 35%, rgba(200,220,255,0.9), rgba(80,130,220,0.6) 40%, rgba(30,50,120,0.8) 100%)",
-              animation: "orbGlow 3s ease-in-out infinite",
-              position: "relative",
-            }}
-          >
-            {/* Glanz */}
-            <div
-              style={{
-                position: "absolute",
-                width: 18,
-                height: 12,
-                borderRadius: "50%",
-                background: "rgba(255,255,255,0.5)",
-                top: 14,
-                left: 16,
-                transform: "rotate(-30deg)",
-              }}
-            />
-            {/* Fussball-Emoji in der Kugel */}
-            <div
-              style={{
-                position: "absolute",
-                top: "50%",
-                left: "50%",
-                transform: "translate(-50%, -50%)",
-                fontSize: 24,
-                opacity: 0.6,
-              }}
-            >
-              {"\u26BD"}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Titel mit Logo */}
+      {/* ═══════════════ HERO ZONE ═══════════════ */}
       <div
         style={{
           display: "flex",
+          flexDirection: "column",
           alignItems: "center",
-          gap: 16,
-          position: "relative",
-          zIndex: 1,
-          marginBottom: 40,
-        }}
-      >
-        <img
-          src="/ut-logo.png"
-          alt="UT Logo"
-          width={56}
-          height={58}
-          style={{
-            display: "block",
-            opacity: 0.85,
-            filter: "drop-shadow(0 0 6px rgba(243,146,0,0.2))",
-          }}
-        />
-        <div>
-          <h1
-            style={{
-              fontSize: 36,
-              fontWeight: 800,
-              margin: 0,
-              letterSpacing: "0.02em",
-              lineHeight: 1.1,
-            }}
-          >
-            <span style={{ color: "#4293D0" }}>UT</span> Orakel
-          </h1>
-          <p
-            style={{
-              fontSize: 14,
-              color: "rgba(255,255,255,0.5)",
-              margin: "4px 0 0",
-              letterSpacing: "0.08em",
-              textTransform: "uppercase",
-            }}
-          >
-            WM 2026 Tippspiel
-          </p>
-        </div>
-      </div>
-
-      {/* Countdown — responsiv */}
-      <div
-        style={{
-          display: "flex",
-          gap: "clamp(8px, 3vw, 16px)",
-          marginBottom: 40,
-          position: "relative",
-          zIndex: 1,
-          flexWrap: "wrap",
           justifyContent: "center",
-        }}
-      >
-        {[
-          { val: time.days, label: "Tage" },
-          { val: time.hours, label: "Std" },
-          { val: time.minutes, label: "Min" },
-          { val: time.seconds, label: "Sek" },
-        ].map((item) => (
-          <div key={item.label} style={{ textAlign: "center" }}>
-            <div
-              style={{
-                width: "clamp(60px, 18vw, 80px)",
-                height: "clamp(68px, 20vw, 88px)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                background: "rgba(255,255,255,0.05)",
-                borderRadius: 12,
-                border: "1px solid rgba(255,255,255,0.08)",
-                backdropFilter: "blur(8px)",
-              }}
-            >
-              <span
-                style={{
-                  fontSize: "clamp(28px, 8vw, 40px)",
-                  fontWeight: 800,
-                  fontVariantNumeric: "tabular-nums",
-                  color: "#F39200",
-                }}
-              >
-                {pad(item.val)}
-              </span>
-            </div>
-            <div
-              style={{
-                fontSize: 11,
-                color: "rgba(255,255,255,0.5)",
-                marginTop: 8,
-                textTransform: "uppercase",
-                letterSpacing: "0.1em",
-              }}
-            >
-              {item.label}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Untertitel */}
-      <p
-        style={{
-          fontSize: 14,
-          color: "rgba(255,255,255,0.4)",
-          textAlign: "center",
-          maxWidth: 320,
-          lineHeight: 1.6,
-          position: "relative",
-          zIndex: 1,
-        }}
-      >
-        Das Orakel bereitet sich vor&hellip;
-        <br />
-        Mensch gegen Maschine &ndash; bald geht&apos;s los!
-      </p>
-
-      {/* ── Info-Bereich ── */}
-      <div
-        style={{
+          minHeight: "100vh",
           position: "relative",
           zIndex: 1,
           width: "100%",
-          maxWidth: 600,
-          marginTop: 56,
+          maxWidth: 520,
         }}
       >
-        {/* Fakten-Kästchen */}
+        {/* Krabbe */}
         <div
           style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(4, 1fr)",
-            gap: 10,
-            marginBottom: 32,
+            position: "relative",
+            width: 260,
+            height: 330,
+            marginBottom: 48,
+            animation: "float 4s ease-in-out infinite",
           }}
         >
-          {[
-            { emoji: "\uD83C\uDF0D", val: "48", label: "Teams" },
-            { emoji: "\u26BD", val: "104", label: "Spiele" },
-            { emoji: "\uD83D\uDCCD", val: "3", label: "L\u00E4nder" },
-            { emoji: "\uD83C\uDFC6", val: "1", label: "Champion" },
-          ].map((item) => (
+          <div style={{ position: "absolute", top: 0, left: "50%", transform: "translateX(-50%)", zIndex: 3 }}>
             <div
-              key={item.label}
               style={{
-                background: "rgba(255,255,255,0.05)",
-                border: "1px solid rgba(255,255,255,0.08)",
-                borderRadius: 12,
-                padding: "16px 8px",
-                textAlign: "center",
+                width: 0, height: 0,
+                borderLeft: "46px solid transparent",
+                borderRight: "46px solid transparent",
+                borderBottom: "82px solid #1a3a8a",
+                margin: "0 auto",
+                position: "relative",
               }}
             >
-              <div style={{ fontSize: 20, marginBottom: 4 }}>{item.emoji}</div>
-              <div style={{ fontSize: 24, fontWeight: 800, color: "#F39200" }}>{item.val}</div>
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+              <div style={{ position: "absolute", top: 30, left: -12, fontSize: 12, color: "#FFD700" }}>&#9733;</div>
+              <div style={{ position: "absolute", top: 48, left: 10, fontSize: 9, color: "#FFD700" }}>&#9733;</div>
+              <div style={{ position: "absolute", top: 18, left: 6, fontSize: 7, color: "#C0C0C0" }}>&#9733;</div>
+            </div>
+            <div style={{ width: 128, height: 16, background: "linear-gradient(to bottom, #C0C0C0, #8a8a8a)", borderRadius: "50%", margin: "-4px auto 0" }} />
+          </div>
+          <div style={{ position: "absolute", top: 82, left: "50%", transform: "translateX(-50%)", zIndex: 2 }}>
+            <img src="/krabbe.png" alt="UT Orakel Krabbe" width={164} height={164} style={{ display: "block", filter: "drop-shadow(0 0 12px rgba(243,146,0,0.15))" }} />
+          </div>
+          <div style={{ position: "absolute", bottom: 0, left: "50%", transform: "translateX(-50%)", zIndex: 4 }}>
+            <div style={{ position: "absolute", width: 66, height: 66, borderRadius: "50%", border: "1px solid rgba(120,180,255,0.25)", top: "50%", left: "50%", transform: "translate(-50%, -50%)", animation: "pulseRing 3s ease-out infinite" }} />
+            <div style={{ width: 66, height: 66, borderRadius: "50%", background: "radial-gradient(circle at 35% 35%, rgba(200,220,255,0.9), rgba(80,130,220,0.6) 40%, rgba(30,50,120,0.8) 100%)", animation: "orbGlow 3s ease-in-out infinite", position: "relative" }}>
+              <div style={{ position: "absolute", width: 18, height: 12, borderRadius: "50%", background: "rgba(255,255,255,0.5)", top: 14, left: 16, transform: "rotate(-30deg)" }} />
+              <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", fontSize: 24, opacity: 0.6 }}>{"\u26BD"}</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Titel */}
+        <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 32 }}>
+          <img src="/ut-logo.png" alt="UT Logo" width={56} height={58} style={{ display: "block", opacity: 0.85, filter: "drop-shadow(0 0 6px rgba(243,146,0,0.2))" }} />
+          <div>
+            <h1 style={{ fontSize: 36, fontWeight: 800, margin: 0, letterSpacing: "0.02em", lineHeight: 1.1 }}>
+              <span style={{ color: "#4293D0" }}>UT</span> Orakel
+            </h1>
+            <p style={{ fontSize: 14, color: "rgba(255,255,255,0.5)", margin: "4px 0 0", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+              WM 2026 Tippspiel
+            </p>
+          </div>
+        </div>
+
+        {/* Countdown */}
+        <div style={{ display: "flex", gap: "clamp(8px, 3vw, 16px)", marginBottom: 28, flexWrap: "wrap", justifyContent: "center" }}>
+          {[
+            { val: time.days, label: "Tage" },
+            { val: time.hours, label: "Std" },
+            { val: time.minutes, label: "Min" },
+            { val: time.seconds, label: "Sek" },
+          ].map((item) => (
+            <div key={item.label} style={{ textAlign: "center" }}>
+              <div style={{ width: "clamp(60px, 18vw, 80px)", height: "clamp(68px, 20vw, 88px)", display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(255,255,255,0.05)", borderRadius: 12, border: "1px solid rgba(255,255,255,0.08)", backdropFilter: "blur(8px)" }}>
+                <span style={{ fontSize: "clamp(28px, 8vw, 40px)", fontWeight: 800, fontVariantNumeric: "tabular-nums", color: "#F39200" }}>
+                  {pad(item.val)}
+                </span>
+              </div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 8, textTransform: "uppercase", letterSpacing: "0.1em" }}>
                 {item.label}
               </div>
             </div>
           ))}
         </div>
 
-        {/* Das Konzept */}
-        <div
-          style={{
-            background: "rgba(255,255,255,0.04)",
-            border: "1px solid rgba(255,255,255,0.08)",
-            borderRadius: 14,
-            padding: "24px 28px",
-            marginBottom: 16,
-          }}
-        >
-          <h3 style={{ fontSize: 16, fontWeight: 700, margin: "0 0 10px", color: "#fff" }}>
-            Das Konzept
-          </h3>
-          <p style={{ fontSize: 14, color: "rgba(255,255,255,0.55)", lineHeight: 1.7, margin: 0 }}>
-            Jede:r tippt Spielergebnisse. F&uuml;r richtige Tendenz, Tordifferenz und
-            Exakt-Treffer gibt es Punkte. Das <span style={{ color: "#F39200", fontWeight: 600 }}>UT Orakel</span> (KI)
-            tippt bei jedem Spiel mit &ndash; und taucht in der Gesamtwertung auf.
-            Kann das Team die Maschine schlagen?
-          </p>
-        </div>
+        {/* Konzept-Einzeiler */}
+        <p style={{ fontSize: 15, color: "rgba(255,255,255,0.5)", textAlign: "center", maxWidth: 400, lineHeight: 1.6, margin: "0 0 32px" }}>
+          Tippt Ergebnisse, sammelt Punkte, schlagt die KI.
+          <br />
+          <span style={{ color: "#F39200" }}>48 Teams &middot; 104 Spiele &middot; 1 Champion</span>
+        </p>
 
-        {/* Spielregeln */}
+        {/* ── Newsletter (primaerer CTA) ── */}
         <div
           style={{
-            background: "rgba(255,255,255,0.04)",
-            border: "1px solid rgba(255,255,255,0.08)",
-            borderRadius: 14,
-            padding: "24px 28px",
-            marginBottom: 16,
-          }}
-        >
-          <h3 style={{ fontSize: 16, fontWeight: 700, margin: "0 0 12px", color: "#fff" }}>
-            Spielregeln
-          </h3>
-          <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", lineHeight: 1.9 }}>
-            {[
-              "Richtige Tendenz (Sieg / Unentschieden / Niederlage) = 2 Punkte",
-              "Richtige Tordifferenz = 3 Punkte",
-              "Exaktes Ergebnis = 4 Punkte",
-              "K.O.-Bonus: Achtelfinale 1.5x \u2013 Finale 3x",
-              "Das UT Orakel (KI) spielt als eigener Teilnehmer mit",
-            ].map((rule) => (
-              <div key={rule} style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
-                <span style={{ color: "#F39200", fontSize: 10 }}>{"\u25B8"}</span>
-                <span>{rule}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Preise */}
-        <div
-          style={{
-            background: "rgba(255,255,255,0.04)",
-            border: "1px solid rgba(255,255,255,0.08)",
-            borderRadius: 14,
-            padding: "24px 28px",
-            marginBottom: 16,
-          }}
-        >
-          <h3 style={{ fontSize: 16, fontWeight: 700, margin: "0 0 12px", color: "#fff" }}>
-            Preise
-          </h3>
-          <div style={{ display: "flex", gap: 12 }}>
-            {[
-              { place: "1.", emoji: "\uD83C\uDFC6", label: "Hauptpreis", color: "#F39200" },
-              { place: "2.", emoji: "\uD83E\uDD48", label: "Zweiter Preis", color: "#8a8a8a" },
-              { place: "3.", emoji: "\uD83E\uDD49", label: "Dritter Preis", color: "#A0522D" },
-            ].map((p) => (
-              <div
-                key={p.place}
-                style={{
-                  flex: 1,
-                  textAlign: "center",
-                  background: "rgba(255,255,255,0.03)",
-                  borderRadius: 10,
-                  padding: "14px 8px",
-                  border: "1px solid rgba(255,255,255,0.06)",
-                }}
-              >
-                <div style={{ fontSize: 24 }}>{p.emoji}</div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: p.color, marginTop: 4 }}>{p.place} Platz</div>
-                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>{p.label}</div>
-              </div>
-            ))}
-          </div>
-          <p style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", textAlign: "center", margin: "12px 0 0" }}>
-            Details werden mit der Registrierungser&ouml;ffnung bekanntgegeben.
-          </p>
-        </div>
-
-        {/* Termine */}
-        <div
-          style={{
-            background: "rgba(255,255,255,0.04)",
-            border: "1px solid rgba(255,255,255,0.08)",
-            borderRadius: 14,
-            padding: "24px 28px",
-            marginBottom: 16,
-          }}
-        >
-          <h3 style={{ fontSize: 16, fontWeight: 700, margin: "0 0 16px", color: "#fff" }}>
-            Alle Termine
-          </h3>
-          <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", lineHeight: 1.6 }}>
-            {[
-              { date: "4. Juni 2026", text: "Registrierung \u00F6ffnet", highlight: true },
-              { date: "11. Juni 2026", text: "Anpfiff! WM-Er\u00F6ffnung & erster Tipp" },
-              { date: "19. Juli 2026", text: "Finale & Siegerehrung" },
-            ].map((t) => (
-              <div
-                key={t.date}
-                style={{
-                  display: "flex",
-                  gap: 16,
-                  padding: "10px 0",
-                  borderBottom: "1px solid rgba(255,255,255,0.06)",
-                  alignItems: "center",
-                }}
-              >
-                <div
-                  style={{
-                    minWidth: 110,
-                    fontSize: 13,
-                    fontWeight: 700,
-                    color: t.highlight ? "#F39200" : "rgba(255,255,255,0.6)",
-                  }}
-                >
-                  {t.date}
-                </div>
-                <div>{t.text}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Newsletter */}
-        <div
-          style={{
-            background: "rgba(243,146,0,0.06)",
-            border: "1px solid rgba(243,146,0,0.15)",
-            borderRadius: 14,
-            padding: "28px 28px",
-            marginBottom: 16,
+            width: "100%",
+            background: "rgba(243,146,0,0.08)",
+            border: "1px solid rgba(243,146,0,0.2)",
+            borderRadius: 16,
+            padding: "24px",
             textAlign: "center",
+            marginBottom: 16,
           }}
         >
-          <h3 style={{ fontSize: 16, fontWeight: 700, margin: "0 0 6px", color: "#fff" }}>
-            Jetzt informiert bleiben
+          <h3 style={{ fontSize: 18, fontWeight: 700, margin: "0 0 6px", color: "#fff" }}>
+            Dabei sein
           </h3>
-          <p style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", margin: "0 0 16px", lineHeight: 1.6 }}>
-            Registrierung &ouml;ffnet am 4. Juni. Trag dich ein und du bekommst
-            automatisch eine E-Mail &ndash; plus alle Infos zu Punktesystem, Preisen
-            und wie du gegen das UT Orakel antrittst.
+          <p style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", margin: "0 0 16px" }}>
+            E-Mail eintragen &ndash; wir melden uns zum Registrierungsstart am 4. Juni.
           </p>
           {nlStatus === "ok" ? (
-            <div
-              style={{
-                padding: "12px 20px",
-                background: "rgba(46,125,50,0.15)",
-                borderRadius: 10,
-                color: "#66bb6a",
-                fontSize: 14,
-                fontWeight: 600,
-              }}
-            >
+            <div style={{ padding: "12px 20px", background: "rgba(46,125,50,0.15)", borderRadius: 10, color: "#66bb6a", fontSize: 14, fontWeight: 600 }}>
               {nlMsg}
             </div>
           ) : (
-            <form onSubmit={subscribeNewsletter} style={{ display: "flex", gap: 10 }}>
+            <form onSubmit={subscribeNewsletter} style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
               <input
                 type="email"
                 required
                 placeholder="deine@email.de"
                 value={email}
                 onChange={(e) => { setEmail(e.target.value); setNlStatus("idle"); }}
-                style={{
-                  flex: 1,
-                  padding: "12px 16px",
-                  background: "rgba(255,255,255,0.06)",
-                  border: "1px solid rgba(255,255,255,0.12)",
-                  borderRadius: 10,
-                  color: "#fff",
-                  fontSize: 14,
-                  outline: "none",
-                }}
+                style={{ flex: "1 1 200px", minWidth: 0, padding: "12px 16px", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 10, color: "#fff", fontSize: 14, outline: "none" }}
               />
               <button
                 type="submit"
                 disabled={nlStatus === "loading"}
-                style={{
-                  padding: "12px 24px",
-                  background: "#F39200",
-                  border: "none",
-                  borderRadius: 10,
-                  color: "#fff",
-                  fontSize: 14,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                  opacity: nlStatus === "loading" ? 0.6 : 1,
-                  whiteSpace: "nowrap",
-                }}
+                style={{ padding: "12px 28px", background: "#F39200", border: "none", borderRadius: 10, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", opacity: nlStatus === "loading" ? 0.6 : 1, whiteSpace: "nowrap" }}
               >
                 {nlStatus === "loading" ? "..." : "Anmelden"}
               </button>
@@ -651,13 +282,57 @@ export default function CountdownScreen() {
           {nlStatus === "error" && (
             <div style={{ marginTop: 8, fontSize: 12, color: "#ef5350" }}>{nlMsg}</div>
           )}
-          <p style={{ fontSize: 11, color: "rgba(255,255,255,0.25)", margin: "12px 0 0" }}>
-            Nur f&uuml;r United Therapy Mitarbeiter:innen &middot; Jederzeit abmeldbar
+          <p style={{ fontSize: 11, color: "rgba(255,255,255,0.2)", margin: "10px 0 0" }}>
+            Nur f&uuml;r United Therapy Mitarbeiter:innen
+          </p>
+        </div>
+      </div>
+
+      {/* ═══════════════ BELOW THE FOLD ═══════════════ */}
+      <div style={{ position: "relative", zIndex: 1, width: "100%", maxWidth: 520, paddingBottom: 60 }}>
+
+        {/* Spielregeln — kompakt */}
+        <div style={{ ...card, marginBottom: 12 }}>
+          <h3 style={{ fontSize: 14, fontWeight: 700, margin: "0 0 10px", color: "rgba(255,255,255,0.7)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+            So funktioniert&apos;s
+          </h3>
+          <div style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", lineHeight: 1.8 }}>
+            {[
+              "Tendenz richtig = 2P &middot; Differenz = 3P &middot; Exakt = 4P",
+              "K.O.-Bonus: bis 3x Punkte im Finale",
+              "Das UT Orakel (KI) spielt mit &ndash; kannst du es schlagen?",
+            ].map((rule, i) => (
+              <div key={i} style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
+                <span style={{ color: "#F39200", fontSize: 8, flexShrink: 0 }}>{"\u25CF"}</span>
+                <span dangerouslySetInnerHTML={{ __html: rule }} />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Termine — einzeilig */}
+        <div style={{ ...card, marginBottom: 12, padding: "16px 24px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "rgba(255,255,255,0.4)", flexWrap: "wrap", gap: "8px 16px" }}>
+            <span><span style={{ color: "#F39200", fontWeight: 700 }}>4. Jun</span> Registrierung</span>
+            <span><span style={{ color: "rgba(255,255,255,0.6)", fontWeight: 700 }}>11. Jun</span> Anpfiff</span>
+            <span><span style={{ color: "rgba(255,255,255,0.6)", fontWeight: 700 }}>19. Jul</span> Finale</span>
+          </div>
+        </div>
+
+        {/* Preise — minimal */}
+        <div style={{ ...card, marginBottom: 12, textAlign: "center", padding: "16px 24px" }}>
+          <div style={{ display: "flex", justifyContent: "center", gap: 24, fontSize: 13, color: "rgba(255,255,255,0.4)" }}>
+            <span><span style={{ fontSize: 18 }}>{"\uD83C\uDFC6"}</span> <span style={{ color: "#F39200", fontWeight: 700 }}>1.</span></span>
+            <span><span style={{ fontSize: 18 }}>{"\uD83E\uDD48"}</span> <span style={{ fontWeight: 600 }}>2.</span></span>
+            <span><span style={{ fontSize: 18 }}>{"\uD83E\uDD49"}</span> <span style={{ fontWeight: 600 }}>3.</span></span>
+          </div>
+          <p style={{ fontSize: 11, color: "rgba(255,255,255,0.25)", margin: "8px 0 0" }}>
+            Preise werden mit Registrierungsstart bekanntgegeben
           </p>
         </div>
 
         {/* Footer */}
-        <p style={{ fontSize: 11, color: "rgba(255,255,255,0.25)", textAlign: "center", marginTop: 24, letterSpacing: "0.04em" }}>
+        <p style={{ fontSize: 11, color: "rgba(255,255,255,0.2)", textAlign: "center", marginTop: 20, letterSpacing: "0.04em" }}>
           United Therapy GmbH
         </p>
       </div>
