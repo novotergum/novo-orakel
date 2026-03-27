@@ -220,48 +220,53 @@ export default function CountdownScreen() {
         </div>
       </div>
 
-      {/* UT Logo */}
-      <div style={{ position: "relative", zIndex: 1, marginBottom: 12 }}>
+      {/* Titel mit Logo */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 16,
+          position: "relative",
+          zIndex: 1,
+          marginBottom: 40,
+        }}
+      >
         <img
           src="/ut-logo.png"
           alt="UT Logo"
-          width={72}
-          height={75}
+          width={56}
+          height={58}
           style={{
             display: "block",
-            filter: "drop-shadow(0 0 12px rgba(243,146,0,0.4))",
+            opacity: 0.85,
+            filter: "drop-shadow(0 0 8px rgba(243,146,0,0.3))",
           }}
         />
+        <div>
+          <h1
+            style={{
+              fontSize: 36,
+              fontWeight: 800,
+              margin: 0,
+              letterSpacing: "0.02em",
+              lineHeight: 1.1,
+            }}
+          >
+            <span style={{ color: "#4293D0" }}>UT</span> Orakel
+          </h1>
+          <p
+            style={{
+              fontSize: 14,
+              color: "rgba(255,255,255,0.5)",
+              margin: "4px 0 0",
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+            }}
+          >
+            WM 2026 Tippspiel
+          </p>
+        </div>
       </div>
-
-      {/* Titel */}
-      <h1
-        style={{
-          fontSize: 36,
-          fontWeight: 800,
-          margin: "0 0 4px",
-          letterSpacing: "0.02em",
-          textAlign: "center",
-          position: "relative",
-          zIndex: 1,
-        }}
-      >
-        <span style={{ color: "#4293D0" }}>UT</span> Orakel
-      </h1>
-      <p
-        style={{
-          fontSize: 16,
-          color: "rgba(255,255,255,0.6)",
-          margin: "0 0 40px",
-          letterSpacing: "0.08em",
-          textTransform: "uppercase",
-          textAlign: "center",
-          position: "relative",
-          zIndex: 1,
-        }}
-      >
-        WM 2026 Tippspiel
-      </p>
 
       {/* Countdown */}
       <div
