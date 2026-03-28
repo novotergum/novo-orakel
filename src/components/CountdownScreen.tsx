@@ -134,14 +134,6 @@ export default function CountdownScreen() {
           0%, 100% { transform: translateY(0); }
           50% { transform: translateY(-14px); }
         }
-        @keyframes orbGlow {
-          0%, 100% { box-shadow: 0 0 10px rgba(120,180,255,0.3), inset 0 0 10px rgba(200,220,255,0.2); }
-          50% { box-shadow: 0 0 18px rgba(120,180,255,0.5), inset 0 0 14px rgba(200,220,255,0.3); }
-        }
-        @keyframes pulseRing {
-          0% { transform: scale(1); opacity: 0.4; }
-          100% { transform: scale(2.2); opacity: 0; }
-        }
       `}</style>
 
       {/* ═══════════════ HERO ZONE ═══════════════ */}
@@ -162,9 +154,9 @@ export default function CountdownScreen() {
         <div
           style={{
             position: "relative",
-            width: 260,
-            height: 330,
-            marginBottom: 48,
+            width: 200,
+            height: 190,
+            marginBottom: 24,
             animation: "float 4s ease-in-out infinite",
           }}
         >
@@ -172,46 +164,39 @@ export default function CountdownScreen() {
             <div
               style={{
                 width: 0, height: 0,
-                borderLeft: "46px solid transparent",
-                borderRight: "46px solid transparent",
-                borderBottom: "82px solid #1a3a8a",
+                borderLeft: "34px solid transparent",
+                borderRight: "34px solid transparent",
+                borderBottom: "62px solid #1a3a8a",
                 margin: "0 auto",
                 position: "relative",
               }}
             >
-              <div style={{ position: "absolute", top: 30, left: -12, fontSize: 12, color: "#FFD700" }}>&#9733;</div>
-              <div style={{ position: "absolute", top: 48, left: 10, fontSize: 9, color: "#FFD700" }}>&#9733;</div>
-              <div style={{ position: "absolute", top: 18, left: 6, fontSize: 7, color: "#C0C0C0" }}>&#9733;</div>
+              <div style={{ position: "absolute", top: 22, left: -9, fontSize: 10, color: "#FFD700" }}>&#9733;</div>
+              <div style={{ position: "absolute", top: 36, left: 8, fontSize: 7, color: "#FFD700" }}>&#9733;</div>
+              <div style={{ position: "absolute", top: 14, left: 4, fontSize: 6, color: "#C0C0C0" }}>&#9733;</div>
             </div>
-            <div style={{ width: 128, height: 16, background: "linear-gradient(to bottom, #C0C0C0, #8a8a8a)", borderRadius: "50%", margin: "-4px auto 0" }} />
+            <div style={{ width: 96, height: 12, background: "linear-gradient(to bottom, #C0C0C0, #8a8a8a)", borderRadius: "50%", margin: "-3px auto 0" }} />
           </div>
-          <div style={{ position: "absolute", top: 82, left: "50%", transform: "translateX(-50%)", zIndex: 2 }}>
-            <img src="/krabbe.png" alt="UT Orakel Krabbe" width={164} height={164} style={{ display: "block", filter: "drop-shadow(0 0 12px rgba(243,146,0,0.15))" }} />
-          </div>
-          <div style={{ position: "absolute", bottom: 0, left: "50%", transform: "translateX(-50%)", zIndex: 4 }}>
-            <div style={{ position: "absolute", width: 66, height: 66, borderRadius: "50%", border: "1px solid rgba(120,180,255,0.25)", top: "50%", left: "50%", transform: "translate(-50%, -50%)", animation: "pulseRing 3s ease-out infinite" }} />
-            <div style={{ width: 66, height: 66, borderRadius: "50%", background: "radial-gradient(circle at 35% 35%, rgba(200,220,255,0.9), rgba(80,130,220,0.6) 40%, rgba(30,50,120,0.8) 100%)", animation: "orbGlow 3s ease-in-out infinite", position: "relative" }}>
-              <div style={{ position: "absolute", width: 18, height: 12, borderRadius: "50%", background: "rgba(255,255,255,0.5)", top: 14, left: 16, transform: "rotate(-30deg)" }} />
-              <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", fontSize: 24, opacity: 0.6 }}>{"\u26BD"}</div>
-            </div>
+          <div style={{ position: "absolute", top: 58, left: "50%", transform: "translateX(-50%)", zIndex: 2 }}>
+            <img src="/krabbe.png" alt="UT Orakel Krabbe" width={120} height={120} style={{ display: "block", filter: "drop-shadow(0 0 12px rgba(243,146,0,0.15))" }} />
           </div>
         </div>
 
         {/* Titel */}
-        <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 32 }}>
-          <img src="/ut-logo.png" alt="UT Logo" width={56} height={58} style={{ display: "block", opacity: 0.85, filter: "drop-shadow(0 0 6px rgba(243,146,0,0.2))" }} />
+        <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 12 }}>
+          <img src="/ut-logo.png" alt="UT Logo" width={48} height={50} style={{ display: "block", opacity: 0.85, filter: "drop-shadow(0 0 6px rgba(243,146,0,0.2))" }} />
           <div>
-            <h1 style={{ fontSize: 36, fontWeight: 800, margin: 0, letterSpacing: "0.02em", lineHeight: 1.1 }}>
-              <span style={{ color: "#4293D0" }}>UT</span> Orakel
-            </h1>
-            <p style={{ fontSize: 14, color: "rgba(255,255,255,0.5)", margin: "4px 0 0", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+            <p style={{ fontSize: 15, color: "#F39200", margin: "0 0 2px", letterSpacing: "0.14em", textTransform: "uppercase", fontWeight: 700 }}>
               WM 2026 Tippspiel
             </p>
+            <h1 style={{ fontSize: 32, fontWeight: 800, margin: 0, letterSpacing: "0.02em", lineHeight: 1.1 }}>
+              <span style={{ color: "#4293D0" }}>UT</span> Orakel
+            </h1>
           </div>
         </div>
 
         {/* Countdown */}
-        <div style={{ display: "flex", gap: "clamp(8px, 3vw, 16px)", marginBottom: 28, flexWrap: "wrap", justifyContent: "center" }}>
+        <div style={{ display: "flex", gap: "clamp(10px, 3vw, 18px)", marginBottom: 16, flexWrap: "wrap", justifyContent: "center" }}>
           {[
             { val: time.days, label: "Tage" },
             { val: time.hours, label: "Std" },
@@ -219,12 +204,12 @@ export default function CountdownScreen() {
             { val: time.seconds, label: "Sek" },
           ].map((item) => (
             <div key={item.label} style={{ textAlign: "center" }}>
-              <div style={{ width: "clamp(60px, 18vw, 80px)", height: "clamp(68px, 20vw, 88px)", display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(255,255,255,0.05)", borderRadius: 12, border: "1px solid rgba(255,255,255,0.08)", backdropFilter: "blur(8px)" }}>
-                <span style={{ fontSize: "clamp(28px, 8vw, 40px)", fontWeight: 800, fontVariantNumeric: "tabular-nums", color: "#F39200" }}>
+              <div style={{ width: "clamp(64px, 20vw, 88px)", height: "clamp(72px, 22vw, 96px)", display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(255,255,255,0.06)", borderRadius: 14, border: "1px solid rgba(255,255,255,0.1)", backdropFilter: "blur(8px)" }}>
+                <span style={{ fontSize: "clamp(34px, 10vw, 48px)", fontWeight: 800, fontVariantNumeric: "tabular-nums", color: "#F39200" }}>
                   {pad(item.val)}
                 </span>
               </div>
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 8, textTransform: "uppercase", letterSpacing: "0.1em" }}>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginTop: 6, textTransform: "uppercase", letterSpacing: "0.12em", fontWeight: 600 }}>
                 {item.label}
               </div>
             </div>
@@ -232,10 +217,10 @@ export default function CountdownScreen() {
         </div>
 
         {/* Konzept-Einzeiler */}
-        <p style={{ fontSize: 15, color: "rgba(255,255,255,0.5)", textAlign: "center", maxWidth: 400, lineHeight: 1.6, margin: "0 0 32px" }}>
-          Tippt Ergebnisse, sammelt Punkte, schlagt die KI.
+        <p style={{ fontSize: 15, color: "rgba(255,255,255,0.55)", textAlign: "center", maxWidth: 380, lineHeight: 1.5, margin: "0 0 24px", fontWeight: 500 }}>
+          Tipp. Triff. Schlag die KI.
           <br />
-          <span style={{ color: "#F39200" }}>48 Teams &middot; 104 Spiele &middot; 1 Champion</span>
+          <span style={{ color: "#F39200", fontSize: 13 }}>48 Teams &middot; 104 Spiele &middot; 1 Champion</span>
         </p>
 
         {/* ── Newsletter (primaerer CTA) ── */}
@@ -245,16 +230,16 @@ export default function CountdownScreen() {
             background: "rgba(243,146,0,0.08)",
             border: "1px solid rgba(243,146,0,0.2)",
             borderRadius: 16,
-            padding: "24px",
+            padding: "20px",
             textAlign: "center",
             marginBottom: 16,
           }}
         >
-          <h3 style={{ fontSize: 18, fontWeight: 700, margin: "0 0 6px", color: "#fff" }}>
+          <h3 style={{ fontSize: 16, fontWeight: 700, margin: "0 0 4px", color: "#fff" }}>
             Dabei sein
           </h3>
-          <p style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", margin: "0 0 16px" }}>
-            E-Mail eintragen &ndash; wir melden uns zum Registrierungsstart am 4. Juni.
+          <p style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", margin: "0 0 14px" }}>
+            E-Mail eintragen &ndash; Info zum Start am 4. Juni.
           </p>
           {nlStatus === "ok" ? (
             <div style={{ padding: "12px 20px", background: "rgba(46,125,50,0.15)", borderRadius: 10, color: "#66bb6a", fontSize: 14, fontWeight: 600 }}>
