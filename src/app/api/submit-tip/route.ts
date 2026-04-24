@@ -1,28 +1,48 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Redis } from "@upstash/redis";
 import { upsertPrediction, type PredictionRecord } from "../../../lib/store";
 import { getMatches } from "../../../lib/football-data";
+import { getSession, userIdFromEmail } from "@/lib/auth";
 
 interface SubmitBody {
   matchId: number;
-  userId: string;
-  userName: string;
   winnerPick: "1" | "X" | "2";
   scoreTip: string;
   style?: string;
-  source?: "human" | "agent";
-  location?: string;
+  source?: "human" | "agent"; // ignored for human submissions; agents use a separate endpoint
 }
 
 const VALID_PICKS = ["1", "X", "2"];
 const SCORE_RE = /^\d+:\d+$/;
 
+interface UserProfile {
+  userId: string;
+  userName: string;
+  location?: string;
+}
+
 export async function POST(req: NextRequest) {
   try {
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: "nicht eingeloggt" }, { status: 401 });
+    }
+
+    const redis = new Redis({
+      url: process.env.UPSTASH_REDIS_REST_URL!,
+      token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+    });
+    const userId = userIdFromEmail(session.email);
+    const profile = (await redis.get(`user:${userId}`)) as UserProfile | null;
+    if (!profile) {
+      return NextResponse.json({ error: "Profil fehlt" }, { status: 403 });
+    }
+
     const body = (await req.json()) as SubmitBody;
 
-    if (!body?.matchId || !body.userId || !body.userName) {
+    if (!body?.matchId) {
       return NextResponse.json(
-        { error: "matchId, userId, userName required" },
+        { error: "matchId required" },
         { status: 400 },
       );
     }
@@ -60,16 +80,17 @@ export async function POST(req: NextRequest) {
       // If match lookup fails, allow the tip (graceful degradation)
     }
 
+    // Identity & location come from the server-side profile, NOT the client body.
     const record: PredictionRecord = {
-      id: `${body.matchId}_${body.userId}`,
+      id: `${body.matchId}_${userId}`,
       matchId: body.matchId,
-      userId: body.userId,
-      userName: body.userName,
-      source: body.source === "agent" ? "agent" : "human",
+      userId,
+      userName: profile.userName,
+      source: "human",
       winnerPick: body.winnerPick,
       scoreTip: body.scoreTip,
       style: body.style,
-      location: body.location,
+      location: profile.location,
       stage,
       createdAt: new Date().toISOString(),
     };

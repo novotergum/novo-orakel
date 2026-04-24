@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, FormEvent } from "react";
+import { useState, useEffect } from "react";
 
 const WM_START = new Date("2026-06-11T00:00:00+02:00");
 
@@ -55,39 +55,11 @@ const card: React.CSSProperties = {
 
 export default function CountdownScreen() {
   const [time, setTime] = useState(calcTimeLeft);
-  const [email, setEmail] = useState("");
-  const [nlStatus, setNlStatus] = useState<"idle" | "loading" | "ok" | "error">("idle");
-  const [nlMsg, setNlMsg] = useState("");
 
   useEffect(() => {
     const id = setInterval(() => setTime(calcTimeLeft()), 1000);
     return () => clearInterval(id);
   }, []);
-
-  async function subscribeNewsletter(e: FormEvent) {
-    e.preventDefault();
-    if (!email.trim()) return;
-    setNlStatus("loading");
-    try {
-      const res = await fetch("/api/newsletter", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim() }),
-      });
-      const data = await res.json();
-      if (data.ok) {
-        setNlStatus("ok");
-        setNlMsg("Du bist dabei! Wir melden uns.");
-        setEmail("");
-      } else {
-        setNlStatus("error");
-        setNlMsg(data.error ?? "Fehler");
-      }
-    } catch {
-      setNlStatus("error");
-      setNlMsg("Netzwerkfehler");
-    }
-  }
 
   return (
     <div
@@ -223,54 +195,6 @@ export default function CountdownScreen() {
           <span style={{ color: "#F39200", fontSize: 13 }}>48 Teams &middot; 104 Spiele &middot; 1 Champion</span>
         </p>
 
-        {/* ── Newsletter (primaerer CTA) ── */}
-        <div
-          style={{
-            width: "100%",
-            background: "rgba(243,146,0,0.08)",
-            border: "1px solid rgba(243,146,0,0.2)",
-            borderRadius: 16,
-            padding: "20px",
-            textAlign: "center",
-            marginBottom: 16,
-          }}
-        >
-          <h3 style={{ fontSize: 16, fontWeight: 700, margin: "0 0 4px", color: "#fff" }}>
-            Dabei sein
-          </h3>
-          <p style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", margin: "0 0 14px" }}>
-            E-Mail eintragen &ndash; Info zum Start am 4. Juni.
-          </p>
-          {nlStatus === "ok" ? (
-            <div style={{ padding: "12px 20px", background: "rgba(46,125,50,0.15)", borderRadius: 10, color: "#66bb6a", fontSize: 14, fontWeight: 600 }}>
-              {nlMsg}
-            </div>
-          ) : (
-            <form onSubmit={subscribeNewsletter} style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
-              <input
-                type="email"
-                required
-                placeholder="deine@email.de"
-                value={email}
-                onChange={(e) => { setEmail(e.target.value); setNlStatus("idle"); }}
-                style={{ flex: "1 1 200px", minWidth: 0, padding: "12px 16px", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 10, color: "#fff", fontSize: 14, outline: "none" }}
-              />
-              <button
-                type="submit"
-                disabled={nlStatus === "loading"}
-                style={{ padding: "12px 28px", background: "#F39200", border: "none", borderRadius: 10, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", opacity: nlStatus === "loading" ? 0.6 : 1, whiteSpace: "nowrap" }}
-              >
-                {nlStatus === "loading" ? "..." : "Anmelden"}
-              </button>
-            </form>
-          )}
-          {nlStatus === "error" && (
-            <div style={{ marginTop: 8, fontSize: 12, color: "#ef5350" }}>{nlMsg}</div>
-          )}
-          <p style={{ fontSize: 11, color: "rgba(255,255,255,0.2)", margin: "10px 0 0" }}>
-            Nur f&uuml;r United Therapy Mitarbeiter:innen
-          </p>
-        </div>
       </div>
 
       {/* ═══════════════ BELOW THE FOLD ═══════════════ */}

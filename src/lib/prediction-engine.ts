@@ -17,19 +17,20 @@ function teamStrength(t: TeamStats) {
   return base * (1 - 0.6 * penalty);
 }
 
+// WC 2026 host nations — only these get a real home advantage
+const HOST_NATIONS = new Set(["United States", "USA", "Mexico", "Canada"]);
+
 function relativeStrength(home: TeamStats, away: TeamStats) {
-  return teamStrength(home) - teamStrength(away) + 0.1; // small home advantage
+  const homeAdv = home.name && HOST_NATIONS.has(home.name) ? 0.2 : 0;
+  return teamStrength(home) - teamStrength(away) + homeAdv;
 }
 
 function expectedGoals(rel: number) {
   // Map relative strength to expected goals around a ~2.7 total goals baseline
-  // (WC average is ~2.5-2.7 goals/game, higher baseline gives more varied scores)
+  // (WC average is ~2.5-2.7 goals/game)
   const total = 2.7;
-  const homeShare = 1 / (1 + Math.exp(-2.5 * rel)); // steeper curve for more spread
-  const homeXg = Math.min(
-    Math.max(total * (0.30 + (0.40 * (homeShare - 0.5)) / 0.5), 0.3),
-    3.5,
-  );
+  const homeShare = 1 / (1 + Math.exp(-3.0 * rel)); // sigmoid: 0..1
+  const homeXg = Math.min(Math.max(total * homeShare, 0.3), 3.5);
   const awayXg = Math.min(Math.max(total - homeXg, 0.2), 3.0);
   return { homeXg, awayXg };
 }

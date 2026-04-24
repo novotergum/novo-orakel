@@ -156,11 +156,13 @@ Das Tippspiel ist in einen **Microsoft Teams Kanal** integriert. Der Kanal ist d
 
 Die folgenden Prozesse laufen automatisiert über Make.com Szenarien:
 
-| Automatisierung | Beschreibung |
-|-----------------|--------------|
-| **Täglicher Agent-Run** | Das UT Orakel gibt jeden Tag automatisch seine Tipps für anstehende Spiele ab |
-| **Ergebnis-Auflösung** | Nach Spielende werden Ergebnisse abgerufen und alle Tipps ausgewertet |
-| **Teams-Benachrichtigungen** | Erinnerungen, Ergebnisse und Leaderboard-Updates werden automatisch in den Teams-Kanal gepostet |
+| Automatisierung | Beschreibung | Intervall |
+|-----------------|--------------|-----------|
+| **KI-Tipp-Abgabe** | Das UT Orakel gibt automatisch seine Tipps für anstehende Spiele ab | Täglich |
+| **Ergebnis-Check + Auswertung** | Nach Spielende werden Ergebnisse abgerufen und alle Tipps ausgewertet | Stündlich |
+| **Spieltag-Reminder** | Erinnerungen an anstehende Spiele und Tipp-Deadlines werden in den Teams-Kanal gepostet | Täglich |
+| **Wochen-Report + Leaderboard** | Wöchentliches Leaderboard-Update und Zusammenfassung im Teams-Kanal | Wöchentlich |
+| **Newsletter: Google Sheets → Brevo** | Kampagnendaten (Betreff, Inhalt) werden aus Google Sheets gelesen und als E-Mail-Kampagne über Brevo (ehem. Sendinblue) versendet | Wöchentlich |
 
 Die Webhooks für die Teams-Integration sind in vier Kanäle aufgeteilt:
 1. **Leaderboard** – Ranglisten-Updates

@@ -1,6 +1,10 @@
+import { redirect } from "next/navigation";
+import { Redis } from "@upstash/redis";
 import { readPredictions } from "../lib/store";
 import TipForm from "../components/TipForm";
 import CountdownScreen from "../components/CountdownScreen";
+import LoginScreen from "../components/LoginScreen";
+import { getAllowedDomains, getSession, userIdFromEmail } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -111,6 +115,19 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
   if (new Date() < SHOW_MAIN_AT && searchParams.view !== "main") {
     return <CountdownScreen />;
   }
+
+  // Auth gate: no session → login screen; session but no profile → onboarding
+  const session = await getSession();
+  if (!session) {
+    return <LoginScreen allowedDomains={getAllowedDomains()} />;
+  }
+  const redis = new Redis({
+    url: process.env.UPSTASH_REDIS_REST_URL!,
+    token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+  });
+  const profileRaw = await redis.get(`user:${userIdFromEmail(session.email)}`);
+  if (!profileRaw) redirect("/onboarding");
+  const profile = profileRaw as { userId: string; userName: string; location: string; stake?: number };
 
   const { board, humanAvg, agentAvg, humanCount, agentCount, leaderText, leaderSide, totalPot } = await getData();
   const top3 = board.slice(0, 3);
@@ -536,7 +553,7 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
 
         {/* ── 5. Tippen-CTA staerker ── */}
         <section id="tipform" style={{ marginBottom: 36 }}>
-          <TipForm />
+          <TipForm initialUser={profile} />
         </section>
 
         {/* ── Regeln ── */}

@@ -138,10 +138,10 @@ const SCORE_SUGGESTIONS: Record<string, string[]> = {
 
 const LS_KEY = "ut-orakel-user";
 
-export default function TipForm() {
-  // User state
+export default function TipForm({ initialUser }: { initialUser?: UserProfile }) {
+  // User state — when authed-via-magic-link, page passes the server-side profile.
   const [users, setUsers] = useState<UserProfile[]>([]);
-  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(initialUser ?? null);
   const [regName, setRegName] = useState("");
   const [regLocation, setRegLocation] = useState("");
   const [showRegister, setShowRegister] = useState(false);
@@ -188,13 +188,16 @@ export default function TipForm() {
       })
       .catch(() => setLoading(false));
 
-    try {
-      const saved = localStorage.getItem(LS_KEY);
-      if (saved) setCurrentUser(JSON.parse(saved));
-    } catch {
-      // no saved user
+    // Only fall back to localStorage if no server-side profile was passed in.
+    if (!initialUser) {
+      try {
+        const saved = localStorage.getItem(LS_KEY);
+        if (saved) setCurrentUser(JSON.parse(saved));
+      } catch {
+        // no saved user
+      }
     }
-  }, []);
+  }, [initialUser]);
 
   // Load user's tips + joker count when user is set
   useEffect(() => {
@@ -217,10 +220,14 @@ export default function TipForm() {
     setShowRegister(false);
   }, []);
 
-  const logout = useCallback(() => {
-    setCurrentUser(null);
+  const logout = useCallback(async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch {
+      // ignore — fall through to client cleanup either way
+    }
     localStorage.removeItem(LS_KEY);
-    setMyTips({});
+    window.location.href = "/";
   }, []);
 
   async function register() {

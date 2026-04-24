@@ -1,15 +1,18 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { readPredictions } from "../../../lib/store";
+import { getSession, userIdFromEmail } from "@/lib/auth";
 
 /**
- * GET /api/my-tips?userId=xxx
- * Returns all tips for a specific user, keyed by matchId.
+ * GET /api/my-tips
+ * Returns all tips for the currently authenticated user, keyed by matchId.
+ * Identity is derived from the session cookie — no userId query param accepted.
  */
-export async function GET(req: NextRequest) {
-  const userId = req.nextUrl.searchParams.get("userId");
-  if (!userId) {
-    return NextResponse.json({ error: "userId required" }, { status: 400 });
+export async function GET() {
+  const session = await getSession();
+  if (!session) {
+    return NextResponse.json({ error: "nicht eingeloggt" }, { status: 401 });
   }
+  const userId = userIdFromEmail(session.email);
 
   try {
     const records = await readPredictions();

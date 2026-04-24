@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Redis } from "@upstash/redis";
 import { getTeamRecentMatches, buildTeamElo, predictFromElo } from "../../../lib/elo";
 import { buildTipFromPrediction, type TipStyle } from "../../../lib/tip-engine";
+import { getSession, userIdFromEmail } from "@/lib/auth";
 
 const MAX_JOKERS = 10;
 
@@ -21,14 +22,15 @@ function jokerKey(userId: string) {
 }
 
 /**
- * GET /api/orakel-joker?userId=xxx
- * Returns remaining joker count for a user.
+ * GET /api/orakel-joker
+ * Returns remaining joker count for the current user (from session).
  */
-export async function GET(req: NextRequest) {
-  const userId = req.nextUrl.searchParams.get("userId");
-  if (!userId) {
-    return NextResponse.json({ error: "userId required" }, { status: 400 });
+export async function GET() {
+  const session = await getSession();
+  if (!session) {
+    return NextResponse.json({ error: "nicht eingeloggt" }, { status: 401 });
   }
+  const userId = userIdFromEmail(session.email);
 
   const redis = getRedis();
   const used = ((await redis.get(jokerKey(userId))) as number) ?? 0;
@@ -41,12 +43,18 @@ export async function GET(req: NextRequest) {
  */
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const { userId, matchId, homeTeamId, awayTeamId, homeTeam, awayTeam } = body;
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: "nicht eingeloggt" }, { status: 401 });
+    }
+    const userId = userIdFromEmail(session.email);
 
-    if (!userId || !matchId || !homeTeamId || !awayTeamId) {
+    const body = await req.json();
+    const { matchId, homeTeamId, awayTeamId, homeTeam, awayTeam } = body;
+
+    if (!matchId || !homeTeamId || !awayTeamId) {
       return NextResponse.json(
-        { error: "userId, matchId, homeTeamId, awayTeamId required" },
+        { error: "matchId, homeTeamId, awayTeamId required" },
         { status: 400 },
       );
     }
