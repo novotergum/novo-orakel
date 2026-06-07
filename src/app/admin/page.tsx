@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback } from "react";
 interface AdminUser {
   userId: string;
   userName: string;
+  email?: string;
   location: string;
   registeredAt: string;
   tips: number;
@@ -330,7 +331,14 @@ export default function AdminPage() {
                   </>
                 ) : (
                   <>
-                    <td style={{ ...s.td, fontWeight: 600 }}>{u.userName}</td>
+                    <td style={{ ...s.td, fontWeight: 600 }}>
+                      {u.userName}
+                      {u.email && (
+                        <div style={{ fontSize: 12, fontWeight: 400, color: "#7A7A7A" }}>
+                          {u.email}
+                        </div>
+                      )}
+                    </td>
                     <td style={s.td}>{u.location}</td>
                     <td style={s.td}>{u.tips}</td>
                     <td style={s.td}>{u.points}</td>
