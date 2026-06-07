@@ -16,13 +16,9 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   const userName = typeof body?.userName === "string" ? body.userName.trim() : "";
   const location = typeof body?.location === "string" ? body.location.trim() : "";
-  const stake = Number(body?.stake);
 
   if (!userName) return NextResponse.json({ error: "Name erforderlich" }, { status: 400 });
   if (!location) return NextResponse.json({ error: "Standort erforderlich" }, { status: 400 });
-  if (!stake || stake < 2 || stake > 5 || !Number.isInteger(stake)) {
-    return NextResponse.json({ error: "Einsatz muss zwischen 2€ und 5€ liegen" }, { status: 400 });
-  }
 
   const redis = getRedis();
   const userId = userIdFromEmail(session.email);
@@ -38,7 +34,6 @@ export async function POST(req: NextRequest) {
     email: session.email,
     userName,
     location,
-    stake,
     registeredAt: new Date().toISOString(),
   };
   await redis.set(userKey, JSON.stringify(profile));

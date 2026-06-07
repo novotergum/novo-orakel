@@ -35,7 +35,7 @@ Falls "App-Kennwörter" nicht sichtbar sind: Tenant-Admin muss MFA + App-Passwor
    - Rate-Limit: max 5/IP/15 min, max 3/Email/Stunde
    - Schickt Mail via O365 SMTP mit Link → `/api/auth/verify?token=…`
 3. User klickt Link → JWT verifiziert → Session-Cookie gesetzt (30d, HttpOnly, sameSite=lax)
-4. Kein Profil yet → redirect `/onboarding` → Form für Name + Standort + Einsatz
+4. Kein Profil yet → redirect `/onboarding` → Form für Name + Standort
 5. Nach Onboarding → redirect `/` → normale App
 
 ## Security model

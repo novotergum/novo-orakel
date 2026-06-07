@@ -18,7 +18,6 @@ export interface UserProfile {
   userId: string;
   userName: string;
   location: string;
-  stake?: number;
   registeredAt: string;
 }
 

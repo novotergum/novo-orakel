@@ -16,7 +16,6 @@ interface UserProfile {
   userId: string;
   userName: string;
   location: string;
-  stake?: number;
 }
 
 interface MyTip {
@@ -147,7 +146,6 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
   const [showRegister, setShowRegister] = useState(false);
   const [registering, setRegistering] = useState(false);
   const [regCode, setRegCode] = useState("");
-  const [regStake, setRegStake] = useState<number>(5);
 
   const [regError, setRegError] = useState("");
 
@@ -242,7 +240,6 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
           userName: regName.trim(),
           location: regLocation.trim(),
           inviteCode: regCode.trim(),
-          stake: regStake,
         }),
       });
       const data = await res.json();
@@ -445,7 +442,7 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
     const orakel = orakelResults[m.id];
     const matchResult = result?.matchId === m.id ? result : null;
     const isTBD = (t: { name: string; code: string | null }) =>
-      !t.name || t.code?.startsWith("PO") || /winner|path/i.test(t.name) || /^(1|2)[A-L]$/.test(t.name) || /^[WL]\d+$/.test(t.name);
+      !t.name || (t.code?.startsWith("PO") && t.code !== "POR") || /winner|path/i.test(t.name) || /^(1|2)[A-L]$/.test(t.name) || /^[WL]\d+$/.test(t.name);
     const teamsKnown = !isTBD(m.homeTeam) && !isTBD(m.awayTeam);
 
     return (
@@ -774,31 +771,6 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
                   value={regLocation}
                   onChange={(e) => setRegLocation(e.target.value)}
                 />
-              </div>
-            </div>
-            <div style={{ marginBottom: 12 }}>
-              <label style={s.label}>Dein Einsatz</label>
-              <div style={{ display: "flex", gap: 8 }}>
-                {[2, 3, 4, 5].map((amount) => (
-                  <button
-                    key={amount}
-                    type="button"
-                    style={{
-                      flex: 1,
-                      padding: "10px 0",
-                      border: regStake === amount ? "2px solid #F39200" : "1px solid #ddd",
-                      borderRadius: 8,
-                      background: regStake === amount ? "rgba(243,146,0,0.08)" : "#fff",
-                      color: regStake === amount ? "#F39200" : "#555",
-                      fontSize: 16,
-                      fontWeight: regStake === amount ? 700 : 500,
-                      cursor: "pointer",
-                    }}
-                    onClick={() => setRegStake(amount)}
-                  >
-                    {amount}{"\u20AC"}
-                  </button>
-                ))}
               </div>
             </div>
             <div style={{ marginBottom: 12 }}>

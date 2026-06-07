@@ -5,7 +5,6 @@ import { useState } from "react";
 export default function OnboardingForm({ email }: { email: string }) {
   const [userName, setUserName] = useState("");
   const [location, setLocation] = useState("");
-  const [stake, setStake] = useState(3);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -17,7 +16,7 @@ export default function OnboardingForm({ email }: { email: string }) {
       const res = await fetch("/api/auth/onboarding", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userName, location, stake }),
+        body: JSON.stringify({ userName, location }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -102,18 +101,6 @@ export default function OnboardingForm({ email }: { email: string }) {
             placeholder="z. B. Hamburg"
             style={input}
           />
-
-          <label style={label}>Einsatz (€)</label>
-          <select
-            value={stake}
-            onChange={(e) => setStake(Number(e.target.value))}
-            style={{ ...input, cursor: "pointer" }}
-          >
-            <option value={2}>2 €</option>
-            <option value={3}>3 €</option>
-            <option value={4}>4 €</option>
-            <option value={5}>5 €</option>
-          </select>
 
           {error && (
             <div

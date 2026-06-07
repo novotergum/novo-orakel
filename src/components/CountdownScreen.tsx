@@ -55,6 +55,7 @@ const card: React.CSSProperties = {
 
 export default function CountdownScreen() {
   const [time, setTime] = useState(calcTimeLeft);
+  const [playGame, setPlayGame] = useState(false);
 
   useEffect(() => {
     const id = setInterval(() => setTime(calcTimeLeft()), 1000);
@@ -105,6 +106,13 @@ export default function CountdownScreen() {
         @keyframes float {
           0%, 100% { transform: translateY(0); }
           50% { transform: translateY(-14px); }
+        }
+        /* Mini-Match braucht Tastatur -> nur auf Desktop (Maus + breiter Screen) */
+        .warmup-desktop { display: none; }
+        .warmup-mobile { display: flex; align-items: center; gap: 12px; }
+        @media (min-width: 768px) and (pointer: fine) {
+          .warmup-desktop { display: block; }
+          .warmup-mobile { display: none; }
         }
       `}</style>
 
@@ -237,6 +245,78 @@ export default function CountdownScreen() {
           </div>
           <p style={{ fontSize: 11, color: "rgba(255,255,255,0.25)", margin: "8px 0 0" }}>
             Preise werden mit Registrierungsstart bekanntgegeben
+          </p>
+        </div>
+
+        {/* Warm-up: Mini-Spiel zum Wartezeit-Vertreib — nur Desktop (Tastatur) */}
+        <div className="warmup-desktop" style={{ ...card, marginBottom: 12, padding: playGame ? 0 : "20px 24px", overflow: "hidden" }}>
+          {!playGame ? (
+            <>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                <span style={{ fontSize: 18 }}>{"⚽"}</span>
+                <h3 style={{ fontSize: 14, fontWeight: 700, margin: 0, color: "rgba(255,255,255,0.7)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                  Warm-up
+                </h3>
+                <span style={{ fontSize: 9, padding: "2px 7px", background: "#F39200", color: "#fff", borderRadius: 4, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  Spiel
+                </span>
+              </div>
+              <p style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", lineHeight: 1.6, margin: "0 0 16px" }}>
+                Noch kein Anpfiff? F&uuml;hr <b style={{ color: "#00a99d" }}>United Therapy</b> im
+                Mini-Match gegen APELOS &mdash; und schlag schon mal warm, bis das Tippen losgeht.
+              </p>
+              <button
+                onClick={() => setPlayGame(true)}
+                style={{
+                  cursor: "pointer", border: "none", fontFamily: "inherit", fontWeight: 700,
+                  letterSpacing: "0.04em", textTransform: "uppercase", fontSize: 14, color: "#04302c",
+                  background: "linear-gradient(135deg,#3fe0c9,#00a99d)", padding: "12px 30px",
+                  borderRadius: 40, boxShadow: "0 8px 22px rgba(0,169,157,0.35)",
+                }}
+              >
+                Anpfiff &rarr;
+              </button>
+            </>
+          ) : (
+            <div>
+              <iframe
+                src="/pitch-battle.html"
+                title="United Therapy vs APELOS — Pitch Battle"
+                style={{
+                  width: "100%",
+                  height: "min(70vh, 560px)",
+                  border: "none",
+                  display: "block",
+                  background: "#06141a",
+                }}
+                allow="fullscreen"
+              />
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 16px", background: "rgba(0,0,0,0.25)" }}>
+                <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>
+                  Klick ins Spielfeld, dann <b style={{ color: "#00a99d" }}>WASD</b> + <b style={{ color: "#00a99d" }}>Leertaste</b>
+                </span>
+                <button
+                  onClick={() => setPlayGame(false)}
+                  style={{
+                    cursor: "pointer", border: "1px solid rgba(255,255,255,0.18)", fontFamily: "inherit",
+                    fontWeight: 600, fontSize: 11, color: "rgba(255,255,255,0.7)", background: "transparent",
+                    padding: "6px 14px", borderRadius: 20,
+                  }}
+                >
+                  Schlie&szlig;en
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Warm-up Mobile-Hinweis: Spiel braucht Tastatur, daher nur Desktop */}
+        <div className="warmup-mobile" style={{ ...card, marginBottom: 12, padding: "16px 24px" }}>
+          <span style={{ fontSize: 20, flexShrink: 0 }}>{"⚽"}</span>
+          <p style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", lineHeight: 1.55, margin: 0 }}>
+            <b style={{ color: "rgba(255,255,255,0.7)" }}>Warm-up:</b> Das Mini-Match{" "}
+            <b style={{ color: "#00a99d" }}>United Therapy</b> vs. APELOS l&auml;uft mit
+            Tastatursteuerung &ndash; spiel es am Rechner, w&auml;hrend du auf den Anpfiff wartest.
           </p>
         </div>
 
