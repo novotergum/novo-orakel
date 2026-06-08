@@ -110,6 +110,9 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
   const top3 = board.slice(0, 3);
   const rest = board.slice(3);
 
+  // Optionaler Beitrittslink zum WM-Teams-Kanal (nur gerendert, wenn gesetzt)
+  const teamsJoinUrl = process.env.TEAMS_JOIN_URL;
+
   return (
     <div
       style={{
@@ -165,6 +168,48 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
             Jetzt tippen
           </a>
         </header>
+
+        {/* ── Teams-Kanal Beitritt (nur wenn Link konfiguriert) ── */}
+        {teamsJoinUrl && (
+          <section style={{ marginBottom: 36 }}>
+            <a
+              href={teamsJoinUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                ...card,
+                display: "flex",
+                alignItems: "center",
+                gap: 14,
+                textDecoration: "none",
+                borderLeft: "4px solid #5b5fc7",
+              }}
+            >
+              <span style={{ fontSize: 26, lineHeight: 1 }}>💬</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: "#2a2a2a" }}>
+                  Tritt dem WM-Teams-Kanal bei
+                </div>
+                <div style={{ fontSize: 13, color: "#777", marginTop: 2 }}>
+                  Updates, Ergebnisse & Austausch zum Tippspiel
+                </div>
+              </div>
+              <span
+                style={{
+                  flexShrink: 0,
+                  padding: "9px 20px",
+                  background: "#5b5fc7",
+                  color: "#fff",
+                  fontSize: 14,
+                  fontWeight: 700,
+                  borderRadius: 8,
+                }}
+              >
+                Beitreten
+              </span>
+            </a>
+          </section>
+        )}
 
         {/* ── Spielregeln (ganz oben) ── */}
         <section style={{ marginBottom: 36 }}>
