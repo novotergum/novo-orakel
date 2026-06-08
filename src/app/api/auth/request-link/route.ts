@@ -19,7 +19,7 @@ const MAX_PER_EMAIL_HOUR = 3;
 
 function appUrl(req: NextRequest): string {
   const explicit = process.env.NEXT_PUBLIC_APP_URL;
-  if (explicit) return explicit.replace(/\/$/, "");
+  if (explicit) return explicit.trim().replace(/\/$/, "");
   const proto = req.headers.get("x-forwarded-proto") || "https";
   const host = req.headers.get("x-forwarded-host") || req.headers.get("host") || "localhost:3000";
   return `${proto}://${host}`;
