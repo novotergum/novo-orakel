@@ -166,6 +166,75 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
           </a>
         </header>
 
+        {/* ── Spielregeln (ganz oben) ── */}
+        <section style={{ marginBottom: 36 }}>
+          <h2
+            style={{
+              fontSize: 13,
+              color: "#999",
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+              marginBottom: 20,
+              fontWeight: 600,
+            }}
+          >
+            Spielregeln
+          </h2>
+          <div style={card}>
+            {/* Wichtigster Hinweis: Deadline */}
+            <div
+              style={{
+                display: "flex",
+                gap: 12,
+                alignItems: "flex-start",
+                background: "#F392000F",
+                border: "1px solid #F3920033",
+                borderRadius: 12,
+                padding: "14px 16px",
+                marginBottom: 20,
+              }}
+            >
+              <span style={{ fontSize: 20, lineHeight: 1.2 }}>⏱️</span>
+              <div style={{ fontSize: 14, color: "#2a2a2a", lineHeight: 1.5 }}>
+                <strong>Du kannst jedes Spiel bis zum Anpfiff tippen</strong> –
+                auch noch kurz vorher. Du musst nicht die ganze Vorrunde im
+                Voraus tippen: Tipp einfach, wann es dir passt, Spiel für Spiel.
+                Deinen Tipp kannst du bis zum Anpfiff <strong>beliebig oft
+                ändern</strong> – es zählt dein letzter.
+              </div>
+            </div>
+
+            <ul
+              style={{
+                listStyle: "none",
+                margin: 0,
+                padding: 0,
+                fontSize: 14,
+                color: "#444",
+                lineHeight: 1.7,
+              }}
+            >
+              <li style={{ marginBottom: 10 }}>
+                <strong>Punkte je Spiel:</strong> 4P exaktes Ergebnis &middot; 3P
+                richtige Tordifferenz &middot; 2P richtige Tendenz &middot; 0P
+                daneben
+              </li>
+              <li style={{ marginBottom: 10 }}>
+                <strong>K.o.-Bonus:</strong> Achtelfinale 1,5× &middot;
+                Viertelfinale 2× &middot; Halbfinale 2,5× &middot; Finale 3×
+              </li>
+              <li style={{ marginBottom: 10 }}>
+                <strong>Nicht getippt = 0 Punkte.</strong> Wer mehr Spiele
+                tippt, hat mehr Chancen auf Punkte.
+              </li>
+              <li>
+                <strong>Das UT&nbsp;Orakel</strong> (unsere KI) tippt jeden Abend
+                automatisch mit – am Ende zählt: Mensch gegen Maschine.
+              </li>
+            </ul>
+          </div>
+        </section>
+
         {/* ── 2. Mensch vs. Maschine — Gewinner hervorheben ── */}
         {(humanCount > 0 || agentCount > 0) && (
           <section style={{ marginBottom: 36 }}>
@@ -526,73 +595,6 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
         {/* ── 5. Tippen-CTA staerker ── */}
         <section id="tipform" style={{ marginBottom: 36 }}>
           <TipForm initialUser={profile} />
-        </section>
-
-        {/* ── Spielregeln ── */}
-        <section style={{ marginBottom: 36 }}>
-          <h2
-            style={{
-              fontSize: 13,
-              color: "#999",
-              textTransform: "uppercase",
-              letterSpacing: "0.08em",
-              marginBottom: 20,
-              fontWeight: 600,
-            }}
-          >
-            Spielregeln
-          </h2>
-          <div style={card}>
-            {/* Wichtigster Hinweis: Deadline */}
-            <div
-              style={{
-                display: "flex",
-                gap: 12,
-                alignItems: "flex-start",
-                background: "#F392000F",
-                border: "1px solid #F3920033",
-                borderRadius: 12,
-                padding: "14px 16px",
-                marginBottom: 20,
-              }}
-            >
-              <span style={{ fontSize: 20, lineHeight: 1.2 }}>⏱️</span>
-              <div style={{ fontSize: 14, color: "#2a2a2a", lineHeight: 1.5 }}>
-                <strong>Du kannst jedes Spiel bis zum Anpfiff tippen</strong> –
-                auch noch kurz vorher. Du musst nicht die ganze Vorrunde im
-                Voraus tippen: Tipp einfach, wann es dir passt, Spiel für Spiel.
-              </div>
-            </div>
-
-            <ul
-              style={{
-                listStyle: "none",
-                margin: 0,
-                padding: 0,
-                fontSize: 14,
-                color: "#444",
-                lineHeight: 1.7,
-              }}
-            >
-              <li style={{ marginBottom: 10 }}>
-                <strong>Punkte je Spiel:</strong> 4P exaktes Ergebnis &middot; 3P
-                richtige Tordifferenz &middot; 2P richtige Tendenz &middot; 0P
-                daneben
-              </li>
-              <li style={{ marginBottom: 10 }}>
-                <strong>K.o.-Bonus:</strong> Achtelfinale 1,5× &middot;
-                Viertelfinale 2× &middot; Halbfinale 2,5× &middot; Finale 3×
-              </li>
-              <li style={{ marginBottom: 10 }}>
-                <strong>Nicht getippt = 0 Punkte.</strong> Wer mehr Spiele
-                tippt, hat mehr Chancen auf Punkte.
-              </li>
-              <li>
-                <strong>Das UT&nbsp;Orakel</strong> (unsere KI) tippt jeden Abend
-                automatisch mit – am Ende zählt: Mensch gegen Maschine.
-              </li>
-            </ul>
-          </div>
         </section>
 
         <footer
