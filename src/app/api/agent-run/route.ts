@@ -200,12 +200,19 @@ export async function POST(req: NextRequest) {
 
     const allMatches = await getMatches({ status: "SCHEDULED,TIMED" });
 
-    // Only tip matches whose kickoff date (UTC) is today
-    const todayUTC = new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
-    const matches = allMatches.filter(
-      (m: { kickoff?: string }) =>
-        m.kickoff && m.kickoff.slice(0, 10) === todayUTC,
-    );
+    // Tip every upcoming match within the look-ahead window that has not
+    // kicked off yet. Run nightly (e.g. 20:00) → this batches the next day's
+    // games while keeping the Elo model fresh with all results so far.
+    // The window overlaps a full day, so a single missed run still gets
+    // caught up on the following run instead of leaving matches un-tipped.
+    const LOOKAHEAD_HOURS = 36;
+    const now = Date.now();
+    const windowEnd = now + LOOKAHEAD_HOURS * 60 * 60 * 1000;
+    const matches = allMatches.filter((m: { kickoff?: string }) => {
+      if (!m.kickoff) return false;
+      const ko = new Date(m.kickoff).getTime();
+      return ko > now && ko <= windowEnd;
+    });
 
     if (!matches.length) {
       return NextResponse.json({
@@ -214,7 +221,7 @@ export async function POST(req: NextRequest) {
         rank,
         style,
         count: 0,
-        teamsPost: "UT Orakel:\n\nKeine Spiele heute. Pause.",
+        teamsPost: "UT Orakel:\n\nKeine anstehenden Spiele. Pause.",
         results: [],
       });
     }

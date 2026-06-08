@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>United Therapy vs APELOS — Pitch Battle</title>
+<style>
+  :root{
+    --ut:#00a99d;      /* United Therapy teal */
+    --ut-dark:#0a6b66;
+    --apelos:#f5742b;  /* APELOS orange   */
+    --apelos-dark:#b8470f;
+    --ink:#0c1f22;
+    --paper:#f4f7f6;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{height:100%;overflow:hidden;background:#06141a;
+    font-family:"Trebuchet MS","Segoe UI",sans-serif;color:var(--paper);}
+  #app{position:fixed;inset:0;}
+  canvas{display:block;}
+
+  /* ---------- HUD ---------- */
+  #hud{position:fixed;inset:0;pointer-events:none;}
+  .scoreboard{
+    position:absolute;top:18px;left:50%;transform:translateX(-50%);
+    display:flex;align-items:stretch;border-radius:14px;overflow:hidden;
+    box-shadow:0 10px 30px rgba(0,0,0,.45);font-weight:700;
+    backdrop-filter:blur(4px);
+  }
+  .team{padding:10px 20px;display:flex;flex-direction:column;align-items:center;min-width:130px;}
+  .team .name{font-size:13px;letter-spacing:1.5px;text-transform:uppercase;opacity:.95;}
+  .team .tag{font-size:10px;letter-spacing:1px;opacity:.7;margin-top:2px;}
+  .team.ut{background:linear-gradient(135deg,var(--ut),var(--ut-dark));}
+  .team.ap{background:linear-gradient(135deg,var(--apelos),var(--apelos-dark));}
+  .score{background:#0c1f22;display:flex;align-items:center;justify-content:center;
+    gap:14px;padding:0 22px;font-size:34px;font-weight:800;}
+  .score .clock{font-size:15px;font-weight:700;opacity:.8;letter-spacing:1px;
+    position:absolute;top:2px;left:50%;transform:translateX(-50%);white-space:nowrap;}
+  .score-wrap{position:relative;display:flex;align-items:center;}
+
+  /* power meter */
+  #power{position:absolute;left:50%;bottom:84px;transform:translateX(-50%);
+    width:230px;height:16px;background:rgba(0,0,0,.45);border-radius:10px;
+    border:2px solid rgba(255,255,255,.25);overflow:hidden;opacity:0;transition:opacity .15s;}
+  #power .fill{height:100%;width:0%;
+    background:linear-gradient(90deg,#ffe14d,var(--apelos),#ff3b3b);}
+  #power.on{opacity:1;}
+
+  /* controls hint */
+  .controls{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);
+    display:flex;gap:18px;font-size:12px;letter-spacing:.5px;
+    background:rgba(8,22,26,.6);padding:9px 18px;border-radius:30px;
+    border:1px solid rgba(255,255,255,.12);white-space:nowrap;}
+  .controls b{color:var(--ut);}
+  kbd{background:#11353a;border:1px solid rgba(255,255,255,.18);border-bottom-width:3px;
+    border-radius:6px;padding:1px 7px;font-size:11px;font-family:inherit;}
+
+  /* center toast */
+  #toast{position:absolute;top:38%;left:50%;transform:translate(-50%,-50%) scale(.6);
+    font-size:64px;font-weight:900;letter-spacing:2px;text-transform:uppercase;
+    text-shadow:0 6px 24px rgba(0,0,0,.6);opacity:0;transition:all .3s cubic-bezier(.2,1.4,.4,1);
+    text-align:center;line-height:1;}
+  #toast.show{opacity:1;transform:translate(-50%,-50%) scale(1);}
+
+  /* ---------- Overlays ---------- */
+  .overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+    background:radial-gradient(circle at 50% 30%,rgba(0,169,157,.18),rgba(6,20,26,.94) 60%);
+    z-index:10;text-align:center;padding:24px;}
+  .overlay.hide{display:none;}
+  .card{max-width:560px;background:rgba(9,26,30,.85);border:1px solid rgba(255,255,255,.12);
+    border-radius:22px;padding:40px 42px;box-shadow:0 30px 80px rgba(0,0,0,.6);}
+  .vs{display:flex;align-items:center;justify-content:center;gap:18px;margin-bottom:8px;}
+  .badge{font-weight:900;font-size:22px;letter-spacing:1px;padding:8px 16px;border-radius:12px;}
+  .badge.ut{background:linear-gradient(135deg,var(--ut),var(--ut-dark));}
+  .badge.ap{background:linear-gradient(135deg,var(--apelos),var(--apelos-dark));}
+  .vs span{font-size:18px;font-weight:800;opacity:.6;}
+  h1{font-size:26px;margin:14px 0 6px;letter-spacing:1px;}
+  .sub{opacity:.75;font-size:14px;margin-bottom:22px;line-height:1.5;}
+  .keys{display:grid;grid-template-columns:1fr 1fr;gap:10px 22px;text-align:left;
+    font-size:13px;margin:0 auto 26px;max-width:380px;}
+  .keys div{display:flex;align-items:center;gap:8px;opacity:.92;}
+  button{pointer-events:auto;cursor:pointer;border:none;font-family:inherit;font-weight:800;
+    letter-spacing:1px;text-transform:uppercase;font-size:15px;color:#062;
+    background:linear-gradient(135deg,#3fe0c9,var(--ut));color:#04302c;
+    padding:15px 40px;border-radius:40px;box-shadow:0 10px 26px rgba(0,169,157,.4);
+    transition:transform .12s,box-shadow .12s;}
+  button:hover{transform:translateY(-2px);box-shadow:0 14px 32px rgba(0,169,157,.55);}
+  button:active{transform:translateY(0);}
+  .final{font-size:40px;font-weight:900;margin:6px 0 4px;}
+  .result{font-size:16px;opacity:.8;margin-bottom:20px;}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<!-- HUD -->
+<div id="hud">
+  <div class="scoreboard">
+    <div class="team ut"><span class="name">United Therapy</span><span class="tag">DEIN TEAM</span></div>
+    <div class="score-wrap">
+      <div class="score"><span class="clock" id="clock">02:00</span><span id="sUT">0</span><span style="opacity:.4;font-size:24px">:</span><span id="sAP">0</span></div>
+    </div>
+    <div class="team ap"><span class="name">APELOS</span><span class="tag">GEGNER</span></div>
+  </div>
+
+  <div id="power"><div class="fill" id="powerFill"></div></div>
+
+  <div class="controls">
+    <span><b>Bewegen</b> <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span>
+    <span><b>Sprinten</b> <kbd>Shift</kbd></span>
+    <span><b>Schießen</b> halten &amp; loslassen <kbd>Leertaste</kbd></span>
+    <span><b>Ball abnehmen</b> <kbd>E</kbd></span>
+  </div>
+
+  <div id="toast"></div>
+</div>
+
+<!-- Start screen -->
+<div class="overlay" id="startScreen">
+  <div class="card">
+    <div class="vs">
+      <span class="badge ut">UT</span><span>VS</span><span class="badge ap">APELOS</span>
+    </div>
+    <h1>Pitch Battle</h1>
+    <p class="sub">Zwei deutsche Therapie-Netzwerke klären es auf dem Platz. Du führst <b style="color:var(--ut)">United Therapy</b> in Petrol — zieh nach vorne und versenk einen gegen APELOS.</p>
+    <div class="keys">
+      <div><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> &nbsp;Spieler bewegen</div>
+      <div><kbd>Shift</kbd> &nbsp;Sprinten</div>
+      <div><kbd>Leertaste</kbd> &nbsp;Halten zum Aufladen, loslassen zum Schuss</div>
+      <div><kbd>E</kbd> &nbsp;Grätsche — dem Gegner den Ball abnehmen</div>
+      <div>⚽ &nbsp;Nah an den Ball laufen zum Dribbeln</div>
+    </div>
+    <button id="startBtn">Anstoß</button>
+  </div>
+</div>
+
+<!-- End screen -->
+<div class="overlay hide" id="endScreen">
+  <div class="card">
+    <div class="final" id="finalScore">0 : 0</div>
+    <div class="result" id="resultText">Spielende</div>
+    <button id="againBtn">Rückspiel</button>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+"use strict";
+
+// ---------------------------------------------------------------------------
+//  Config
+// ---------------------------------------------------------------------------
+const UT = 0x00a99d, UT_DARK = 0x0a6b66;
+const AP = 0xf5742b, AP_DARK = 0xb8470f;
+const FIELD_L = 64;            // along X  (goal to goal)
+const FIELD_W = 42;            // along Z
+const HALF_L = FIELD_L/2, HALF_W = FIELD_W/2;
+const GOAL_W = 11;             // goal mouth width (Z)
+const GOAL_H = 5.2;
+const WALL = 1.2;              // how far outside the line the ball bounces
+const MATCH_TIME = 120;        // seconds
+
+let scene, camera, renderer, clock;
+let ball, players = [], user;
+let state = 'menu';            // menu | play | celebrate | over
+let scoreUT = 0, scoreAP = 0;
+let timeLeft = MATCH_TIME;
+let celebrateT = 0;
+
+// input
+const keys = {};
+let charge = 0, charging = false;
+const CHARGE_RATE = 26, MAX_CHARGE = 22, BASE_KICK = 20;
+let tackleCD = 0, tackleT = 0;   // Ballabnahme / Grätsche
+
+// ---------------------------------------------------------------------------
+//  Boot
+// ---------------------------------------------------------------------------
+function init(){
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x0a2730);
+  scene.fog = new THREE.Fog(0x0a2730, 70, 140);
+
+  camera = new THREE.PerspectiveCamera(55, innerWidth/innerHeight, 0.1, 400);
+  camera.position.set(-HALF_L-12, 26, 0);
+
+  renderer = new THREE.WebGLRenderer({antialias:true});
+  renderer.setSize(innerWidth, innerHeight);
+  renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  document.getElementById('app').appendChild(renderer.domElement);
+
+  // ---- lights ----
+  scene.add(new THREE.HemisphereLight(0xbfe9ff, 0x16323a, 0.85));
+  const sun = new THREE.DirectionalLight(0xffffff, 1.05);
+  sun.position.set(-30, 60, 24);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(2048,2048);
+  const d = 55;
+  sun.shadow.camera.left=-d; sun.shadow.camera.right=d;
+  sun.shadow.camera.top=d; sun.shadow.camera.bottom=-d;
+  sun.shadow.camera.near=1; sun.shadow.camera.far=160;
+  scene.add(sun);
+
+  buildPitch();
+  buildGoals();
+  buildBall();
+  buildTeams();
+
+  clock = new THREE.Clock();
+  addEventListeners();
+  animate();
+}
+
+// ---------------------------------------------------------------------------
+//  Pitch (canvas texture for crisp markings + mown stripes)
+// ---------------------------------------------------------------------------
+function buildPitch(){
+  const cw=1024, ch=Math.round(cw*FIELD_W/FIELD_L);
+  const c=document.createElement('canvas'); c.width=cw; c.height=ch;
+  const g=c.getContext('2d');
+  // stripes
+  const stripes=14, sw=cw/stripes;
+  for(let i=0;i<stripes;i++){
+    g.fillStyle = i%2 ? '#2f8f4e' : '#2a8347';
+    g.fillRect(i*sw,0,sw+1,ch);
+  }
+  // markings
+  g.strokeStyle='rgba(255,255,255,.85)'; g.lineWidth=4;
+  const m=22; // margin in px
+  g.strokeRect(m,m,cw-2*m,ch-2*m);                       // boundary
+  g.beginPath(); g.moveTo(cw/2,m); g.lineTo(cw/2,ch-m); g.stroke(); // halfway
+  g.beginPath(); g.arc(cw/2,ch/2,ch*0.16,0,Math.PI*2); g.stroke();  // center circle
+  g.fillStyle='rgba(255,255,255,.9)';
+  g.beginPath(); g.arc(cw/2,ch/2,5,0,Math.PI*2); g.fill();          // center spot
+  // penalty boxes
+  const boxH=ch*0.5, boxW=cw*0.13, smH=ch*0.26, smW=cw*0.05;
+  g.strokeRect(m, ch/2-boxH/2, boxW, boxH);
+  g.strokeRect(cw-m-boxW, ch/2-boxH/2, boxW, boxH);
+  g.strokeRect(m, ch/2-smH/2, smW, smH);
+  g.strokeRect(cw-m-smW, ch/2-smH/2, smW, smH);
+
+  const tex=new THREE.CanvasTexture(c);
+  tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  const pitch=new THREE.Mesh(
+    new THREE.PlaneGeometry(FIELD_L, FIELD_W),
+    new THREE.MeshStandardMaterial({map:tex, roughness:.95})
+  );
+  pitch.rotation.x=-Math.PI/2;
+  pitch.receiveShadow=true;
+  scene.add(pitch);
+
+  // surrounding ground
+  const ground=new THREE.Mesh(
+    new THREE.PlaneGeometry(260,200),
+    new THREE.MeshStandardMaterial({color:0x14323a, roughness:1})
+  );
+  ground.rotation.x=-Math.PI/2; ground.position.y=-0.05;
+  ground.receiveShadow=true; scene.add(ground);
+
+  // low advertising boards around the pitch
+  addBoards();
+}
+
+const UT_LOGO = "data:image/jpeg;base64,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";
+let boardTextures = [];
+
+function drawBoardTile(g,w,h,logo){
+  g.clearRect(0,0,w,h);
+  // helle Bande
+  g.fillStyle='#ffffff'; g.fillRect(0,0,w,h);
+  g.fillStyle='#00a99d'; g.fillRect(0,0,w,7);            // Petrol-Oberkante
+  g.fillStyle='rgba(0,0,0,.14)'; g.fillRect(0,h-6,w,6);  // Schatten unten
+  g.fillStyle='rgba(0,169,157,.30)'; g.fillRect(0,0,3,h); g.fillRect(w-3,0,3,h); // Segmentkanten
+  if(logo){
+    const pad=h*0.26, dh=h-2*pad, dw=dh*(logo.width/logo.height);
+    g.drawImage(logo,(w-dw)/2,pad,dw,dh);
+  } else {
+    g.fillStyle='#9aa3a3'; g.textBaseline='middle'; g.textAlign='center';
+    g.font='700 40px "Trebuchet MS","Segoe UI",sans-serif';
+    g.fillText('united therapy', w/2, h/2);
+  }
+}
+
+function makeBoardTexture(){
+  const w=1024,h=128;
+  const c=document.createElement('canvas'); c.width=w; c.height=h;
+  const g=c.getContext('2d');
+  drawBoardTile(g,w,h,null);
+  const tex=new THREE.CanvasTexture(c);
+  tex.wrapS=THREE.RepeatWrapping; tex.wrapT=THREE.ClampToEdgeWrapping;
+  tex.anisotropy=renderer.capabilities.getMaxAnisotropy();
+  tex._canvas=c; tex._ctx=g;
+  boardTextures.push(tex);
+  return tex;
+}
+
+function loadBoardLogo(){
+  const img=new Image();
+  img.onload=()=>{
+    // schwarzen JPEG-Hintergrund auf transparent setzen
+    const oc=document.createElement('canvas'); oc.width=img.width; oc.height=img.height;
+    const og=oc.getContext('2d'); og.drawImage(img,0,0);
+    try{
+      const id=og.getImageData(0,0,oc.width,oc.height), d=id.data;
+      for(let i=0;i<d.length;i+=4){
+        if(d[i]<36&&d[i+1]<36&&d[i+2]<36) d[i+3]=0;
+      }
+      og.putImageData(id,0,0);
+    }catch(e){}
+    boardTextures.forEach(tex=>{
+      drawBoardTile(tex._ctx, tex._canvas.width, tex._canvas.height, oc);
+      tex.needsUpdate=true;
+    });
+  };
+  img.src=UT_LOGO;
+}
+
+function addBoards(){
+  const h=1.1, t=0.4, tileAspect=1024/128;   // = 8
+  const boardMat=(len)=>{
+    const tex=makeBoardTexture();
+    tex.repeat.x=Math.max(1, Math.round(len/(h*tileAspect)));
+    return new THREE.MeshStandardMaterial({map:tex, roughness:.5, metalness:.05,
+      emissive:0xffffff, emissiveIntensity:.12});
+  };
+  // long sides
+  for(let s=-1;s<=1;s+=2){
+    const len=FIELD_L+4;
+    const b=new THREE.Mesh(new THREE.BoxGeometry(len,h,t), boardMat(len));
+    b.position.set(0,h/2, s*(HALF_W+WALL+0.6)); b.castShadow=true; scene.add(b);
+  }
+  // ends (behind goals)
+  for(let s=-1;s<=1;s+=2){
+    const len=FIELD_W+4;
+    const b=new THREE.Mesh(new THREE.BoxGeometry(t,h,len), boardMat(len));
+    b.position.set(s*(HALF_L+WALL+0.6),h/2,0); b.castShadow=true; scene.add(b);
+  }
+  loadBoardLogo();
+}
+
+// ---------------------------------------------------------------------------
+//  Goals
+// ---------------------------------------------------------------------------
+function buildGoals(){
+  for(let side=-1; side<=1; side+=2){ // -1 = UT goal, +1 = APELOS goal
+    const x = side*HALF_L;
+    const post=new THREE.MeshStandardMaterial({color:0xffffff, roughness:.5});
+    const r=0.16;
+    const mk=(geo)=>{const mm=new THREE.Mesh(geo,post);mm.castShadow=true;return mm;};
+    // posts
+    const ph=GOAL_H;
+    [-1,1].forEach(zs=>{
+      const p=mk(new THREE.CylinderGeometry(r,r,ph,12));
+      p.position.set(x, ph/2, zs*GOAL_W/2); scene.add(p);
+    });
+    // crossbar
+    const cb=mk(new THREE.CylinderGeometry(r,r,GOAL_W,12));
+    cb.rotation.x=Math.PI/2; cb.position.set(x,ph,0); scene.add(cb);
+    // net
+    const netMat=new THREE.MeshStandardMaterial({color:0xffffff, transparent:true,
+      opacity:.16, side:THREE.DoubleSide, roughness:1});
+    const depth=3.2;
+    const back=new THREE.Mesh(new THREE.PlaneGeometry(GOAL_W,ph), netMat);
+    back.position.set(x+side*depth, ph/2, 0); back.rotation.y=Math.PI/2*(side>0?1:-1)+(side>0?0:0);
+    back.rotation.y=Math.PI/2; scene.add(back);
+    const top=new THREE.Mesh(new THREE.PlaneGeometry(depth,GOAL_W), netMat);
+    top.rotation.x=Math.PI/2; top.position.set(x+side*depth/2, ph, 0); scene.add(top);
+    [-1,1].forEach(zs=>{
+      const sn=new THREE.Mesh(new THREE.PlaneGeometry(depth,ph), netMat);
+      sn.position.set(x+side*depth/2, ph/2, zs*GOAL_W/2); scene.add(sn);
+    });
+  }
+}
+
+// ---------------------------------------------------------------------------
+//  Ball
+// ---------------------------------------------------------------------------
+function buildBall(){
+  const grp=new THREE.Group();
+  const m=new THREE.Mesh(
+    new THREE.SphereGeometry(0.55,24,24),
+    new THREE.MeshStandardMaterial({color:0xffffff, roughness:.4})
+  );
+  m.castShadow=true; grp.add(m);
+  // a couple of dark patches so spin is visible
+  for(let i=0;i<6;i++){
+    const p=new THREE.Mesh(new THREE.SphereGeometry(0.18,8,8),
+      new THREE.MeshStandardMaterial({color:0x14323a}));
+    const a=i/6*Math.PI*2;
+    p.position.set(Math.cos(a)*0.42, Math.sin(a)*0.3, Math.sin(a)*0.42);
+    m.add(p);
+  }
+  grp.position.set(0,0.55,0);
+  grp.vel=new THREE.Vector3();
+  scene.add(grp);
+  ball=grp;
+}
+
+// ---------------------------------------------------------------------------
+//  Players
+// ---------------------------------------------------------------------------
+function makePlayer(color){
+  const g=new THREE.Group();
+  // body
+  const body=new THREE.Mesh(new THREE.CylinderGeometry(0.62,0.7,1.5,14),
+    new THREE.MeshStandardMaterial({color, roughness:.7}));
+  body.position.y=1.05; body.castShadow=true; g.add(body);
+  // shorts
+  const shorts=new THREE.Mesh(new THREE.CylinderGeometry(0.7,0.6,0.5,14),
+    new THREE.MeshStandardMaterial({color:0x12343a, roughness:.8}));
+  shorts.position.y=0.4; shorts.castShadow=true; g.add(shorts);
+  // head
+  const head=new THREE.Mesh(new THREE.SphereGeometry(0.42,16,16),
+    new THREE.MeshStandardMaterial({color:0xf1c9a5, roughness:.8}));
+  head.position.y=2.05; head.castShadow=true; g.add(head);
+  // facing marker (nose)
+  const nose=new THREE.Mesh(new THREE.ConeGeometry(0.18,0.5,10),
+    new THREE.MeshStandardMaterial({color:0xffffff}));
+  nose.rotation.z=-Math.PI/2; nose.position.set(0.42,2.05,0); g.add(nose);
+  // ground ring (team highlight)
+  const ring=new THREE.Mesh(new THREE.RingGeometry(0.8,1.05,24),
+    new THREE.MeshBasicMaterial({color, transparent:true, opacity:.55, side:THREE.DoubleSide}));
+  ring.rotation.x=-Math.PI/2; ring.position.y=0.02; g.add(ring);
+  g.userData.ring=ring;
+  return g;
+}
+
+function buildTeams(){
+  players=[];
+  const make=(team,role,x,z,isUser)=>{
+    const col = team==='UT'?UT:AP;
+    const mesh=makePlayer(col);
+    mesh.position.set(x,0,z);
+    scene.add(mesh);
+    const p={mesh,team,role,isUser:!!isUser,
+      vel:new THREE.Vector3(),facing:new THREE.Vector3(team==='UT'?1:-1,0,0),
+      home:new THREE.Vector3(x,0,z), kickCD:0};
+    players.push(p);
+    return p;
+  };
+  // United Therapy (you attack +X)
+  user = make('UT','captain', -10, 0, true);
+  user.mesh.userData.ring.material.opacity=0.95; // highlight the user
+  make('UT','mid', -20, -10);
+  make('UT','mid', -20, 10);
+  make('UT','gk',  -HALF_L+3, 0);
+  // APELOS (attack -X)
+  make('AP','fwd', 12, -7);
+  make('AP','fwd', 12, 7);
+  make('AP','mid', 22, 0);
+  make('AP','gk',  HALF_L-3, 0);
+}
+
+// ---------------------------------------------------------------------------
+//  Input
+// ---------------------------------------------------------------------------
+function addEventListeners(){
+  addEventListener('keydown',e=>{
+    keys[e.code]=true;
+    if(e.code==='KeyE' && state==='play' && tackleCD<=0){ tackleT=0.22; tackleCD=0.7; }
+    if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) e.preventDefault();
+  });
+  addEventListener('keyup',e=>{ keys[e.code]=false; });
+  addEventListener('resize',()=>{
+    camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();
+    renderer.setSize(innerWidth,innerHeight);
+  });
+  document.getElementById('startBtn').onclick=startMatch;
+  document.getElementById('againBtn').onclick=startMatch;
+}
+
+function startMatch(){
+  scoreUT=0; scoreAP=0; timeLeft=MATCH_TIME;
+  updateScore();
+  document.getElementById('startScreen').classList.add('hide');
+  document.getElementById('endScreen').classList.add('hide');
+  resetPositions();
+  state='play';
+  clock.getDelta();
+}
+
+// ---------------------------------------------------------------------------
+//  Kicking
+// ---------------------------------------------------------------------------
+function doKick(){
+  const power = BASE_KICK + charge;
+  charge=0;
+  const toBall=new THREE.Vector3().subVectors(ball.position, user.mesh.position);
+  toBall.y=0;
+  const dist=toBall.length();
+  if(dist<3.2){
+    // kick in facing direction, biased toward ball direction
+    const dir=user.facing.clone().normalize();
+    ball.vel.x = dir.x*power;
+    ball.vel.z = dir.z*power;
+    ball.vel.y = Math.min(6, power*0.28);   // a little loft on hard shots
+    flashToast(power>28?'VOLLER WUMMS!':'',420);
+  }
+}
+
+// ---------------------------------------------------------------------------
+//  Update loop
+// ---------------------------------------------------------------------------
+function animate(){
+  requestAnimationFrame(animate);
+  let dt=clock.getDelta(); if(dt>0.05)dt=0.05;
+
+  if(state==='play'){
+    handleUser(dt);
+    handleAI(dt);
+    updateBall(dt);
+    checkGoal();
+    timeLeft-=dt;
+    if(timeLeft<=0){ timeLeft=0; endMatch(); }
+    updateClock();
+    // Schuss aufladen per Polling -> Halten lädt auf, Loslassen schießt
+    const shootHeld = keys['Space'];
+    if(shootHeld && !charging){ charging=true; charge=0; }
+    if(charging){
+      if(shootHeld){
+        charge=Math.min(charge+CHARGE_RATE*dt, MAX_CHARGE);
+        powerEl.classList.add('on'); powerFill.style.width=(charge/MAX_CHARGE*100)+'%';
+      } else {
+        charging=false; doKick(); powerEl.classList.remove('on');
+      }
+    } else { powerEl.classList.remove('on'); }
+  } else if(state==='celebrate'){
+    updateBall(dt);
+    celebrateT-=dt;
+    if(celebrateT<=0){ resetPositions(); state='play'; clock.getDelta(); }
+  }
+
+  updateCamera(dt);
+  renderer.render(scene,camera);
+}
+
+// ---- user control ----
+function handleUser(dt){
+  tackleCD-=dt;
+  const dir=new THREE.Vector3();
+  if(keys['KeyW']||keys['ArrowUp'])    dir.x+=1;
+  if(keys['KeyS']||keys['ArrowDown'])  dir.x-=1;
+  if(keys['KeyA']||keys['ArrowLeft'])  dir.z-=1;
+  if(keys['KeyD']||keys['ArrowRight']) dir.z+=1;
+
+  const sprint=(keys['ShiftLeft']||keys['ShiftRight'])?1.55:1;
+  const speed=11*sprint;
+  if(dir.lengthSq()>0){
+    dir.normalize();
+    user.vel.lerp(dir.multiplyScalar(speed), 0.25);
+    user.facing.lerp(new THREE.Vector3(dir.x,0,dir.z), 0.3).normalize();
+  } else {
+    user.vel.multiplyScalar(0.78);
+  }
+
+  // --- Ballabnahme / Grätsche (Taste E) ---
+  if(tackleT>0){
+    tackleT-=dt;
+    user.mesh.userData.ring.material.color.setHex(0xffe14d);   // Ring blitzt gelb
+    user.vel.x += user.facing.x*55*dt;                          // Antritt nach vorne
+    user.vel.z += user.facing.z*55*dt;
+    const bd=user.mesh.position.distanceTo(ball.position);
+    if(bd<3.2){
+      // Ball an den eigenen Fuß ziehen
+      const ahead=user.facing.clone().multiplyScalar(1.3).add(user.mesh.position);
+      ball.vel.x=(ahead.x-ball.position.x)*7;
+      ball.vel.z=(ahead.z-ball.position.z)*7;
+      ball.vel.y=0.5;
+      // nahe Gegner kurz wegdrängen, damit die Abnahme sitzt
+      players.forEach(o=>{
+        if(o.team!=='AP') return;
+        if(o.mesh.position.distanceTo(ball.position)<3.5){
+          o.kickCD=0.8;
+          const back=new THREE.Vector3().subVectors(o.mesh.position,ball.position).setY(0).normalize();
+          o.vel.add(back.multiplyScalar(6));
+        }
+      });
+    }
+  } else {
+    user.mesh.userData.ring.material.color.setHex(UT);
+  }
+
+  moveAndRotate(user, dt);
+  dribble(user, sprint>1?1.15:1);
+}
+
+// ---- AI ----
+function handleAI(dt){
+  // find nearest player to ball per team
+  const nearest={UT:null,AP:null};
+  const nd={UT:1e9,AP:1e9};
+  players.forEach(p=>{
+    if(p.role==='gk') return;
+    if(p.isUser) return;
+    const d=p.mesh.position.distanceTo(ball.position);
+    if(d<nd[p.team]){nd[p.team]=d;nearest[p.team]=p;}
+  });
+  const userDist=user.mesh.position.distanceTo(ball.position);
+  let ballKicked=false;   // verhindert, dass zwei Spieler den Ball im selben Frame überschreiben
+
+  players.forEach(p=>{
+    if(p.isUser) return;
+    p.kickCD-=dt;
+    const goalX = p.team==='UT'? HALF_L : -HALF_L;   // attacking goal
+    const ownX  = p.team==='UT'?-HALF_L :  HALF_L;
+
+    let target;
+    if(p.role==='gk'){
+      // stay on line, track ball Z
+      const gz=THREE.MathUtils.clamp(ball.position.z*0.6, -GOAL_W/2, GOAL_W/2);
+      target=new THREE.Vector3(ownX + (p.team==='UT'?2.5:-2.5), 0, gz);
+    } else if(p===nearest[p.team]){
+      target=ball.position.clone();             // chase the ball
+    } else {
+      // support: sit between ball and goal, spread on Z toward home side
+      target=new THREE.Vector3(
+        ball.position.x*0.4 + p.home.x*0.6,
+        0,
+        p.home.z*0.7 + ball.position.z*0.3
+      );
+    }
+
+    const to=new THREE.Vector3().subVectors(target,p.mesh.position); to.y=0;
+    const dist=to.length();
+    const baseSpeed = p.role==='gk'?7.5 : (p===nearest[p.team]?9.5:7.5);
+    if(dist>0.4){
+      to.normalize();
+      p.vel.lerp(to.multiplyScalar(baseSpeed),0.12);
+      p.facing.lerp(to,0.2).normalize();
+    } else { p.vel.multiplyScalar(0.8); }
+    moveAndRotate(p,dt);
+
+    // interact with ball
+    const bd=p.mesh.position.distanceTo(ball.position);
+    if(bd<2.4 && !ballKicked){
+      const dGoal=Math.abs(goalX-ball.position.x);
+      if(p.role==='gk'){
+        // clear it away from goal
+        const clear=new THREE.Vector3(p.team==='UT'?1:-1,0,(Math.random()-0.5)).normalize();
+        ball.vel.x=clear.x*40; ball.vel.z=clear.z*22; ball.vel.y=4; ballKicked=true;
+      } else {
+        let handled=false;
+        // UT-Kollege am Ball: dich anspielen, sobald du vor ihm stehst (ohne Distanz-Sperre)
+        if(p.team==='UT' && p.kickCD<=0){
+          const userAhead = user.mesh.position.x > p.mesh.position.x + 2;
+          const pd = user.mesh.position.distanceTo(ball.position);
+          if(userAhead && pd>5 && pd<60 && dGoal>12){
+            const aimPt=user.mesh.position.clone().addScaledVector(user.vel,0.3); // in den Lauf vorlegen
+            const aim=new THREE.Vector3(aimPt.x-ball.position.x,0,aimPt.z-ball.position.z).normalize();
+            const pw=THREE.MathUtils.clamp(pd*2.2+8, 18, 78);   // stark genug, um dich zu erreichen
+            ball.vel.x=aim.x*pw; ball.vel.z=aim.z*pw; ball.vel.y= pd>20?3:1.5;
+            p.kickCD=0.9; ballKicked=true;
+            flashToast('<span style="color:#3fe0c9">ABSPIEL!</span>',650);
+            handled=true;
+          }
+        }
+        // sonst nur eingreifen, wenn du sie nicht ausgespielt hast
+        if(!handled && bd<=userDist+0.2){
+          if(p.kickCD<=0){
+            const aimZ=THREE.MathUtils.clamp((Math.random()-0.5)*GOAL_W,-GOAL_W/2+1,GOAL_W/2-1);
+            const aim=new THREE.Vector3(goalX-ball.position.x,0,aimZ-ball.position.z).normalize();
+            const close=dGoal<26;
+            const pw= close? 40+Math.random()*12 : 26+Math.random()*8;
+            ball.vel.x=aim.x*pw; ball.vel.z=aim.z*pw; ball.vel.y= close?3.5:1.5;
+            p.kickCD=0.5; ballKicked=true;
+          } else {
+            dribble(p,1);
+          }
+        }
+      }
+    }
+  });
+}
+
+function moveAndRotate(p,dt){
+  p.mesh.position.x+=p.vel.x*dt;
+  p.mesh.position.z+=p.vel.z*dt;
+  // keep on the field (with small margin)
+  const mx=HALF_L+ (p.role==='gk'?0:3), mz=HALF_W+2;
+  p.mesh.position.x=THREE.MathUtils.clamp(p.mesh.position.x,-mx,mx);
+  p.mesh.position.z=THREE.MathUtils.clamp(p.mesh.position.z,-mz,mz);
+  // face movement / facing dir
+  if(p.facing.lengthSq()>0.001){
+    const ang=Math.atan2(p.facing.z,p.facing.x);
+    p.mesh.rotation.y = -ang;   // model's +X is "front" (nose), Three rotates around Y
+  }
+  // little bob when moving
+  const sp=Math.hypot(p.vel.x,p.vel.z);
+  p.mesh.position.y = sp>1? Math.abs(Math.sin(performance.now()*0.012))*0.12 : 0;
+}
+
+// push the ball ahead of a moving player (arcade dribble)
+function dribble(p,mult){
+  const d=p.mesh.position.distanceTo(ball.position);
+  const sp=Math.hypot(p.vel.x,p.vel.z);
+  if(d<2.0 && sp>1.5){
+    const ahead=new THREE.Vector3().copy(p.facing).multiplyScalar(1.4).add(p.mesh.position);
+    ahead.y=ball.position.y;
+    const toAhead=new THREE.Vector3().subVectors(ahead,ball.position);
+    ball.vel.x = toAhead.x*6*mult + p.vel.x*0.4;
+    ball.vel.z = toAhead.z*6*mult + p.vel.z*0.4;
+  }
+}
+
+// ---- ball physics ----
+function updateBall(dt){
+  // gravity / vertical
+  ball.vel.y -= 22*dt;
+  ball.position.x+=ball.vel.x*dt;
+  ball.position.y+=ball.vel.y*dt;
+  ball.position.z+=ball.vel.z*dt;
+
+  if(ball.position.y<0.55){
+    ball.position.y=0.55;
+    ball.vel.y = Math.abs(ball.vel.y)>2 ? -ball.vel.y*0.45 : 0;
+  }
+  // ground friction
+  const f=Math.pow(0.5,dt*3.2);
+  ball.vel.x*=f; ball.vel.z*=f;
+  if(Math.hypot(ball.vel.x,ball.vel.z)<0.05){ball.vel.x=0;ball.vel.z=0;}
+
+  // spin (roll) visual
+  const sp=Math.hypot(ball.vel.x,ball.vel.z);
+  if(sp>0.05){
+    const axis=new THREE.Vector3(-ball.vel.z,0,ball.vel.x).normalize();
+    ball.children[0].rotateOnWorldAxis(axis, sp*dt*1.6);
+  }
+
+  // side walls (Z)
+  if(Math.abs(ball.position.z)>HALF_W){
+    ball.position.z=Math.sign(ball.position.z)*HALF_W;
+    ball.vel.z*=-0.65;
+  }
+  // end walls (X) — only bounce outside the goal mouth / above bar
+  if(Math.abs(ball.position.x)>HALF_L){
+    const inMouth = Math.abs(ball.position.z)<GOAL_W/2 && ball.position.y<GOAL_H;
+    if(!inMouth){
+      ball.position.x=Math.sign(ball.position.x)*HALF_L;
+      ball.vel.x*=-0.65;
+    } else if(Math.abs(ball.position.x)>HALF_L+3.0){
+      // hit back of net
+      ball.position.x=Math.sign(ball.position.x)*(HALF_L+3.0);
+      ball.vel.multiplyScalar(0.2);
+    }
+  }
+}
+
+function checkGoal(){
+  if(state!=='play') return;
+  if(ball.position.x> HALF_L+0.3 && Math.abs(ball.position.z)<GOAL_W/2 && ball.position.y<GOAL_H){
+    scoreUT++; goal('UT');
+  } else if(ball.position.x< -HALF_L-0.3 && Math.abs(ball.position.z)<GOAL_W/2 && ball.position.y<GOAL_H){
+    scoreAP++; goal('AP');
+  }
+}
+
+function goal(team){
+  updateScore();
+  state='celebrate'; celebrateT=2.2;
+  const txt = team==='UT'
+    ? '<span style="color:#3fe0c9">TOR!</span><br><span style="font-size:24px;letter-spacing:3px">UNITED THERAPY</span>'
+    : '<span style="color:#ff9a5a">APELOS TRIFFT</span>';
+  flashToast(txt, 2000, true);
+}
+
+// ---------------------------------------------------------------------------
+//  Camera — follow the user from behind, look toward the action
+// ---------------------------------------------------------------------------
+const camTmp=new THREE.Vector3();
+function updateCamera(dt){
+  const p=user.mesh.position, b=ball.position;
+  // Fokus zwischen Spieler und Ball, zum Ball gewichtet -> Kamera folgt dem Ball,
+  // hält aber den Spieler im Bild
+  const focus=new THREE.Vector3().lerpVectors(p, b, 0.55);
+  const sep=p.distanceTo(b);
+  const back=13 + Math.min(sep*0.35, 12);   // bei großem Abstand weiter rauszoomen
+  const high=16 + Math.min(sep*0.30, 10);
+  camTmp.set(focus.x-back, high, focus.z*0.6);
+  camera.position.lerp(camTmp, 1-Math.pow(0.0015,dt));
+  if(!camera.__look) camera.__look=focus.clone();
+  camera.__look.lerp(focus, 1-Math.pow(0.0015,dt));
+  camera.lookAt(camera.__look.x+4, 1.2, camera.__look.z);
+}
+
+// ---------------------------------------------------------------------------
+//  Positions reset
+// ---------------------------------------------------------------------------
+function resetPositions(){
+  ball.position.set(0,0.55,0); ball.vel.set(0,0,0);
+  const formation={
+    captain:[-10,0], mid:[[-20,-10],[-20,10]], gk:[null], fwd:[[12,-7],[12,7]]
+  };
+  let midUT=0, fwdAP=0;
+  players.forEach(p=>{
+    if(p.role==='captain'){p.mesh.position.set(-10,0,0);}
+    else if(p.role==='gk'){p.mesh.position.set(p.team==='UT'?-HALF_L+3:HALF_L-3,0,0);}
+    else if(p.team==='UT'&&p.role==='mid'){const f=formation.mid[midUT++%2];p.mesh.position.set(f[0],0,f[1]);}
+    else if(p.team==='AP'&&p.role==='fwd'){const f=formation.fwd[fwdAP++%2];p.mesh.position.set(f[0],0,f[1]);}
+    else if(p.role==='mid'){p.mesh.position.set(22,0,0);}
+    p.vel.set(0,0,0);
+    p.facing.set(p.team==='UT'?1:-1,0,0);
+    p.mesh.position.y=0;
+  });
+}
+
+function endMatch(){
+  state='over';
+  powerEl.classList.remove('on');
+  document.getElementById('finalScore').textContent=`${scoreUT} : ${scoreAP}`;
+  let r;
+  if(scoreUT>scoreAP) r='United Therapy gewinnt! 🏆';
+  else if(scoreUT<scoreAP) r='APELOS holt sich diesmal den Sieg.';
+  else r='Unentschieden — ein hart umkämpftes Remis.';
+  document.getElementById('resultText').textContent=r;
+  document.getElementById('endScreen').classList.remove('hide');
+}
+
+// ---------------------------------------------------------------------------
+//  HUD helpers
+// ---------------------------------------------------------------------------
+const powerEl=document.getElementById('power');
+const powerFill=document.getElementById('powerFill');
+const toastEl=document.getElementById('toast');
+let toastTimer=null;
+function flashToast(html,ms,big){
+  if(!html){return;}
+  toastEl.innerHTML=html;
+  toastEl.style.fontSize=big?'64px':'40px';
+  toastEl.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>toastEl.classList.remove('show'),ms||800);
+}
+function updateScore(){
+  document.getElementById('sUT').textContent=scoreUT;
+  document.getElementById('sAP').textContent=scoreAP;
+}
+function updateClock(){ updateClockUI(); }
+let lastClock=-1;
+function updateClockUI(){
+  const t=Math.ceil(timeLeft);
+  if(t===lastClock) return; lastClock=t;
+  const m=String(Math.floor(t/60)).padStart(2,'0');
+  const s=String(t%60).padStart(2,'0');
+  document.getElementById('clock').textContent=`${m}:${s}`;
+}
+
+init();
+})();
+</script>
+</body>
+</html>
