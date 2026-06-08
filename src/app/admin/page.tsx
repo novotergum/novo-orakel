@@ -24,6 +24,7 @@ export default function AdminPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editLocation, setEditLocation] = useState("");
+  const [editJokers, setEditJokers] = useState("");
   const [actionMsg, setActionMsg] = useState("");
   const [nlEmails, setNlEmails] = useState<string[]>([]);
   const [nlLoading, setNlLoading] = useState(false);
@@ -79,7 +80,12 @@ export default function AdminPage() {
       const res = await fetch(`/api/admin?secret=${encodeURIComponent(secret)}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, userName: editName, location: editLocation }),
+        body: JSON.stringify({
+          userId,
+          userName: editName,
+          location: editLocation,
+          jokersUsed: editJokers === "" ? undefined : Number(editJokers),
+        }),
       });
       const data = await res.json();
       if (data.ok) {
@@ -144,6 +150,33 @@ export default function AdminPage() {
       setActionMsg(data.ok ? data.message : (data.error ?? "Fehler"));
       if (data.ok) loadUsers(secret);
     } catch { setActionMsg("Netzwerkfehler"); }
+  }
+
+  function exportPlayers() {
+    if (users.length === 0) return;
+    const esc = (v: unknown) => {
+      const s = String(v ?? "");
+      return /[",\n;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const header = ["Name", "Email", "Standort", "Tipps", "Punkte", "JokerGenutzt", "JokerMax", "Registriert"];
+    const rows = users.map((u) => [
+      esc(u.userName),
+      esc(u.email ?? ""),
+      esc(u.location),
+      u.tips,
+      u.points,
+      u.jokersUsed,
+      10,
+      esc(new Date(u.registeredAt).toISOString().slice(0, 10)),
+    ].join(","));
+    const csv = "﻿" + [header.join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `wm-tippspiel-spieler-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   function logout() {
@@ -261,6 +294,11 @@ export default function AdminPage() {
           <button style={s.btnOutline} onClick={() => loadUsers(secret)}>
             Aktualisieren
           </button>
+          {users.length > 0 && (
+            <button style={s.btn("#4293D0")} onClick={exportPlayers}>
+              Spieler CSV
+            </button>
+          )}
           <button style={s.btnOutline} onClick={logout}>
             Logout
           </button>
@@ -316,7 +354,17 @@ export default function AdminPage() {
                     </td>
                     <td style={s.td}>{u.tips}</td>
                     <td style={s.td}>{u.points}</td>
-                    <td style={s.td}>{u.jokersUsed}/10</td>
+                    <td style={s.td}>
+                      <input
+                        style={{ ...s.input, width: 60 }}
+                        type="number"
+                        min={0}
+                        max={10}
+                        value={editJokers}
+                        onChange={(e) => setEditJokers(e.target.value)}
+                      />
+                      <span style={{ color: "#7A7A7A" }}> /10</span>
+                    </td>
                     <td style={s.td}>{new Date(u.registeredAt).toLocaleDateString("de-DE")}</td>
                     <td style={s.td}>
                       <div style={{ display: "flex", gap: 6 }}>
@@ -354,6 +402,7 @@ export default function AdminPage() {
                             setEditingId(u.userId);
                             setEditName(u.userName);
                             setEditLocation(u.location);
+                            setEditJokers(String(u.jokersUsed));
                             setActionMsg("");
                           }}
                         >

@@ -2,7 +2,7 @@
  * Session + magic-link auth primitives.
  *
  * Two JWT flavours:
- *   - magic-link token    : short-lived (15 min), emailed to the user
+ *   - magic-link token    : valid 7 days, emailed to the user
  *   - session token       : long-lived (30d), set as HttpOnly cookie after verify
  *
  * Both are signed with HS256 using AUTH_SECRET.
@@ -14,7 +14,7 @@ import { cookies } from "next/headers";
 
 const SESSION_COOKIE = "wm_session";
 const SESSION_MAX_AGE = 60 * 60 * 24 * 30; // 30 days in seconds
-const MAGIC_TTL = 60 * 15; // 15 minutes
+const MAGIC_TTL = 60 * 60 * 24 * 7; // 7 days
 
 function getSecret(): Uint8Array {
   const s = process.env.AUTH_SECRET;

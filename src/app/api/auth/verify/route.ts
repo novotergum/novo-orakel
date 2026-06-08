@@ -33,11 +33,12 @@ export async function GET(req: NextRequest) {
   }
 
   // One-time-use: mark this token's JTI as consumed. JWT has no built-in jti,
-  // but the token string itself is unique within its 15-min validity window.
-  // Use a hash-suffix of the token as the dedupe key.
+  // but the token string itself is unique within its validity window.
+  // Use a hash-suffix of the token as the dedupe key. Keep the dedupe marker
+  // alive for the full token lifetime (7 days) so a used link can't be replayed.
   const redis = getRedis();
   const dedupeKey = `magic:used:${token.slice(-40)}`;
-  const wasFirst = await redis.set(dedupeKey, "1", { nx: true, ex: 60 * 30 });
+  const wasFirst = await redis.set(dedupeKey, "1", { nx: true, ex: 60 * 60 * 24 * 7 });
   if (wasFirst === null) {
     return NextResponse.redirect(`${origin}/?auth_error=already_used`);
   }

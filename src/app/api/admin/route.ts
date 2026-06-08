@@ -87,7 +87,7 @@ export async function GET(req: NextRequest) {
 
 /**
  * PUT /api/admin?secret=xxx
- * Update a user: { userId, userName?, location? }
+ * Update a user: { userId, userName?, location?, jokersUsed? }
  */
 export async function PUT(req: NextRequest) {
   if (!checkAuth(req)) {
@@ -96,7 +96,7 @@ export async function PUT(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { userId, userName, location } = body;
+    const { userId, userName, location, jokersUsed } = body;
 
     if (!userId) {
       return NextResponse.json({ error: "userId required" }, { status: 400 });
@@ -117,6 +117,14 @@ export async function PUT(req: NextRequest) {
     };
 
     await redis.set(key, JSON.stringify(updated));
+
+    // Joker count is stored separately under joker:{userId}
+    if (jokersUsed !== undefined && jokersUsed !== null) {
+      const n = Math.max(0, Math.floor(Number(jokersUsed)));
+      if (!Number.isNaN(n)) {
+        await redis.set(`joker:${userId}`, n);
+      }
+    }
 
     // If userName changed, update all predictions too
     if (userName && userName.trim() !== existing.userName) {
