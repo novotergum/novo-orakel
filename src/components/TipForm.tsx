@@ -109,6 +109,7 @@ const FIFA_TO_ISO: Record<string, string> = {
   ARG: "ar", ALG: "dz", AUT: "at", JOR: "jo", POR: "pt", UZB: "uz",
   COL: "co", ENG: "gb-eng", CRO: "hr", GHA: "gh", PAN: "pa",
   IDN: "id", BHR: "bh",
+  BIH: "ba", COD: "cd", CZE: "cz", ECU: "ec", IRQ: "iq", SWE: "se", TUR: "tr",
 };
 
 function FlagImg({ code }: { code: string | null }) {
