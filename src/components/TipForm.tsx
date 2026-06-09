@@ -438,6 +438,7 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
   // ---- Render: inline match card with tip ----
   function renderMatchCard(m: Match, stageColor: string) {
     const tip = myTips[m.id];
+    const editable = new Date(m.kickoff).getTime() > now;
     const isExpanded = expandedMatch === m.id;
     const orakel = orakelResults[m.id];
     const matchResult = result?.matchId === m.id ? result : null;
@@ -489,6 +490,23 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
               </span>
           ) : tip ? (
             <div
+              onClick={
+                editable
+                  ? () => {
+                      if (isExpanded) {
+                        setExpandedMatch(null);
+                        setPick("");
+                        setScore("");
+                      } else {
+                        setExpandedMatch(m.id);
+                        setPick(tip.winnerPick as "1" | "X" | "2");
+                        setScore(tip.scoreTip);
+                        setResult(null);
+                      }
+                    }
+                  : undefined
+              }
+              title={editable ? "Tipp ändern" : undefined}
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -501,6 +519,7 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
                 color: "#2e7d32",
                 fontWeight: 600,
                 flexShrink: 0,
+                cursor: editable ? "pointer" : "default",
               }}
             >
               <span>{tip.scoreTip}</span>
@@ -511,6 +530,9 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
                   <span style={{ color: "#a5d6a7" }}>|</span>
                   <span>{tip.points}P</span>
                 </>
+              )}
+              {editable && (
+                <span style={{ color: "#66bb6a", marginLeft: 2 }}>✎</span>
               )}
             </div>
           ) : currentUser ? (
@@ -545,7 +567,7 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
         </div>
 
         {/* Expanded inline tip form */}
-        {isExpanded && currentUser && !tip && teamsKnown && (
+        {isExpanded && currentUser && teamsKnown && (
           <div
             style={{
               marginTop: 10,
