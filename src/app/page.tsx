@@ -169,118 +169,7 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
           </a>
         </header>
 
-        {/* ── Teams-Kanal Beitritt (nur wenn Link konfiguriert) ── */}
-        {teamsJoinUrl && (
-          <section style={{ marginBottom: 36 }}>
-            <a
-              href={teamsJoinUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                ...card,
-                display: "flex",
-                alignItems: "center",
-                gap: 14,
-                textDecoration: "none",
-                borderLeft: "4px solid #5b5fc7",
-              }}
-            >
-              <span style={{ fontSize: 26, lineHeight: 1 }}>💬</span>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 15, fontWeight: 700, color: "#2a2a2a" }}>
-                  Tritt dem WM-Teams-Kanal bei
-                </div>
-                <div style={{ fontSize: 13, color: "#777", marginTop: 2 }}>
-                  Updates, Ergebnisse & Austausch zum Tippspiel
-                </div>
-              </div>
-              <span
-                style={{
-                  flexShrink: 0,
-                  padding: "9px 20px",
-                  background: "#5b5fc7",
-                  color: "#fff",
-                  fontSize: 14,
-                  fontWeight: 700,
-                  borderRadius: 8,
-                }}
-              >
-                Beitreten
-              </span>
-            </a>
-          </section>
-        )}
-
-        {/* ── Spielregeln (ganz oben) ── */}
-        <section style={{ marginBottom: 36 }}>
-          <h2
-            style={{
-              fontSize: 13,
-              color: "#999",
-              textTransform: "uppercase",
-              letterSpacing: "0.08em",
-              marginBottom: 20,
-              fontWeight: 600,
-            }}
-          >
-            Spielregeln
-          </h2>
-          <div style={card}>
-            {/* Wichtigster Hinweis: Deadline */}
-            <div
-              style={{
-                display: "flex",
-                gap: 12,
-                alignItems: "flex-start",
-                background: "#F392000F",
-                border: "1px solid #F3920033",
-                borderRadius: 12,
-                padding: "14px 16px",
-                marginBottom: 20,
-              }}
-            >
-              <span style={{ fontSize: 20, lineHeight: 1.2 }}>⏱️</span>
-              <div style={{ fontSize: 14, color: "#2a2a2a", lineHeight: 1.5 }}>
-                <strong>Du kannst jedes Spiel bis zum Anpfiff tippen</strong> –
-                auch noch kurz vorher. Du musst nicht die ganze Vorrunde im
-                Voraus tippen: Tipp einfach, wann es dir passt, Spiel für Spiel.
-                Deinen Tipp kannst du bis zum Anpfiff <strong>beliebig oft
-                ändern</strong> – es zählt dein letzter.
-              </div>
-            </div>
-
-            <ul
-              style={{
-                listStyle: "none",
-                margin: 0,
-                padding: 0,
-                fontSize: 14,
-                color: "#444",
-                lineHeight: 1.7,
-              }}
-            >
-              <li style={{ marginBottom: 10 }}>
-                <strong>Punkte je Spiel:</strong> 4P exaktes Ergebnis &middot; 3P
-                richtige Tordifferenz &middot; 2P richtige Tendenz &middot; 0P
-                daneben
-              </li>
-              <li style={{ marginBottom: 10 }}>
-                <strong>K.o.-Bonus:</strong> Achtelfinale 1,5× &middot;
-                Viertelfinale 2× &middot; Halbfinale 2,5× &middot; Finale 3×
-              </li>
-              <li style={{ marginBottom: 10 }}>
-                <strong>Nicht getippt = 0 Punkte.</strong> Wer mehr Spiele
-                tippt, hat mehr Chancen auf Punkte.
-              </li>
-              <li>
-                <strong>Das UT&nbsp;Orakel</strong> (unsere KI) tippt jeden Abend
-                automatisch mit – am Ende zählt: Mensch gegen Maschine.
-              </li>
-            </ul>
-          </div>
-        </section>
-
-        {/* ── 2. Mensch vs. Maschine — Gewinner hervorheben ── */}
+        {/* ── 2. Mensch vs. Maschine — der Hook, ganz oben ── */}
         {(humanCount > 0 || agentCount > 0) && (
           <section style={{ marginBottom: 36 }}>
             <div
@@ -410,6 +299,11 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
             )}
           </section>
         )}
+
+        {/* ── 3. Spiele & Tipps (Kernaktion — direkt unter dem Hook) ── */}
+        <section id="tipform" style={{ marginBottom: 36 }}>
+          <TipForm initialUser={profile} />
+        </section>
 
         {/* ── 1. Top 3 Podium — Platz 1 deutlich groesser ── */}
         {top3.length > 0 && (
@@ -637,9 +531,124 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
           </div>
         )}
 
-        {/* ── 5. Tippen-CTA staerker ── */}
-        <section id="tipform" style={{ marginBottom: 36 }}>
-          <TipForm initialUser={profile} />
+        {/* ── Teams-Kanal Beitritt (nur wenn Link konfiguriert) ── */}
+        {teamsJoinUrl && (
+          <section style={{ marginBottom: 36 }}>
+            <a
+              href={teamsJoinUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                ...card,
+                display: "flex",
+                alignItems: "center",
+                gap: 14,
+                textDecoration: "none",
+                borderLeft: "4px solid #5b5fc7",
+              }}
+            >
+              <span style={{ fontSize: 26, lineHeight: 1 }}>💬</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: "#2a2a2a" }}>
+                  Tritt dem WM-Teams-Kanal bei
+                </div>
+                <div style={{ fontSize: 13, color: "#777", marginTop: 2 }}>
+                  Updates, Ergebnisse & Austausch zum Tippspiel
+                </div>
+              </div>
+              <span
+                style={{
+                  flexShrink: 0,
+                  padding: "9px 20px",
+                  background: "#5b5fc7",
+                  color: "#fff",
+                  fontSize: 14,
+                  fontWeight: 700,
+                  borderRadius: 8,
+                }}
+              >
+                Beitreten
+              </span>
+            </a>
+          </section>
+        )}
+
+        {/* ── Spielregeln (Accordion, standardmaessig zu) ── */}
+        <section style={{ marginBottom: 36 }}>
+          <details style={{ ...card, padding: 0 }}>
+            <summary
+              style={{
+                listStyle: "none",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "18px 24px",
+                fontSize: 13,
+                color: "#999",
+                textTransform: "uppercase",
+                letterSpacing: "0.08em",
+                fontWeight: 600,
+                userSelect: "none",
+              }}
+            >
+              <span>Spielregeln</span>
+              <span style={{ fontSize: 12, color: "#bbb" }}>anzeigen ▾</span>
+            </summary>
+            <div style={{ padding: "0 24px 24px" }}>
+              {/* Wichtigster Hinweis: Deadline */}
+              <div
+                style={{
+                  display: "flex",
+                  gap: 12,
+                  alignItems: "flex-start",
+                  background: "#F392000F",
+                  border: "1px solid #F3920033",
+                  borderRadius: 12,
+                  padding: "14px 16px",
+                  marginBottom: 20,
+                }}
+              >
+                <span style={{ fontSize: 20, lineHeight: 1.2 }}>⏱️</span>
+                <div style={{ fontSize: 14, color: "#2a2a2a", lineHeight: 1.5 }}>
+                  <strong>Du kannst jedes Spiel bis zum Anpfiff tippen</strong> –
+                  auch noch kurz vorher. Du musst nicht die ganze Vorrunde im
+                  Voraus tippen: Tipp einfach, wann es dir passt, Spiel für Spiel.
+                  Deinen Tipp kannst du bis zum Anpfiff <strong>beliebig oft
+                  ändern</strong> – es zählt dein letzter.
+                </div>
+              </div>
+
+              <ul
+                style={{
+                  listStyle: "none",
+                  margin: 0,
+                  padding: 0,
+                  fontSize: 14,
+                  color: "#444",
+                  lineHeight: 1.7,
+                }}
+              >
+                <li style={{ marginBottom: 10 }}>
+                  <strong>Punkte je Spiel:</strong> 4P exaktes Ergebnis &middot; 3P
+                  richtige Tordifferenz &middot; 2P richtige Tendenz &middot; 0P
+                  daneben
+                </li>
+                <li style={{ marginBottom: 10 }}>
+                  <strong>K.o.-Bonus:</strong> Achtelfinale 1,5× &middot;
+                  Viertelfinale 2× &middot; Halbfinale 2,5× &middot; Finale 3×
+                </li>
+                <li style={{ marginBottom: 10 }}>
+                  <strong>Nicht getippt = 0 Punkte.</strong> Wer mehr Spiele
+                  tippt, hat mehr Chancen auf Punkte.
+                </li>
+                <li>
+                  <strong>Das UT&nbsp;Orakel</strong> (unsere KI) tippt jeden Abend
+                  automatisch mit – am Ende zählt: Mensch gegen Maschine.
+                </li>
+              </ul>
+            </div>
+          </details>
         </section>
 
         <footer
