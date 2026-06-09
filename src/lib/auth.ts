@@ -34,7 +34,7 @@ export function isAllowedEmail(email: string): boolean {
   const normalized = email.toLowerCase().trim();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) return false;
   const allowed = getAllowedDomains();
-  if (!allowed.length) return false; // fail-closed if not configured
+  if (!allowed.length) return true; // no allowlist configured -> accept any valid email
   const domain = normalized.split("@")[1];
   return allowed.includes(domain);
 }
