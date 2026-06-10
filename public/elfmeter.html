@@ -169,7 +169,7 @@ function txt(t,x,y,size,color,align='left',bold=true){
   cx.fillStyle=color;  cx.fillText(t,x,y);
 }
 
-function drawScene(now){
+function drawField(now){
   /* Himmel */
   px(0,0,W,40,'#0a1030'); px(0,40,W,20,'#0e1740'); px(0,60,W,18,'#122051');
   /* Flutlichter */
@@ -208,6 +208,10 @@ function drawScene(now){
   px(GOAL.x1-4,GOAL.y1-4,GOAL.x2-GOAL.x1+8,4,'#f4f6fb');
   px(GOAL.x1-4,GOAL.y1,1,GOAL.y2-GOAL.y1+4,'#9aa6cc');
   px(GOAL.x2+3,GOAL.y1,1,GOAL.y2-GOAL.y1+4,'#9aa6cc');
+}
+
+function drawScene(now){
+  drawField(now);
 
   /* Hechtzonen */
   if(zonesVisible){
@@ -278,6 +282,121 @@ function drawShooter(){
   cx.restore();
 }
 
+/* ════════ Jubel- & Frust-Szenen ════════ */
+let endScene=null;
+const confetti=[];
+const CC=['#F46524','#00A896','#ffe97a','#ffffff','#4293D0','#E5172D'];
+function initConfetti(){
+  confetti.length=0;
+  for(let i=0;i<90;i++) confetti.push({
+    x:Math.random()*W, y:-Math.random()*H,
+    vx:(Math.random()-.5)*.7, vy:1+Math.random()*2,
+    c:CC[(Math.random()*CC.length)|0], s:2+((Math.random()*2)|0), ph:Math.random()*120
+  });
+}
+/* Gliedmaße ab Schulter/Hüfte, nach unten zeigend, um ang rotiert */
+function limb(x,y,ang,len,w,c,end){
+  cx.save(); cx.translate(x,y); cx.rotate(ang||0);
+  px(-w/2,0,w,len,c);
+  if(end) px(-w/2,len-2,w,3,end);
+  cx.restore();
+}
+/* Großer Spieler (vorne, Füße = Ursprung) für End-Szenen */
+function bigFigure(p){
+  const team=p.team||'ut';
+  const body=team==='ut'?'#1B2B5E':'#D23A2E', trim=team==='ut'?'#F46524':'#fff', skin='#e8b98f';
+  cx.save();
+  cx.translate(0,p.jumpY||0);
+  if(p.flipX) cx.scale(-1,1);
+  if(p.lean) cx.rotate(p.lean);
+  /* Beine */
+  if(p.kneel){
+    px(-6,-14,5,11,'#fff'); px(1,-14,5,11,'#fff');         // Oberschenkel
+    px(-7,-4,15,3,'#161628');                              // Schienbeine am Boden
+  }else{
+    limb(-3,-14,p.legLAng,14,4,'#fff','#161628');
+    limb(3,-14,p.legRAng,14,4,'#fff','#161628');
+  }
+  /* Torso */
+  px(-7,-34,14,20,body); px(-7,-34,14,3,trim);
+  poly([[3,-34],[7,-14],[7,-30]], team==='ut'?'#13204a':'#8e251d');
+  /* Arme */
+  limb(-7,-31,p.armLAng,12,4,body, p.shirtUp?body:skin);
+  limb(7,-31,p.armRAng,12,4,body, p.shirtUp?body:skin);
+  /* Kopf (bei Trikot-übers-Gesicht verdeckt) */
+  if(p.shirtUp){ px(-7,-44,14,11,body); }
+  else { px(-4,-45+(p.headDy||0),9,9,skin); px(-4,-46+(p.headDy||0),9,2,'#2b1d12'); }
+  cx.restore();
+}
+
+/* Jubel-Choreografien — fn(t) liefert Pose, t in 0..1 */
+const WIN_CELEBS=[
+  {name:'SIUUUU!', fn:t=>{
+    let xo=0,jumpY=0,flipX=false,aL=.3,aR=-.3,lL=0,lR=0;
+    if(t<.38){ const u=t/.38; xo=-50*(1-u); const sw=Math.sin(t*34)*.5; lL=sw;lR=-sw; aL=.3-sw;aR=-.3-sw; }
+    else if(t<.66){ const u=(t-.38)/.28; jumpY=-Math.sin(u*Math.PI)*44; flipX=u>.35&&u<.82; aL=2.6;aR=-2.6; lL=.25;lR=-.25; }
+    else{ aL=1.3;aR=-1.3; lL=.5;lR=-.5; }                  // Landung: Arme raus, Beine breit
+    return {xo,jumpY,flipX,armLAng:aL,armRAng:aR,legLAng:lL,legRAng:lR};
+  }},
+  {name:'KNIESCHLITTER!', fn:t=>{
+    if(t<.45){ const u=t/.45; return {xo:-54*(1-u),kneel:true,lean:-.22,armLAng:2.7,armRAng:-2.7}; }
+    const u=(t-.45)/.55, pump=Math.sin(u*Math.PI*3)*.22;
+    return {xo:0,kneel:true,lean:-.12,armLAng:2.8+pump,armRAng:-2.8-pump};
+  }},
+  {name:'FLUGZEUG!', fn:t=>{
+    const xo=Math.sin(t*Math.PI*2)*34, sw=Math.sin(t*20)*.45, dir=Math.cos(t*Math.PI*2);
+    return {xo,armLAng:Math.PI/2-.1,armRAng:-Math.PI/2+.1,legLAng:sw,legRAng:-sw,lean:dir*.12};
+  }},
+  {name:'ZUM HIMMEL', fn:t=>{
+    const b=Math.sin(t*Math.PI*4)*-3;
+    return {jumpY:b,armLAng:.3,armRAng:-3.05,headDy:-2,legLAng:.05,legRAng:-.05};
+  }},
+  {name:'FAUST BALLEN!', fn:t=>{
+    const j=Math.abs(Math.sin(t*Math.PI*3))*-15;
+    return {jumpY:j,armLAng:2.85,armRAng:-2.85,legLAng:.15,legRAng:-.15};
+  }},
+];
+const LOSE_CELEBS=[
+  {name:'KOPF IN DEN HAENDEN', fn:t=>{
+    const s=Math.min(1,t*1.5);
+    return {lean:.18*s,armLAng:2.95,armRAng:-2.95,headDy:1*s,legLAng:.05,legRAng:-.05};
+  }},
+  {name:'AUF DIE KNIE', fn:t=>{
+    const u=Math.min(1,t*1.3);
+    return {kneel:true,lean:.12*u,armLAng:.15,armRAng:-.15,headDy:2*u};
+  }},
+  {name:'TRIKOT INS GESICHT', fn:t=>{
+    const u=Math.min(1,t*1.4);
+    return {shirtUp:u>.3,armLAng:2.7,armRAng:-2.7,lean:.06,legLAng:.05,legRAng:-.05};
+  }},
+];
+
+function drawEndScene(now){
+  drawField(now);
+  const t=clamp((now-endScene.t0)/endScene.dur,0,1);
+  if(endScene.win){
+    for(const p of confetti){
+      p.y+=p.vy; p.x+=p.vx+Math.sin((p.y+p.ph)*.05)*.4;
+      if(p.y>H){ p.y=-4; p.x=Math.random()*W; }
+      px(p.x,p.y,p.s,p.s,p.c);
+    }
+  }else{
+    px(0,0,W,H,'rgba(10,12,26,.4)');                       // gedrückte Stimmung
+  }
+  const pose=endScene.celeb.fn(t); pose.team='ut';
+  cx.save(); cx.translate(W/2+(pose.xo||0), 258); cx.scale(2.7,2.7); bigFigure(pose); cx.restore();
+  /* großer Szenen-Titel */
+  if(t>.45){
+    const a=Math.min(1,(t-.45)/.18);
+    cx.globalAlpha=a; cx.font='bold 28px "Courier New",monospace'; cx.textAlign='center'; cx.textBaseline='middle';
+    cx.fillStyle='#000'; cx.fillText(endScene.celeb.name,W/2+2,100);
+    cx.fillStyle=endScene.win?'#ffe97a':'#8b93b8'; cx.fillText(endScene.celeb.name,W/2,98);
+    cx.globalAlpha=1;
+  }
+  px(0,H-20,W,20,'rgba(0,0,0,.7)');
+  txt((endScene.win?'SIEG':'NIEDERLAGE')+'  '+S.ut+' : '+S.ap,W/2,H-15,9,'#cfe3ff','center');
+}
+
 /* HUD im Broadcast-Stil */
 function drawHUD(){
   px(6,6,150,14,'rgba(0,0,0,.8)'); px(6,6,3,14,'#F46524');
@@ -331,7 +450,7 @@ function ballArc(to,dur){
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 function flashMsg(main,sub,color,ms=1200){ flashTxt={lines:sub?[main,sub]:[main],color,until:performance.now()+ms}; }
 
-(function loop(now){ adScroll=now*.03; drawScene(now||0); requestAnimationFrame(loop); })(0);
+(function loop(now){ adScroll=now*.03; if(endScene) drawEndScene(now||0); else drawScene(now||0); requestAnimationFrame(loop); })(0);
 
 /* ════════ KI & Regeln ════════ */
 const rnd=a=>a[(Math.random()*a.length)|0];
@@ -483,24 +602,31 @@ const memLines=['MEMORY CARD (8MB) WIRD GEPRUEFT ...','TIPPSPIEL-SPIELSTAND GEFU
 function startGame(){
   audio(); sWhistle();
   Object.assign(S,{ut:0,ap:0,sudden:false,dotsUT:[],dotsAP:[],locked:true});
+  endScene=null; confetti.length=0; ball.vis=true; shooter.vis=true;
   document.getElementById('bootOv').classList.add('hidden');
   document.getElementById('endOv').classList.add('hidden');
   flashTxt=null; nextTurn();
 }
 function endGame(winner){
-  S.phase='idle'; S.locked=true; zonesVisible=false; bottomMsg='';
-  sWhistle();
+  S.phase='idle'; S.locked=true; zonesVisible=false; bottomMsg=''; flashTxt=null;
   const win=winner==='ut';
-  if(win) sGoal();
-  document.getElementById('endSub').textContent=S.sudden?'ENTSCHEIDUNG IM SUDDEN DEATH':'ABPFIFF';
-  const t=document.getElementById('endTitle');
-  t.textContent=win?'SIEG! UNITED THERAPY':'APELOS GEWINNT ...';
-  t.className='endtitle '+(win?'win':'lose');
-  document.getElementById('endScore').textContent=S.ut+' : '+S.ap;
-  document.getElementById('endTxt').textContent=win
-    ?'POKAL EINGEPACKT. WEITER ZUM TIPPSPIEL!'
-    :'ELFMETER IST KOPFSACHE. REVANCHE?';
-  setTimeout(()=>document.getElementById('endOv').classList.remove('hidden'), win?1000:600);
+  const celeb=rnd(win?WIN_CELEBS:LOSE_CELEBS);
+  ball.vis=false; shooter.vis=false; keeper.team='ap';
+  endScene={win, celeb, t0:performance.now(), dur:win?2700:2400};
+  sWhistle();
+  if(win){ initConfetti(); sGoal(); setTimeout(sGoal,260); setTimeout(sGoal,520); buzz([40,60,120]); }
+  else { sMiss(); buzz(200); }
+  setTimeout(()=>{
+    document.getElementById('endSub').textContent=S.sudden?'ENTSCHEIDUNG IM SUDDEN DEATH':'ABPFIFF';
+    const t=document.getElementById('endTitle');
+    t.textContent=win?'SIEG! UNITED THERAPY':'APELOS GEWINNT ...';
+    t.className='endtitle '+(win?'win':'lose');
+    document.getElementById('endScore').textContent=S.ut+' : '+S.ap;
+    document.getElementById('endTxt').textContent=(win
+      ?'»'+celeb.name+'« – POKAL EINGEPACKT. WEITER ZUM TIPPSPIEL!'
+      :'»'+celeb.name+'« – ELFMETER IST KOPFSACHE. REVANCHE?');
+    document.getElementById('endOv').classList.remove('hidden');
+  }, endScene.dur);
 }
 document.querySelectorAll('.diffbtn').forEach(b=>{
   b.addEventListener('click',()=>{
