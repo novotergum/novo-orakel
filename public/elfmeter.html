@@ -403,7 +403,7 @@ function drawHUD(){
   txt('UTH',14,9,9,'#fff'); txt(String(S.ut),46,9,9,'#ffe97a');
   txt(':',58,9,9,'#7e88aa'); txt(String(S.ap),66,9,9,'#ffe97a');
   txt('APE',80,9,9,'#fff');
-  txt(S.sudden?'S.DEATH':DIFF[S.diff].label,108,9,8,'#00A896');
+  txt(S.sudden?'ENTSCH.':DIFF[S.diff].label,108,9,8,'#00A896');
   /* Penalty-Tracker */
   drawDots(8,24,S.dotsUT,S.phase==='shoot'&&!S.locked);
   drawDots(8,33,S.dotsAP,S.phase==='keep'&&!S.locked);
@@ -482,13 +482,13 @@ async function nextTurn(){
     keeper.team='ap'; shooter.team='ut'; shooter.vis=true;
     Object.assign(keeper,{...KEEP0,r:0}); Object.assign(ball,{...BALL0,s:1,vis:true});
     Object.assign(shooter,{x:150,y:276,kick:0});
-    bottomMsg=(S.sudden?'SUDDEN DEATH':'SCHUETZE '+(S.dotsUT.length+1)+'/5')+' – WISCHE ZUM SCHIESSEN';
+    bottomMsg=(S.sudden?'ENTSCHEIDUNG':'SCHUETZE '+(S.dotsUT.length+1)+'/5')+' – WISCHE ZUM SCHIESSEN';
   }else{
     S.phase='keep'; zonesVisible=true;
     keeper.team='ut'; shooter.team='ap'; shooter.vis=true;
     Object.assign(keeper,{...KEEP0,r:0}); Object.assign(ball,{...BALL0,s:1,vis:true});
     Object.assign(shooter,{x:150,y:276,kick:0});
-    bottomMsg=(S.sudden?'SUDDEN DEATH':'APELOS SCHUETZE '+(S.dotsAP.length+1)+'/5')+' – NOVOTERGUM: TIPPE ZONE 1-6';
+    bottomMsg=(S.sudden?'ENTSCHEIDUNG':'APELOS SCHUETZE '+(S.dotsAP.length+1)+'/5')+' – NOVOTERGUM: TIPPE ZONE 1-6';
   }
   S.locked=false;
 }
@@ -617,7 +617,7 @@ function endGame(winner){
   if(win){ initConfetti(); sGoal(); setTimeout(sGoal,260); setTimeout(sGoal,520); buzz([40,60,120]); }
   else { sMiss(); buzz(200); }
   setTimeout(()=>{
-    document.getElementById('endSub').textContent=S.sudden?'ENTSCHEIDUNG IM SUDDEN DEATH':'ABPFIFF';
+    document.getElementById('endSub').textContent=S.sudden?'ENTSCHEIDUNGSSCHIESSEN':'ABPFIFF';
     const t=document.getElementById('endTitle');
     t.textContent=win?'SIEG! UNITED THERAPY':'APELOS GEWINNT ...';
     t.className='endtitle '+(win?'win':'lose');
