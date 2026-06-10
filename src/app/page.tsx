@@ -4,6 +4,7 @@ import { readPredictions } from "../lib/store";
 import TipForm from "../components/TipForm";
 import CountdownScreen from "../components/CountdownScreen";
 import LoginScreen from "../components/LoginScreen";
+import WarmupGame from "../components/WarmupGame";
 import { getAllowedDomains, getSession, userIdFromEmail } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -572,6 +573,9 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
             </a>
           </section>
         )}
+
+        {/* ── Warm-up: Elfmeter-Minispiel (Touch + Desktop) ── */}
+        <WarmupGame />
 
         {/* ── Spielregeln (Accordion, standardmaessig zu) ── */}
         <section style={{ marginBottom: 36 }}>

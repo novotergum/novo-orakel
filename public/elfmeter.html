@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>ELFMETER ARENA 2026 – United Therapy vs. APELOS</title>
+<style>
+  :root{ --navy:#1B2B5E; --orange:#F46524; --teal:#00A896; --crt:#0a0c14; }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{
+    background:#05060c; color:#fff; font-family:'Courier New',monospace;
+    display:flex; align-items:center; justify-content:center; min-height:100dvh;
+    user-select:none;-webkit-user-select:none; overflow:hidden;
+  }
+  .tv{
+    position:relative; width:min(100vw, calc(100dvh * 4/3.6)); max-width:760px;
+    aspect-ratio:4/3.4; background:#000; border-radius:14px; overflow:hidden;
+    box-shadow:0 0 0 6px #15151c, 0 0 0 8px #2a2a36, 0 30px 80px rgba(0,0,0,.8),
+               inset 0 0 120px rgba(0,0,0,.55);
+  }
+  canvas#game{
+    position:absolute; inset:0; width:100%; height:100%;
+    image-rendering:pixelated; image-rendering:crisp-edges; touch-action:none;
+  }
+  /* CRT-Effekte */
+  .scanlines{
+    position:absolute; inset:0; pointer-events:none; z-index:3; mix-blend-mode:multiply;
+    background:repeating-linear-gradient(0deg, rgba(255,255,255,.97) 0 2px, rgba(150,160,185,.78) 2px 4px);
+    opacity:.55;
+  }
+  .vignette{
+    position:absolute; inset:0; pointer-events:none; z-index:4;
+    background:radial-gradient(110% 95% at 50% 45%, transparent 55%, rgba(0,0,0,.5) 100%);
+  }
+  .flicker{position:absolute;inset:0;pointer-events:none;z-index:5;background:#fff;opacity:0;animation:flick 4s infinite}
+  @keyframes flick{0%,96.8%,98.4%,100%{opacity:0}97%{opacity:.025}98%{opacity:.012}}
+
+  /* Retro-Overlays (Startscreen etc.) */
+  .ov{
+    position:absolute; inset:0; z-index:6; background:#000;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:14px; text-align:center; padding:24px; letter-spacing:.08em;
+  }
+  .ov.hidden{display:none}
+  .ov .small{font-size:clamp(9px,1.8vw,12px);color:#7e88aa}
+  .ov .tiny{font-size:clamp(8px,1.5vw,10px);color:#4a5270}
+  .logo{
+    font-size:clamp(22px,5.2vw,40px); font-weight:bold; line-height:1.1;
+    color:#fff; text-shadow:3px 3px 0 var(--orange), 6px 6px 0 #00000088;
+  }
+  .logo .sub{display:block;font-size:clamp(11px,2.4vw,16px);color:var(--teal);text-shadow:2px 2px 0 #000;margin-top:6px}
+  .press{font-size:clamp(11px,2.4vw,15px);color:#ffe97a;animation:blink 1.1s step-end infinite;cursor:pointer;padding:10px 18px}
+  @keyframes blink{50%{opacity:0}}
+  .memcard{font-size:clamp(9px,1.8vw,11px);color:#9aa6cc;min-height:1.4em}
+  .endtitle{font-size:clamp(18px,4.4vw,30px);font-weight:bold;text-shadow:3px 3px 0 #000}
+  .endtitle.win{color:#ffe97a}.endtitle.lose{color:#8b93b8}
+  .endscore{font-size:clamp(26px,6vw,44px);font-weight:bold;color:#fff;text-shadow:3px 3px 0 var(--navy)}
+  @media (prefers-reduced-motion: reduce){ .flicker,.press{animation:none} }
+</style>
+</head>
+<body>
+<div class="tv" id="tv">
+  <canvas id="game" width="384" height="326"></canvas>
+  <div class="scanlines"></div>
+  <div class="vignette"></div>
+  <div class="flicker"></div>
+
+  <!-- Boot / Start -->
+  <div class="ov" id="bootOv">
+    <div class="logo">ELFMETER<br>ARENA 2026
+      <span class="sub">UNITED THERAPY vs. APELOS</span>
+    </div>
+    <div class="memcard" id="memTxt"></div>
+    <div class="press" id="pressStart" style="visibility:hidden">– PRESS START –</div>
+    <div class="small">WM-TIPPSPIEL BONUSRUNDE</div>
+    <div class="tiny">© 2026 NOVOTERGUM INTERACTIVE · LIZENZIERT DURCH UTG SPORTS</div>
+  </div>
+
+  <!-- Ende -->
+  <div class="ov hidden" id="endOv">
+    <div class="small" id="endSub">ABPFIFF</div>
+    <div class="endtitle" id="endTitle">SIEG!</div>
+    <div class="endscore" id="endScore">0 : 0</div>
+    <div class="small" id="endTxt"></div>
+    <div class="press" id="againBtn">– NOCHMAL (START) –</div>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+/* ════════ Chiptune-Audio ════════ */
+const AC = window.AudioContext||window.webkitAudioContext; let ac=null;
+const audio=()=> (ac ||= new AC());
+function tone(freq,dur,type='square',vol=.12,when=0){
+  try{ const t=audio().currentTime+when, o=ac.createOscillator(), g=ac.createGain();
+    o.type=type; o.frequency.value=freq;
+    g.gain.setValueAtTime(vol,t); g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+    o.connect(g).connect(ac.destination); o.start(t); o.stop(t+dur+.02);
+  }catch(e){}
+}
+const sBlip   =()=> tone(880,.06);
+const sKick   =()=> { tone(120,.08,'sine',.3); tone(60,.1,'sine',.25,.01); };
+const sWhistle=()=> { tone(2350,.12,'square',.08); tone(2350,.12,'square',.08,.18); };
+const sGoal   =()=> [523,659,784,1047].forEach((f,i)=>tone(f,.14,'square',.12,i*.09));
+const sMiss   =()=> [392,330,262].forEach((f,i)=>tone(f,.16,'square',.1,i*.11));
+const sSave   =()=> { tone(620,.2,'triangle',.18); [262,330].forEach((f,i)=>tone(f,.12,'square',.09,.15+i*.1)); };
+const buzz=p=>{try{navigator.vibrate&&navigator.vibrate(p)}catch(e){}};
+
+/* ════════ Spielzustand ════════ */
+const BASE=5;
+const S={ut:0,ap:0,sudden:false,phase:'idle',locked:true,dotsUT:[],dotsAP:[]};
+
+const W=384,H=326;
+const GOAL={x1:96,x2:288,y1:148,y2:216};          // Tor-Innenraum
+const COLS=[128,192,256], ROWS=[166,199];
+const BALL0={x:192,y:268};
+const KEEP0={x:192,y:208};
+const KZ=[{x:130,y:172,r:-70},{x:192,y:164,r:0},{x:254,y:172,r:70},
+          {x:130,y:202,r:-88},{x:192,y:206,r:0},{x:254,y:202,r:88}];
+
+/* Entities (vom Renderloop gezeichnet) */
+const ball={x:BALL0.x,y:BALL0.y,s:1,vis:true};
+const keeper={x:KEEP0.x,y:KEEP0.y,r:0,team:'ap'};
+const shooter={x:150,y:276,kick:0,team:'ut',vis:true};
+const aimC={x:0,y:0,vis:false};
+let flashTxt=null;          // {lines:[..],color,until}
+let bottomMsg='', adScroll=0, zonesVisible=false;
+
+/* ════════ Canvas / Renderer ════════ */
+const cv=document.getElementById('game'), cx=cv.getContext('2d');
+cx.imageSmoothingEnabled=false;
+
+/* Crowd-Noise vorrendern (2 Frames für Flimmern) */
+const crowdFrames=[0,1].map(()=>{
+  const c=document.createElement('canvas'); c.width=W; c.height=44;
+  const g=c.getContext('2d'), cols=['#2a3560','#39466f','#222b4e','#414f7d','#F46524','#00A896','#56629a'];
+  for(let y=0;y<44;y+=4) for(let x=0;x<W;x+=4){
+    g.fillStyle=cols[(Math.random()*cols.length)|0]; g.fillRect(x,y,3,3);
+  }
+  return c;
+});
+
+function px(x,y,w,h,c){ cx.fillStyle=c; cx.fillRect(x|0,y|0,w,h); }
+function poly(pts,c){ cx.fillStyle=c; cx.beginPath(); cx.moveTo(pts[0][0],pts[0][1]);
+  for(let i=1;i<pts.length;i++) cx.lineTo(pts[i][0],pts[i][1]); cx.closePath(); cx.fill(); }
+function txt(t,x,y,size,color,align='left',bold=true){
+  cx.font=(bold?'bold ':'')+size+'px "Courier New",monospace';
+  cx.textAlign=align; cx.textBaseline='top';
+  cx.fillStyle='#000'; cx.fillText(t,x+1,y+1);
+  cx.fillStyle=color;  cx.fillText(t,x,y);
+}
+
+function drawScene(now){
+  /* Himmel */
+  px(0,0,W,40,'#0a1030'); px(0,40,W,20,'#0e1740'); px(0,60,W,18,'#122051');
+  /* Flutlichter */
+  for(const lx of [40,344]){ px(lx-1,18,2,24,'#39466f'); px(lx-7,12,14,7,'#1c2750');
+    for(let i=0;i<4;i++) px(lx-6+i*3.4,14,2,2,'#ffe97a'); }
+  /* Tribüne */
+  cx.drawImage(crowdFrames[(now/260|0)%2],0,78);
+  px(0,74,W,4,'#0a0f26');
+  /* Werbebande (Laufschrift) */
+  px(0,122,W,14,'#0d1535');
+  cx.save(); cx.beginPath(); cx.rect(0,122,W,14); cx.clip();
+  const adStr='  UNITED THERAPY     WM-TIPPSPIEL 2026     NOVOTERGUM     JETZT TIPPEN!     ';
+  cx.font='bold 10px "Courier New",monospace'; cx.textBaseline='top';
+  const aw=cx.measureText(adStr).width; const ax=-(adScroll%aw);
+  cx.fillStyle='#00A896'; cx.fillText(adStr,ax,125); cx.fillText(adStr,ax+aw,125);
+  cx.restore();
+  /* Rasen mit Perspektiv-Streifen */
+  px(0,136,W,H-136,'#0d6b46');
+  const VP={x:192,y:60};
+  for(let i=-4;i<6;i+=2){
+    const x1=192+i*46, x2=192+(i+1)*46;
+    poly([[x1,H],[x2,H],[VP.x+(x2-192)*.18,136],[VP.x+(x1-192)*.18,136]],'#0b5e3d');
+  }
+  /* Strafraumlinie + Punkt */
+  px(30,232,W-60,2,'#cfd6ee'); px(BALL0.x-3,BALL0.y+8,7,2,'#e8ecf7');
+
+  /* Netz */
+  cx.strokeStyle='rgba(190,200,230,.4)'; cx.lineWidth=1; cx.beginPath();
+  for(let x=GOAL.x1;x<=GOAL.x2;x+=12){ cx.moveTo(x,GOAL.y1); cx.lineTo(192+(x-192)*.86,GOAL.y2-4); }
+  for(let y=GOAL.y1;y<=GOAL.y2;y+=10){ const k=(y-GOAL.y1)/(GOAL.y2-GOAL.y1);
+    cx.moveTo(GOAL.x1+(192-GOAL.x1)*.14*k,y); cx.lineTo(GOAL.x2-(GOAL.x2-192)*.14*k,y); }
+  cx.stroke();
+  /* Pfosten + Latte */
+  px(GOAL.x1-4,GOAL.y1-4,4,GOAL.y2-GOAL.y1+8,'#f4f6fb');
+  px(GOAL.x2,GOAL.y1-4,4,GOAL.y2-GOAL.y1+8,'#f4f6fb');
+  px(GOAL.x1-4,GOAL.y1-4,GOAL.x2-GOAL.x1+8,4,'#f4f6fb');
+  px(GOAL.x1-4,GOAL.y1,1,GOAL.y2-GOAL.y1+4,'#9aa6cc');
+  px(GOAL.x2+3,GOAL.y1,1,GOAL.y2-GOAL.y1+4,'#9aa6cc');
+
+  /* Hechtzonen */
+  if(zonesVisible){
+    cx.strokeStyle='#ffe97a'; cx.setLineDash([3,3]); cx.lineWidth=1;
+    let n=1;
+    for(const ry of ROWS) for(const rcx of COLS){
+      cx.strokeRect(rcx-30,ry-16,60,32);
+      txt(String(n++),rcx-3,ry-6,9,'#ffe97a');
+    }
+    cx.setLineDash([]);
+  }
+
+  drawKeeper(); drawShooter();
+
+  /* Ball + Schatten */
+  if(ball.vis){
+    const r=6*ball.s;
+    cx.fillStyle='rgba(0,0,0,.4)'; cx.beginPath();
+    cx.ellipse(ball.x,Math.min(ball.y+10,266),r*.9,r*.35,0,0,7); cx.fill();
+    cx.fillStyle='#fff'; cx.beginPath(); cx.arc(ball.x,ball.y,r,0,7); cx.fill();
+    px(ball.x-r*.4,ball.y-r*.3,Math.max(2,r*.7),Math.max(2,r*.6),'#1B2B5E');
+  }
+  /* Ziel-Cursor */
+  if(aimC.vis){
+    cx.strokeStyle='#F46524'; cx.lineWidth=2;
+    cx.strokeRect(aimC.x-7,aimC.y-7,14,14);
+    px(aimC.x-1,aimC.y-1,2,2,'#F46524');
+  }
+
+  drawHUD();
+
+  /* Flash-Text */
+  if(flashTxt && now<flashTxt.until){
+    const lines=flashTxt.lines;
+    lines.forEach((l,i)=>{
+      const size=i===0?26:10, y=150+i*30;
+      cx.font='bold '+size+'px "Courier New",monospace'; cx.textAlign='center'; cx.textBaseline='top';
+      cx.fillStyle='#000'; cx.fillText(l,W/2+2,y+2); cx.fillText(l,W/2-2,y+2);
+      cx.fillStyle=flashTxt.color; cx.fillText(l,W/2,y);
+    });
+  } else if(bottomMsg){
+    px(0,H-20,W,20,'rgba(0,0,0,.75)');
+    txt(bottomMsg,W/2,H-15,9,'#cfe3ff','center');
+  }
+}
+
+function drawKeeper(){
+  const k=keeper, body = k.team==='ap'?'#D23A2E':'#F46524', dark = k.team==='ap'?'#8e251d':'#b34514';
+  cx.save(); cx.translate(k.x,k.y); cx.rotate(k.r*Math.PI/180);
+  poly([[-7,-22],[7,-22],[9,-2],[-9,-2]],body);          // Torso
+  poly([[2,-22],[9,-2],[9,-12]],dark);                   // Facette
+  px(-13,-20,6,4,body); px(7,-20,6,4,body);              // Arme
+  px(-14,-21,4,3,'#fff'); px(10,-21,4,3,'#fff');         // Handschuhe
+  px(-7,-2,5,12,'#161628'); px(2,-2,5,12,'#161628');     // Beine
+  px(-4,-30,8,8,'#e8b98f'); px(-4,-31,8,2,'#2b1d12');    // Kopf
+  cx.restore();
+}
+function drawShooter(){
+  if(!shooter.vis) return;
+  const s=shooter, body=s.team==='ut'?'#1B2B5E':'#D23A2E', trim=s.team==='ut'?'#F46524':'#fff';
+  cx.save(); cx.translate(s.x,s.y);
+  px(-6,-20,12,16,body); px(-6,-20,12,3,trim);           // Trikot + Brustring
+  poly([[1,-20],[6,-4],[6,-14]], s.team==='ut'?'#13204a':'#8e251d');
+  px(-12,-18,6,3,body); px(6,-18,6,3,body);              // Arme
+  px(-5,-4,4,11,'#fff'); const kickAng=s.kick;           // Standbein
+  cx.save(); cx.translate(2,-4); cx.rotate(-kickAng*Math.PI/180); px(-1,0,4,11,'#fff'); cx.restore(); // Schussbein
+  px(-3,-27,7,7,'#e8b98f'); px(-3,-28,7,2,'#2b1d12');
+  cx.restore();
+}
+
+/* HUD im Broadcast-Stil */
+function drawHUD(){
+  px(6,6,150,14,'rgba(0,0,0,.8)'); px(6,6,3,14,'#F46524');
+  txt('UTH',14,9,9,'#fff'); txt(String(S.ut),46,9,9,'#ffe97a');
+  txt(':',58,9,9,'#7e88aa'); txt(String(S.ap),66,9,9,'#ffe97a');
+  txt('APE',80,9,9,'#fff');
+  txt(S.sudden?'S.DEATH':"ELFM.",112,9,8,'#00A896');
+  /* Penalty-Tracker */
+  drawDots(8,24,S.dotsUT,S.phase==='shoot');
+  drawDots(8,33,S.dotsAP,S.phase==='keep');
+  txt('UTH',62,23,7,'#9aa6cc'); txt('APE',62,32,7,'#9aa6cc');
+  /* Sender-Bug */
+  px(W-52,6,46,12,'rgba(0,0,0,.8)');
+  txt("WM'26",W-47,8,8,'#00A896');
+}
+function drawDots(x,y,arr,active){
+  const total=Math.max(BASE,arr.length+(S.sudden?1:0));
+  for(let i=0;i<total&&i<8;i++){
+    const c = i<arr.length ? (arr[i]?'#3ce6c2':'#d23a2e')
+            : (i===arr.length&&active&&!S.locked ? '#ffe97a' : '#39466f');
+    px(x+i*10,y,7,6,c);
+  }
+}
+
+/* ════════ Tween / Loop ════════ */
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+function tween(obj,to,dur,ease=t=>1-Math.pow(1-t,2.2)){
+  const from={}; for(const k in to) from[k]=obj[k];
+  return new Promise(res=>{
+    const t0=performance.now();
+    (function step(now){
+      const t=clamp((now-t0)/dur,0,1), e=ease(t);
+      for(const k in to) obj[k]=from[k]+(to[k]-from[k])*e;
+      t<1?requestAnimationFrame(step):res();
+    })(t0);
+  });
+}
+function ballArc(to,dur){
+  const from={x:ball.x,y:ball.y}, peak=Math.min(from.y,to.y)-34;
+  return new Promise(res=>{
+    const t0=performance.now();
+    (function step(now){
+      const t=clamp((now-t0)/dur,0,1), e=1-Math.pow(1-t,2.1);
+      ball.x=from.x+(to.x-from.x)*e;
+      ball.y=(1-e)*(1-e)*from.y+2*(1-e)*e*peak+e*e*to.y;
+      ball.s=1-.45*e;
+      t<1?requestAnimationFrame(step):res();
+    })(t0);
+  });
+}
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+function flashMsg(main,sub,color,ms=1200){ flashTxt={lines:sub?[main,sub]:[main],color,until:performance.now()+ms}; }
+
+(function loop(now){ adScroll=now*.03; drawScene(now||0); requestAnimationFrame(loop); })(0);
+
+/* ════════ KI & Regeln ════════ */
+const rnd=a=>a[(Math.random()*a.length)|0];
+const CORNERS=[0,0,2,2,3,3,5,5,1,4,0,2,3,5];
+const aiZone=()=>rnd(CORNERS);
+const zoneOf=(x,y)=>(y<(GOAL.y1+GOAL.y2)/2?0:3)+(x<COLS[0]+32?0:x<COLS[2]-32?1:2);
+const sameCol=(a,b)=>a%3===b%3;
+
+function decided(){
+  const remUT=Math.max(0,BASE-S.dotsUT.length), remAP=Math.max(0,BASE-S.dotsAP.length);
+  if(!S.sudden){
+    if(S.ut>S.ap+remAP) return 'ut';
+    if(S.ap>S.ut+remUT) return 'ap';
+    if(S.dotsUT.length>=BASE&&S.dotsAP.length>=BASE){
+      if(S.ut===S.ap){S.sudden=true;return null;}
+      return S.ut>S.ap?'ut':'ap';
+    }
+    return null;
+  }
+  if(S.dotsUT.length===S.dotsAP.length&&S.ut!==S.ap) return S.ut>S.ap?'ut':'ap';
+  return null;
+}
+
+async function nextTurn(){
+  const w=decided(); if(w) return endGame(w);
+  flashTxt=null;
+  if(S.dotsUT.length<=S.dotsAP.length){
+    S.phase='shoot'; zonesVisible=false;
+    keeper.team='ap'; shooter.team='ut'; shooter.vis=true;
+    Object.assign(keeper,{...KEEP0,r:0}); Object.assign(ball,{...BALL0,s:1,vis:true});
+    Object.assign(shooter,{x:150,y:276,kick:0});
+    bottomMsg=(S.sudden?'SUDDEN DEATH':'SCHUETZE '+(S.dotsUT.length+1)+'/5')+' – WISCHE ZUM SCHIESSEN';
+  }else{
+    S.phase='keep'; zonesVisible=true;
+    keeper.team='ut'; shooter.team='ap'; shooter.vis=true;
+    Object.assign(keeper,{...KEEP0,r:0}); Object.assign(ball,{...BALL0,s:1,vis:true});
+    Object.assign(shooter,{x:150,y:276,kick:0});
+    bottomMsg=(S.sudden?'SUDDEN DEATH':'APELOS SCHUETZE '+(S.dotsAP.length+1)+'/5')+' – TIPPE ZONE 1-6';
+  }
+  S.locked=false;
+}
+
+async function shootAnim(){
+  await tween(shooter,{x:BALL0.x-8,y:BALL0.y+6},220,t=>t);
+  shooter.kick=55; sKick(); buzz(15);
+  setTimeout(()=>shooter.kick=0,180);
+}
+
+async function resolveShot(target,power){
+  S.locked=true; bottomMsg='';
+  await shootAnim();
+  const scatter=(Math.random()-.5)*90*power;
+  let tx=target.x+scatter, ty=target.y+(Math.random()-.5)*44*power;
+  if(power>.8 && Math.random()<(power-.8)*1.6) ty=GOAL.y1-22-Math.random()*12;
+  const over=ty<GOAL.y1-4, wideL=tx<GOAL.x1-6, wideR=tx>GOAL.x2+6;
+  tx=clamp(tx,40,344);
+  const k=aiZone(); tween(keeper,{x:KZ[k].x,y:KZ[k].y,r:KZ[k].r},300);
+  await ballArc({x:tx,y:Math.max(ty,GOAL.y1-30)},480-160*power);
+
+  if(over||wideL||wideR){
+    sMiss(); buzz(60);
+    flashMsg('DANEBEN!', over?'UEBER DIE LATTE':'VORBEI','#8b93b8');
+    S.dotsUT.push(0);
+  }else{
+    const z=zoneOf(tx,ty), exact=k===z, near=sameCol(k,z);
+    const saveP=S.sudden?.5:.35;
+    const saved=exact||(near&&Math.random()<saveP*(1.25-power*.5));
+    if(saved){ sSave(); buzz([40,40,40]); flashMsg('GEHALTEN!','APELOS-KEEPER PARIERT','#F46524'); S.dotsUT.push(0); }
+    else{ sGoal(); buzz([30,50,90]); flashMsg('TOOOR!',power>.75?'WAS EIN HAMMER!':'EISKALT VERWANDELT','#ffe97a'); S.ut++; S.dotsUT.push(1); }
+  }
+  await sleep(1400); nextTurn();
+}
+
+async function resolveDive(z){
+  S.locked=true; zonesVisible=false; bottomMsg='';
+  await shootAnim();
+  const shot=aiZone();
+  tween(keeper,{x:KZ[z].x,y:KZ[z].y,r:KZ[z].r},300);
+  const exact=z===shot, near=sameCol(z,shot);
+  const saved=exact||(near&&Math.random()<(S.sudden?.35:.45));
+  const tEnd=saved?{x:KZ[z].x+(KZ[z].x>192?-8:8),y:KZ[z].y+4}
+                  :{x:COLS[shot%3],y:shot<3?ROWS[0]:ROWS[1]};
+  await ballArc(tEnd,440);
+  if(saved){ sSave(); buzz([30,50,90]); flashMsg('PARADE!','GEHALTEN – WAHNSINN!','#ffe97a'); S.dotsAP.push(0); }
+  else{ sMiss(); buzz(60); flashMsg('TOR APELOS','FALSCHES ECK','#d23a2e'); S.ap++; S.dotsAP.push(1); }
+  await sleep(1400); nextTurn();
+}
+
+/* ════════ Eingabe ════════ */
+function toGame(ev){
+  const r=cv.getBoundingClientRect();
+  return { x:(ev.clientX-r.left)/r.width*W, y:(ev.clientY-r.top)/r.height*H };
+}
+let drag=null;
+cv.addEventListener('pointerdown',ev=>{
+  if(S.locked) return;
+  const p=toGame(ev);
+  if(S.phase==='keep'){
+    for(let i=0;i<6;i++){
+      const zx=COLS[i%3], zy=ROWS[i<3?0:1];
+      if(Math.abs(p.x-zx)<=32&&Math.abs(p.y-zy)<=18){ sBlip(); return resolveDive(i); }
+    }
+    return;
+  }
+  if(S.phase==='shoot'){ drag={x0:p.x,y0:p.y,t0:performance.now()}; cv.setPointerCapture(ev.pointerId); }
+});
+cv.addEventListener('pointermove',ev=>{
+  if(!drag||S.phase!=='shoot') return;
+  const p=toGame(ev), t=projectTarget(drag,p);
+  aimC.x=t.x; aimC.y=t.y; aimC.vis=true;
+});
+cv.addEventListener('pointerup',ev=>{
+  if(!drag||S.locked||S.phase!=='shoot'){drag=null;return;}
+  const p=toGame(ev), dt=Math.max(40,performance.now()-drag.t0);
+  const dx=p.x-drag.x0, dy=p.y-drag.y0, dist=Math.hypot(dx,dy);
+  aimC.vis=false;
+  if(dist<8){ // Tap direkt aufs Tor
+    if(p.y>GOAL.y1-16&&p.y<GOAL.y2+8&&p.x>GOAL.x1-14&&p.x<GOAL.x2+14){drag=null;return resolveShot({x:p.x,y:p.y},.45);}
+    drag=null; return;
+  }
+  if(dy>-5){drag=null;return;}
+  const target=projectTarget(drag,p);
+  const power=clamp((dist/dt-.18)/1.1,.15,1);
+  drag=null; resolveShot(target,power);
+});
+function projectTarget(d,p){
+  const dx=p.x-d.x0, dy=p.y-d.y0;
+  const k=clamp((BALL0.y-178)/Math.max(6,-dy),0,3.4);
+  return { x:clamp(BALL0.x+dx*k,30,354), y:clamp(BALL0.y+dy*k,GOAL.y1-30,GOAL.y2+6) };
+}
+
+/* ════════ Boot & Ende ════════ */
+const memLines=['MEMORY CARD (8MB) WIRD GEPRUEFT ...','TIPPSPIEL-SPIELSTAND GEFUNDEN.','LADE STADION ...','BEREIT.'];
+(async function boot(){
+  const el=document.getElementById('memTxt');
+  for(const l of memLines){ el.textContent=l; await sleep(650); }
+  document.getElementById('pressStart').style.visibility='visible';
+})();
+
+function startGame(){
+  audio(); sWhistle();
+  Object.assign(S,{ut:0,ap:0,sudden:false,dotsUT:[],dotsAP:[],locked:true});
+  document.getElementById('bootOv').classList.add('hidden');
+  document.getElementById('endOv').classList.add('hidden');
+  flashTxt=null; nextTurn();
+}
+function endGame(winner){
+  S.phase='idle'; S.locked=true; zonesVisible=false; bottomMsg='';
+  sWhistle();
+  const win=winner==='ut';
+  if(win) sGoal();
+  document.getElementById('endSub').textContent=S.sudden?'ENTSCHEIDUNG IM SUDDEN DEATH':'ABPFIFF';
+  const t=document.getElementById('endTitle');
+  t.textContent=win?'SIEG! UNITED THERAPY':'APELOS GEWINNT ...';
+  t.className='endtitle '+(win?'win':'lose');
+  document.getElementById('endScore').textContent=S.ut+' : '+S.ap;
+  document.getElementById('endTxt').textContent=win
+    ?'POKAL EINGEPACKT. WEITER ZUM TIPPSPIEL!'
+    :'ELFMETER IST KOPFSACHE. REVANCHE?';
+  setTimeout(()=>document.getElementById('endOv').classList.remove('hidden'), win?1000:600);
+}
+document.getElementById('pressStart').addEventListener('click',startGame);
+document.getElementById('againBtn').addEventListener('click',startGame);
+})();
+</script>
+</body>
+</html>
