@@ -55,6 +55,12 @@
   .memcard{font-size:clamp(9px,1.8vw,11px);color:#9aa6cc;min-height:1.4em}
   .endtitle{font-size:clamp(18px,4.4vw,30px);font-weight:bold;text-shadow:3px 3px 0 #000}
   .endtitle.win{color:#ffe97a}.endtitle.lose{color:#8b93b8}
+  .diffrow{display:flex;gap:10px;margin-top:2px}
+  .diffbtn{
+    font-family:'Courier New',monospace;font-weight:bold;font-size:clamp(10px,2vw,13px);
+    letter-spacing:.1em;color:#7e88aa;border:2px solid #39466f;padding:7px 14px;cursor:pointer;
+  }
+  .diffbtn.sel{color:#ffe97a;border-color:var(--orange);background:rgba(244,101,36,.18);box-shadow:3px 3px 0 #000}
   .endscore{font-size:clamp(26px,6vw,44px);font-weight:bold;color:#fff;text-shadow:3px 3px 0 var(--navy)}
   @media (prefers-reduced-motion: reduce){ .flicker,.press{animation:none} }
 </style>
@@ -72,6 +78,11 @@
       <span class="sub">UNITED THERAPY vs. APELOS</span>
     </div>
     <div class="memcard" id="memTxt"></div>
+    <div class="diffrow" id="diffRow">
+      <div class="diffbtn sel" data-d="leicht">LEICHT</div>
+      <div class="diffbtn" data-d="mittel">MITTEL</div>
+      <div class="diffbtn" data-d="schwer">SCHWER</div>
+    </div>
     <div class="press" id="pressStart" style="visibility:hidden">– PRESS START –</div>
     <div class="small">WM-TIPPSPIEL BONUSRUNDE</div>
     <div class="tiny">© 2026 NOVOTERGUM INTERACTIVE · LIZENZIERT DURCH UTG SPORTS</div>
@@ -111,7 +122,12 @@ const buzz=p=>{try{navigator.vibrate&&navigator.vibrate(p)}catch(e){}};
 
 /* ════════ Spielzustand ════════ */
 const BASE=5;
-const S={ut:0,ap:0,sudden:false,phase:'idle',locked:true,dotsUT:[],dotsAP:[]};
+const DIFF={
+  leicht:{label:'LEICHT', keepNear:.25, keepNearSD:.35, diveNear:.55, apMiss:.10},
+  mittel:{label:'MITTEL', keepNear:.35, keepNearSD:.50, diveNear:.45, apMiss:.07},
+  schwer:{label:'SCHWER', keepNear:.45, keepNearSD:.60, diveNear:.30, apMiss:.04}
+};
+const S={ut:0,ap:0,sudden:false,phase:'idle',locked:true,dotsUT:[],dotsAP:[],diff:'leicht'};
 
 const W=384,H=326;
 const GOAL={x1:96,x2:288,y1:148,y2:216};          // Tor-Innenraum
@@ -268,10 +284,10 @@ function drawHUD(){
   txt('UTH',14,9,9,'#fff'); txt(String(S.ut),46,9,9,'#ffe97a');
   txt(':',58,9,9,'#7e88aa'); txt(String(S.ap),66,9,9,'#ffe97a');
   txt('APE',80,9,9,'#fff');
-  txt(S.sudden?'S.DEATH':"ELFM.",112,9,8,'#00A896');
+  txt(S.sudden?'S.DEATH':DIFF[S.diff].label,108,9,8,'#00A896');
   /* Penalty-Tracker */
-  drawDots(8,24,S.dotsUT,S.phase==='shoot');
-  drawDots(8,33,S.dotsAP,S.phase==='keep');
+  drawDots(8,24,S.dotsUT,S.phase==='shoot'&&!S.locked);
+  drawDots(8,33,S.dotsAP,S.phase==='keep'&&!S.locked);
   txt('UTH',62,23,7,'#9aa6cc'); txt('APE',62,32,7,'#9aa6cc');
   /* Sender-Bug */
   px(W-52,6,46,12,'rgba(0,0,0,.8)');
@@ -281,7 +297,7 @@ function drawDots(x,y,arr,active){
   const total=Math.max(BASE,arr.length+(S.sudden?1:0));
   for(let i=0;i<total&&i<8;i++){
     const c = i<arr.length ? (arr[i]?'#3ce6c2':'#d23a2e')
-            : (i===arr.length&&active&&!S.locked ? '#ffe97a' : '#39466f');
+            : (i===arr.length&&active ? '#ffe97a' : '#39466f');
     px(x+i*10,y,7,6,c);
   }
 }
@@ -353,7 +369,7 @@ async function nextTurn(){
     keeper.team='ut'; shooter.team='ap'; shooter.vis=true;
     Object.assign(keeper,{...KEEP0,r:0}); Object.assign(ball,{...BALL0,s:1,vis:true});
     Object.assign(shooter,{x:150,y:276,kick:0});
-    bottomMsg=(S.sudden?'SUDDEN DEATH':'APELOS SCHUETZE '+(S.dotsAP.length+1)+'/5')+' – TIPPE ZONE 1-6';
+    bottomMsg=(S.sudden?'SUDDEN DEATH':'APELOS SCHUETZE '+(S.dotsAP.length+1)+'/5')+' – NOVOTERGUM: TIPPE ZONE 1-6';
   }
   S.locked=false;
 }
@@ -381,7 +397,8 @@ async function resolveShot(target,power){
     S.dotsUT.push(0);
   }else{
     const z=zoneOf(tx,ty), exact=k===z, near=sameCol(k,z);
-    const saveP=S.sudden?.5:.35;
+    const D=DIFF[S.diff];
+    const saveP=S.sudden?D.keepNearSD:D.keepNear;
     const saved=exact||(near&&Math.random()<saveP*(1.25-power*.5));
     if(saved){ sSave(); buzz([40,40,40]); flashMsg('GEHALTEN!','APELOS-KEEPER PARIERT','#F46524'); S.dotsUT.push(0); }
     else{ sGoal(); buzz([30,50,90]); flashMsg('TOOOR!',power>.75?'WAS EIN HAMMER!':'EISKALT VERWANDELT','#ffe97a'); S.ut++; S.dotsUT.push(1); }
@@ -391,15 +408,23 @@ async function resolveShot(target,power){
 
 async function resolveDive(z){
   S.locked=true; zonesVisible=false; bottomMsg='';
+  const D=DIFF[S.diff];
   await shootAnim();
-  const shot=aiZone();
   tween(keeper,{x:KZ[z].x,y:KZ[z].y,r:KZ[z].r},300);
+  if(Math.random()<D.apMiss){                            // APELOS setzt den Ball auch mal daneben
+    const over=Math.random()<.5;
+    await ballArc({x:over?192+(Math.random()-.5)*120:(Math.random()<.5?GOAL.x1-22:GOAL.x2+22),
+                   y:over?GOAL.y1-26:ROWS[1]},440);
+    sMiss(); flashMsg('VORBEI!','APELOS VERZIEHT','#3ce6c2'); S.dotsAP.push(0);
+    await sleep(1400); return nextTurn();
+  }
+  const shot=aiZone();
   const exact=z===shot, near=sameCol(z,shot);
-  const saved=exact||(near&&Math.random()<(S.sudden?.35:.45));
+  const saved=exact||(near&&Math.random()<D.diveNear);
   const tEnd=saved?{x:KZ[z].x+(KZ[z].x>192?-8:8),y:KZ[z].y+4}
                   :{x:COLS[shot%3],y:shot<3?ROWS[0]:ROWS[1]};
   await ballArc(tEnd,440);
-  if(saved){ sSave(); buzz([30,50,90]); flashMsg('PARADE!','GEHALTEN – WAHNSINN!','#ffe97a'); S.dotsAP.push(0); }
+  if(saved){ sSave(); buzz([30,50,90]); flashMsg('PARADE!','RICHTIGE ECKE!','#ffe97a'); S.dotsAP.push(0); }
   else{ sMiss(); buzz(60); flashMsg('TOR APELOS','FALSCHES ECK','#d23a2e'); S.ap++; S.dotsAP.push(1); }
   await sleep(1400); nextTurn();
 }
@@ -477,6 +502,13 @@ function endGame(winner){
     :'ELFMETER IST KOPFSACHE. REVANCHE?';
   setTimeout(()=>document.getElementById('endOv').classList.remove('hidden'), win?1000:600);
 }
+document.querySelectorAll('.diffbtn').forEach(b=>{
+  b.addEventListener('click',()=>{
+    document.querySelectorAll('.diffbtn').forEach(x=>x.classList.remove('sel'));
+    b.classList.add('sel'); S.diff=b.dataset.d;
+    try{ sBlip(); }catch(e){}
+  });
+});
 document.getElementById('pressStart').addEventListener('click',startGame);
 document.getElementById('againBtn').addEventListener('click',startGame);
 })();
