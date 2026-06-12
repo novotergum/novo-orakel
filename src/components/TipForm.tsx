@@ -368,15 +368,35 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
     });
   };
 
-  const countdownInfo = (iso: string): { text: string; color: string } => {
+  const countdownInfo = (
+    iso: string,
+  ): { text: string; color: string; urgent: boolean; pulse: boolean } => {
     const diff = new Date(iso).getTime() - now;
-    if (diff <= 0) return { text: "Deadline vorbei", color: "#c62828" };
+    if (diff <= 0)
+      return { text: "Anpfiff vorbei", color: "#c62828", urgent: false, pulse: false };
     const mins = Math.floor(diff / 60_000);
     const hrs = Math.floor(mins / 60);
     const days = Math.floor(hrs / 24);
-    if (days > 0) return { text: `in ${days} ${days === 1 ? "Tag" : "Tagen"}`, color: "#7A7A7A" };
-    if (hrs > 0) return { text: `in ${hrs} Std`, color: hrs < 2 ? "#E76C0A" : "#7A7A7A" };
-    return { text: `in ${mins} Min`, color: "#c62828" };
+    if (days > 0)
+      return {
+        text: `in ${days} ${days === 1 ? "Tag" : "Tagen"}`,
+        color: "#7A7A7A",
+        urgent: false,
+        pulse: false,
+      };
+    if (hrs >= 2)
+      return { text: `in ${hrs} Std`, color: "#7A7A7A", urgent: false, pulse: false };
+    // < 2 Std → Dringlichkeit steigt
+    if (mins >= 60)
+      return {
+        text: `noch ${hrs} Std ${mins % 60} Min`,
+        color: "#E76C0A",
+        urgent: true,
+        pulse: false,
+      };
+    if (mins >= 15)
+      return { text: `⏰ noch ${mins} Min`, color: "#c62828", urgent: true, pulse: false };
+    return { text: `🔴 Anpfiff in ${mins} Min!`, color: "#c62828", urgent: true, pulse: true };
   };
 
   const pickLabel = (p: string) => {
@@ -500,9 +520,30 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
             <div style={{ fontSize: 11, color: "#7A7A7A", marginTop: 1 }}>
               {fmtDate(m.kickoff)}
               {" "}
-              <span style={{ fontSize: 10, color: countdownInfo(m.kickoff).color, fontWeight: 500 }}>
-                {countdownInfo(m.kickoff).text}
-              </span>
+              {(() => {
+                const cd = countdownInfo(m.kickoff);
+                return (
+                  <span
+                    className={cd.pulse ? "cd-pulse" : undefined}
+                    style={{
+                      fontSize: cd.urgent ? 11 : 10,
+                      color: cd.color,
+                      fontWeight: cd.urgent ? 700 : 500,
+                      ...(cd.urgent
+                        ? {
+                            display: "inline-block",
+                            background: `${cd.color}1a`,
+                            padding: "1px 7px",
+                            borderRadius: 10,
+                            marginLeft: 2,
+                          }
+                        : {}),
+                    }}
+                  >
+                    {cd.text}
+                  </span>
+                );
+              })()}
             </div>
           </div>
 
@@ -895,6 +936,13 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
     );
   const todayUpcomingIds = new Set(todayUpcoming.map((m) => m.id));
   const todayUntipped = todayUpcoming.filter((m) => !myTips[m.id]).length;
+  // Dringlichster ungetippter Anpfiff heute (Minuten bis Kickoff, sonst null)
+  const imminentMins = todayUpcoming
+    .filter((m) => !myTips[m.id])
+    .map((m) => Math.floor((new Date(m.kickoff).getTime() - now) / 60_000))
+    .filter((mins) => mins <= 60)
+    .sort((a, b) => a - b)[0];
+  const hasImminent = imminentMins !== undefined;
   const restMatches = matches.filter((m) => !todayUpcomingIds.has(m.id));
 
   return (
@@ -940,13 +988,24 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
         </div>
       </div>
 
+      <style>{`
+        @keyframes cdPulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.45; }
+        }
+        .cd-pulse { animation: cdPulse 1s ease-in-out infinite; }
+        @media (prefers-reduced-motion: reduce) {
+          .cd-pulse { animation: none; }
+        }
+      `}</style>
+
       {/* ── Heute: noch nicht angepfiffene Spiele, prominent zum Sofort-Tippen ── */}
       {!loading && todayUpcoming.length > 0 && (
         <div
           style={{
             marginBottom: 24,
-            background: "#fff8ef",
-            border: "1px solid #F3920055",
+            background: hasImminent ? "#fdecec" : "#fff8ef",
+            border: hasImminent ? "1px solid #c6282855" : "1px solid #F3920055",
             borderRadius: 14,
             padding: "16px 16px 18px",
           }}
@@ -974,16 +1033,19 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
             </h3>
             {todayUntipped > 0 ? (
               <span
+                className={hasImminent ? "cd-pulse" : undefined}
                 style={{
                   fontSize: 12,
                   fontWeight: 700,
-                  color: "#E76C0A",
-                  background: "#F3920022",
+                  color: hasImminent ? "#fff" : "#E76C0A",
+                  background: hasImminent ? "#c62828" : "#F3920022",
                   borderRadius: 20,
                   padding: "4px 12px",
                 }}
               >
-                {todayUntipped} noch zu tippen
+                {hasImminent
+                  ? `⏰ Anpfiff in ${imminentMins} Min`
+                  : `${todayUntipped} noch zu tippen`}
               </span>
             ) : (
               <span
@@ -1000,9 +1062,17 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
               </span>
             )}
           </div>
-          <p style={{ margin: "0 0 12px", fontSize: 12, color: "#7A7A7A" }}>
-            Diese Spiele starten heute – tippe direkt hier, bevor der Anpfiff
-            kommt.
+          <p
+            style={{
+              margin: "0 0 12px",
+              fontSize: 12,
+              color: hasImminent ? "#c62828" : "#7A7A7A",
+              fontWeight: hasImminent ? 600 : 400,
+            }}
+          >
+            {hasImminent
+              ? "Letzte Chance – nach dem Anpfiff ist der Tipp dicht!"
+              : "Diese Spiele starten heute – tippe direkt hier, bevor der Anpfiff kommt."}
           </p>
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
             {todayUpcoming.map((m) => renderMatchCard(m, "#F39200"))}
