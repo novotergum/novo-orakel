@@ -8,6 +8,10 @@ export const dynamic = "force-dynamic";
 // Redis command volume from the number of online users. The cache lives on the
 // warm serverless instance; a cold start just does one extra read.
 const CACHE_MS = 12_000;
+// Freshness window: only show events from the last 24h. Since the feed is
+// count-capped (not time-capped), this keeps the ticker from looking stale on
+// quiet days — an old entry simply ages out of view instead of lingering on top.
+const MAX_AGE_MS = 24 * 60 * 60 * 1000;
 let cache: { at: number; events: FeedEvent[] } | null = null;
 
 export async function GET() {
@@ -21,7 +25,8 @@ export async function GET() {
 
   let events: FeedEvent[] = [];
   try {
-    events = await readFeedEvents(30);
+    const all = await readFeedEvents(30);
+    events = all.filter((e) => now - new Date(e.ts).getTime() <= MAX_AGE_MS);
   } catch {
     // On Redis error, serve whatever we last had rather than 500-ing the ticker.
     if (cache) return NextResponse.json({ events: cache.events });
