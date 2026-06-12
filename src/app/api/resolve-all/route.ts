@@ -44,6 +44,7 @@ export async function POST() {
       away: string;
       score: string;
       tipsResolved: number;
+      tipsNew: number;
       upsetBonuses: number;
     }[] = [];
 
@@ -62,8 +63,8 @@ export async function POST() {
 
       for (const r of records) {
         if (r.matchId !== m.id) continue;
-        // Skip already resolved tips
-        if (r.points != null && r.points > 0) {
+        // Skip already resolved tips (0 points is a valid, resolved result)
+        if (r.points != null) {
           matchResolved++;
           continue;
         }
@@ -94,6 +95,7 @@ export async function POST() {
           away: m.awayTeam.name,
           score: `${actualHome}:${actualAway}`,
           tipsResolved: matchResolved,
+          tipsNew: matchNew,
           upsetBonuses: matchUpsets,
         });
         totalResolved += matchResolved;
@@ -109,12 +111,12 @@ export async function POST() {
     // Post to Teams only if new tips were resolved
     let teamsPosted = false;
     if (newlyResolved > 0) {
-      const newResults = results.filter((r) => r.tipsResolved > 0);
+      const newResults = results.filter((r) => r.tipsNew > 0);
       const lines: string[] = [];
       lines.push("Ergebnis-Check abgeschlossen:");
       lines.push("");
       for (const r of newResults) {
-        lines.push(`${r.home} vs ${r.away}: ${r.score} -- ${r.tipsResolved} Tipps ausgewertet`);
+        lines.push(`${r.home} vs ${r.away}: ${r.score} -- ${r.tipsNew} Tipps ausgewertet`);
       }
       if (totalUpsets > 0) {
         lines.push("");
