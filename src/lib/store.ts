@@ -123,3 +123,57 @@ export async function upsertPrediction(
   await redis.hset(HASH_KEY, { [field(record.matchId, record.userId)]: record });
   return record;
 }
+
+// Read a single prediction (used to distinguish a new tip from a change for the
+// activity feed). Single HGET.
+export async function getPrediction(
+  matchId: number,
+  userId: string,
+): Promise<PredictionRecord | null> {
+  if (!process.env.UPSTASH_REDIS_REST_URL) return null;
+  const redis = getRedis();
+  const v = await redis.hget(HASH_KEY, field(matchId, userId));
+  return coerce(v);
+}
+
+// --- Activity feed -------------------------------------------------------
+// Append-only, capped list of recent events for the live ticker. Stored as a
+// Redis list at FEED_KEY: newest first (LPUSH), trimmed to FEED_MAX (LTRIM).
+// Events deliberately carry NO tip content (no score/pick) — only "who did
+// what, when" — so the feed can be public without leaking picks before kickoff.
+const FEED_KEY = "feed:events";
+const FEED_MAX = 200;
+
+export interface FeedEvent {
+  id: string;
+  type: "registered" | "tip_placed" | "tip_changed";
+  userName: string;
+  ts: string; // ISO
+  matchLabel?: string; // e.g. "Deutschland – Frankreich" (no score)
+  minutesToKickoff?: number; // for the "last minute" badge
+}
+
+export async function pushFeedEvent(ev: FeedEvent): Promise<void> {
+  if (!process.env.UPSTASH_REDIS_REST_URL) return;
+  const redis = getRedis();
+  await redis.lpush(FEED_KEY, JSON.stringify(ev));
+  await redis.ltrim(FEED_KEY, 0, FEED_MAX - 1);
+}
+
+export async function readFeedEvents(limit = 30): Promise<FeedEvent[]> {
+  if (!process.env.UPSTASH_REDIS_REST_URL) return [];
+  const redis = getRedis();
+  const raw = await redis.lrange(FEED_KEY, 0, limit - 1);
+  return raw
+    .map((r) => {
+      if (typeof r === "string") {
+        try {
+          return JSON.parse(r) as FeedEvent;
+        } catch {
+          return null;
+        }
+      }
+      return r as FeedEvent;
+    })
+    .filter(Boolean) as FeedEvent[];
+}

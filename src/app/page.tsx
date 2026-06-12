@@ -5,6 +5,7 @@ import TipForm from "../components/TipForm";
 import CountdownScreen from "../components/CountdownScreen";
 import LoginScreen from "../components/LoginScreen";
 import WarmupGame from "../components/WarmupGame";
+import LiveTicker from "../components/LiveTicker";
 import { getAllowedDomains, getSession, userIdFromEmail } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -169,6 +170,9 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
             Jetzt tippen
           </a>
         </header>
+
+        {/* ── Live-Ticker: Aktivität (Registrierungen, Tipps, Last-Minute-Änderungen) ── */}
+        <LiveTicker />
 
         {/* ── 2. Mensch vs. Maschine — der Hook, ganz oben ── */}
         {(humanCount > 0 || agentCount > 0) && (

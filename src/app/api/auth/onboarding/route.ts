@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Redis } from "@upstash/redis";
 import { getSession, userIdFromEmail } from "@/lib/auth";
+import { pushFeedEvent } from "@/lib/store";
 
 function getRedis(): Redis {
   return new Redis({
@@ -38,6 +39,18 @@ export async function POST(req: NextRequest) {
   };
   await redis.set(userKey, JSON.stringify(profile));
   await redis.sadd("users:all", userKey);
+
+  // Activity feed — best-effort, never blocks registration.
+  try {
+    await pushFeedEvent({
+      id: crypto.randomUUID(),
+      type: "registered",
+      userName,
+      ts: profile.registeredAt,
+    });
+  } catch {
+    // ignore feed errors
+  }
 
   return NextResponse.json({ ok: true, profile });
 }

@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Redis } from "@upstash/redis";
-import { upsertPrediction, type PredictionRecord } from "../../../lib/store";
+import {
+  upsertPrediction,
+  getPrediction,
+  pushFeedEvent,
+  type PredictionRecord,
+} from "../../../lib/store";
 import { getMatches } from "../../../lib/football-data";
 import { getSession, userIdFromEmail } from "@/lib/auth";
 
@@ -61,8 +66,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Deadline-Logik & Stage ermitteln
+    // Deadline-Logik, Stage & Feed-Metadaten ermitteln
     let stage: string | undefined;
+    let matchLabel: string | undefined;
+    let minutesToKickoff: number | undefined;
     try {
       const matches = await getMatches();
       const match = matches.find((m) => m.id === body.matchId);
@@ -75,10 +82,15 @@ export async function POST(req: NextRequest) {
           );
         }
         if (match.stage) stage = match.stage;
+        matchLabel = `${match.homeTeam?.name ?? "?"} – ${match.awayTeam?.name ?? "?"}`;
+        minutesToKickoff = Math.max(0, Math.round((kickoff - Date.now()) / 60000));
       }
     } catch {
       // If match lookup fails, allow the tip (graceful degradation)
     }
+
+    // Did this user already have a tip for this match? Decides new vs. change.
+    const prior = await getPrediction(body.matchId, userId).catch(() => null);
 
     // Identity & location come from the server-side profile, NOT the client body.
     const record: PredictionRecord = {
@@ -96,6 +108,21 @@ export async function POST(req: NextRequest) {
     };
 
     const saved = await upsertPrediction(record);
+
+    // Activity feed — best-effort, never blocks the tip. No tip content here.
+    try {
+      await pushFeedEvent({
+        id: crypto.randomUUID(),
+        type: prior ? "tip_changed" : "tip_placed",
+        userName: profile.userName,
+        ts: record.createdAt,
+        matchLabel,
+        minutesToKickoff,
+      });
+    } catch {
+      // ignore feed errors
+    }
+
     return NextResponse.json({ ok: true, prediction: saved });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "Unknown error";
