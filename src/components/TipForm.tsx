@@ -862,6 +862,27 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
   // Render: Logged in – matches with inline tips
   // =========================================================================
 
+  // Heutige, noch nicht angepfiffene Spiele -> prominenter "Heute"-Block oben
+  const nowDate = new Date(now);
+  const sameLocalDay = (iso: string) => {
+    const d = new Date(iso);
+    return (
+      d.getFullYear() === nowDate.getFullYear() &&
+      d.getMonth() === nowDate.getMonth() &&
+      d.getDate() === nowDate.getDate()
+    );
+  };
+  const todayUpcoming = matches
+    .filter(
+      (m) => new Date(m.kickoff).getTime() > now && sameLocalDay(m.kickoff),
+    )
+    .sort(
+      (a, b) => new Date(a.kickoff).getTime() - new Date(b.kickoff).getTime(),
+    );
+  const todayUpcomingIds = new Set(todayUpcoming.map((m) => m.id));
+  const todayUntipped = todayUpcoming.filter((m) => !myTips[m.id]).length;
+  const restMatches = matches.filter((m) => !todayUpcomingIds.has(m.id));
+
   return (
     <div style={s.section}>
       {/* Header */}
@@ -905,14 +926,84 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
         </div>
       </div>
 
+      {/* ── Heute: noch nicht angepfiffene Spiele, prominent zum Sofort-Tippen ── */}
+      {!loading && todayUpcoming.length > 0 && (
+        <div
+          style={{
+            marginBottom: 24,
+            background: "#fff8ef",
+            border: "1px solid #F3920055",
+            borderRadius: 14,
+            padding: "16px 16px 18px",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 8,
+              marginBottom: 8,
+            }}
+          >
+            <h3
+              style={{
+                margin: 0,
+                fontSize: 16,
+                color: "#3A3A3A",
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+              }}
+            >
+              <span style={{ fontSize: 18 }}>⚽</span> Heute
+            </h3>
+            {todayUntipped > 0 ? (
+              <span
+                style={{
+                  fontSize: 12,
+                  fontWeight: 700,
+                  color: "#E76C0A",
+                  background: "#F3920022",
+                  borderRadius: 20,
+                  padding: "4px 12px",
+                }}
+              >
+                {todayUntipped} noch zu tippen
+              </span>
+            ) : (
+              <span
+                style={{
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: "#2e7d32",
+                  background: "#e8f5e9",
+                  borderRadius: 20,
+                  padding: "4px 12px",
+                }}
+              >
+                alle getippt ✓
+              </span>
+            )}
+          </div>
+          <p style={{ margin: "0 0 12px", fontSize: 12, color: "#7A7A7A" }}>
+            Diese Spiele starten heute – tippe direkt hier, bevor der Anpfiff
+            kommt.
+          </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            {todayUpcoming.map((m) => renderMatchCard(m, "#F39200"))}
+          </div>
+        </div>
+      )}
+
       {/* Match list */}
       {loading ? (
         <p style={{ color: "#7A7A7A", fontSize: 14 }}>Lade Spiele...</p>
       ) : matches.length === 0 ? (
         <p style={{ color: "#7A7A7A", fontSize: 14 }}>Keine anstehenden Spiele.</p>
-      ) : (
+      ) : restMatches.length === 0 ? null : (
         <div>
-          {groupMatchesByStage(matches).map((sg) => {
+          {groupMatchesByStage(restMatches).map((sg) => {
             const colors = STAGE_COLORS[sg.stage] ?? STAGE_COLORS.GROUP_STAGE;
             return (
               <div
