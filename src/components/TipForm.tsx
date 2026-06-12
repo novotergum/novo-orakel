@@ -113,6 +113,21 @@ const FIFA_TO_ISO: Record<string, string> = {
   BIH: "ba", COD: "cd", CZE: "cz", ECU: "ec", IRQ: "iq", SWE: "se", TUR: "tr",
 };
 
+// Team noch nicht feststehend (Platzhalter wie "1A", "W49", "Winner Path B", PO-Codes)
+function teamIsTBD(t: { name: string; code: string | null }): boolean {
+  return Boolean(
+    !t.name ||
+      (t.code?.startsWith("PO") && t.code !== "POR") ||
+      /winner|path/i.test(t.name) ||
+      /^(1|2)[A-L]$/.test(t.name) ||
+      /^[WL]\d+$/.test(t.name),
+  );
+}
+
+function matchTeamsKnown(m: Match): boolean {
+  return !teamIsTBD(m.homeTeam) && !teamIsTBD(m.awayTeam);
+}
+
 function FlagImg({ code }: { code: string | null }) {
   if (!code) return null;
   const iso = FIFA_TO_ISO[code];
@@ -161,6 +176,7 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
   // Match + tip state
   const [matches, setMatches] = useState<Match[]>([]);
   const [finishedMatches, setFinishedMatches] = useState<Match[]>([]);
+  const [showTbd, setShowTbd] = useState(false);
   const [loading, setLoading] = useState(true);
   const [myTips, setMyTips] = useState<Record<number, MyTip>>({});
   const [expandedMatch, setExpandedMatch] = useState<number | null>(null);
@@ -451,9 +467,7 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
     const isExpanded = expandedMatch === m.id;
     const orakel = orakelResults[m.id];
     const matchResult = result?.matchId === m.id ? result : null;
-    const isTBD = (t: { name: string; code: string | null }) =>
-      !t.name || (t.code?.startsWith("PO") && t.code !== "POR") || /winner|path/i.test(t.name) || /^(1|2)[A-L]$/.test(t.name) || /^[WL]\d+$/.test(t.name);
-    const teamsKnown = !isTBD(m.homeTeam) && !isTBD(m.awayTeam);
+    const teamsKnown = matchTeamsKnown(m);
 
     return (
       <div
@@ -1003,7 +1017,21 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
         <p style={{ color: "#7A7A7A", fontSize: 14 }}>Keine anstehenden Spiele.</p>
       ) : restMatches.length === 0 ? null : (
         <div>
-          {groupMatchesByStage(restMatches).map((sg) => {
+          {(() => {
+            const allGroups = groupMatchesByStage(restMatches);
+            const stageMatches = (sg: StageGroup) =>
+              sg.subGroups
+                ? sg.subGroups.flatMap((g) => g.matches)
+                : sg.matches ?? [];
+            const isTbdGroup = (sg: StageGroup) =>
+              !stageMatches(sg).some(matchTeamsKnown);
+            const visibleGroups = allGroups.filter((sg) => !isTbdGroup(sg));
+            const tbdGroups = allGroups.filter(isTbdGroup);
+            const tbdCount = tbdGroups.reduce(
+              (n, sg) => n + stageMatches(sg).length,
+              0,
+            );
+            const renderStage = (sg: StageGroup) => {
             const colors = STAGE_COLORS[sg.stage] ?? STAGE_COLORS.GROUP_STAGE;
             return (
               <div
@@ -1101,7 +1129,38 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
                 )}
               </div>
             );
-          })}
+            };
+            return (
+              <>
+                {visibleGroups.map(renderStage)}
+                {tbdGroups.length > 0 && (
+                  <>
+                    <button
+                      onClick={() => setShowTbd((v) => !v)}
+                      style={{
+                        width: "100%",
+                        textAlign: "center",
+                        background: "#f5f3f0",
+                        border: "1px dashed #cfc9c2",
+                        borderRadius: 10,
+                        padding: "12px",
+                        fontSize: 13,
+                        fontWeight: 600,
+                        color: "#7A7A7A",
+                        cursor: "pointer",
+                        marginBottom: 16,
+                      }}
+                    >
+                      {showTbd
+                        ? "Spätere Runden ausblenden ▴"
+                        : `Spätere Runden anzeigen (${tbdCount} Spiele, Teams noch offen) ▾`}
+                    </button>
+                    {showTbd && tbdGroups.map(renderStage)}
+                  </>
+                )}
+              </>
+            );
+          })()}
         </div>
       )}
 
