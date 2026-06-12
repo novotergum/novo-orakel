@@ -127,6 +127,7 @@ export default function LiveTicker() {
             return (
               <li
                 key={ev.id}
+                className="ticker-item"
                 style={{
                   display: "flex",
                   alignItems: "baseline",
@@ -135,6 +136,9 @@ export default function LiveTicker() {
                   lineHeight: 1.4,
                   color: r.hot ? "#c2410c" : "#33333a",
                   fontWeight: r.hot ? 600 : 400,
+                  borderRadius: 8,
+                  padding: "3px 8px",
+                  margin: "0 -8px",
                 }}
               >
                 <span style={{ fontSize: 14, flexShrink: 0 }}>{r.icon}</span>
@@ -160,6 +164,17 @@ export default function LiveTicker() {
           0% { box-shadow: 0 0 0 0 rgba(66,208,122,0.5); }
           70% { box-shadow: 0 0 0 6px rgba(66,208,122,0); }
           100% { box-shadow: 0 0 0 0 rgba(66,208,122,0); }
+        }
+        /* Fires on mount only — React reuses DOM nodes for unchanged keys,
+           so existing rows stay still and only freshly inserted events animate. */
+        @keyframes ticker-enter {
+          0%   { opacity: 0; transform: translateY(-8px); background: rgba(243,146,0,0.16); }
+          60%  { opacity: 1; transform: translateY(0); }
+          100% { background: transparent; }
+        }
+        .ticker-item { animation: ticker-enter 0.5s ease-out both; }
+        @media (prefers-reduced-motion: reduce) {
+          .ticker-item { animation: none; }
         }
       `}</style>
     </section>
