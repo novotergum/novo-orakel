@@ -646,6 +646,14 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
                   <strong>Nicht getippt = 0 Punkte.</strong> Wer mehr Spiele
                   tippt, hat mehr Chancen auf Punkte.
                 </li>
+                <li style={{ marginBottom: 10 }}>
+                  <strong>Deine Tipps nachschauen:</strong> Jedes Spiel, das du
+                  getippt hast, zeigt dein grünes Tipp-Badge direkt auf der
+                  Match-Karte – im Format <strong>Ergebnis&nbsp;|&nbsp;1/X/2&nbsp;|&nbsp;Punkte</strong>
+                  {" "}(z.&nbsp;B. „2:0&nbsp;|&nbsp;1&nbsp;|&nbsp;4P"). Nach Abpfiff
+                  steht dort, wie viele Punkte dein Tipp gebracht hat – so siehst
+                  du, ob du richtig lagst und mit welcher Torangabe.
+                </li>
                 <li>
                   <strong>Das UT&nbsp;Orakel</strong> (unsere KI) tippt jeden Abend
                   automatisch mit – am Ende zählt: Mensch gegen Maschine.
