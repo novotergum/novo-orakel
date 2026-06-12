@@ -10,6 +10,7 @@ interface Match {
   group: string | null;
   homeTeam: { id: number; name: string; code: string | null };
   awayTeam: { id: number; name: string; code: string | null };
+  score?: { home: number | null; away: number | null };
 }
 
 interface UserProfile {
@@ -159,6 +160,7 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
 
   // Match + tip state
   const [matches, setMatches] = useState<Match[]>([]);
+  const [finishedMatches, setFinishedMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
   const [myTips, setMyTips] = useState<Record<number, MyTip>>({});
   const [expandedMatch, setExpandedMatch] = useState<number | null>(null);
@@ -186,6 +188,12 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
         setLoading(false);
       })
       .catch(() => setLoading(false));
+
+    // Beendete Spiele fuer die "Meine Ergebnisse"-Ansicht
+    fetch("/api/matches?status=FINISHED")
+      .then((r) => r.json())
+      .then((d) => setFinishedMatches(d.matches ?? []))
+      .catch(() => {});
 
     // Only fall back to localStorage if no server-side profile was passed in.
     if (!initialUser) {
@@ -1005,6 +1013,119 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
           })}
         </div>
       )}
+
+      {/* ── Meine Ergebnisse (beendete Spiele, read-only) ── */}
+      {(() => {
+        const myResults = finishedMatches
+          .filter((m) => myTips[m.id])
+          .sort(
+            (a, b) =>
+              new Date(b.kickoff).getTime() - new Date(a.kickoff).getTime(),
+          );
+        if (myResults.length === 0) return null;
+        return (
+          <div style={{ marginTop: 32 }}>
+            <h3 style={{ margin: "0 0 4px", fontSize: 16, color: "#3A3A3A" }}>
+              Meine Ergebnisse
+            </h3>
+            <p style={{ margin: "0 0 12px", fontSize: 12, color: "#7A7A7A" }}>
+              Deine bereits ausgewerteten Tipps – Endstand, dein Tipp und
+              erzielte Punkte.
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              {myResults.map((m) => {
+                const tip = myTips[m.id];
+                const sh = m.score?.home;
+                const sa = m.score?.away;
+                const finalScore =
+                  sh != null && sa != null ? `${sh}:${sa}` : "–";
+                const pts = tip.points;
+                const ptColor =
+                  pts == null
+                    ? "#7A7A7A"
+                    : pts >= 4
+                      ? "#2e7d32"
+                      : pts >= 2
+                        ? "#E76C0A"
+                        : "#b0b0b0";
+                return (
+                  <div
+                    key={m.id}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 8,
+                      background: "#fff",
+                      border: "1px solid #e0ddd9",
+                      borderRadius: 10,
+                      padding: "10px 12px",
+                    }}
+                  >
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div
+                        style={{
+                          fontWeight: 600,
+                          fontSize: 13,
+                          color: "#3A3A3A",
+                          lineHeight: 1.4,
+                        }}
+                      >
+                        <FlagImg code={m.homeTeam.code} />
+                        {m.homeTeam.code ?? m.homeTeam.name}
+                        <span
+                          style={{
+                            color: "#3A3A3A",
+                            fontWeight: 700,
+                            margin: "0 6px",
+                          }}
+                        >
+                          {finalScore}
+                        </span>
+                        <FlagImg code={m.awayTeam.code} />
+                        {m.awayTeam.code ?? m.awayTeam.name}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: 11,
+                          color: "#7A7A7A",
+                          marginTop: 1,
+                        }}
+                      >
+                        {fmtDate(m.kickoff)}
+                      </div>
+                    </div>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
+                        background: "#f5f3f0",
+                        border: "1px solid #e0ddd9",
+                        borderRadius: 8,
+                        padding: "4px 10px",
+                        fontSize: 12,
+                        color: "#555",
+                        fontWeight: 600,
+                        flexShrink: 0,
+                      }}
+                      title="Dein Tipp"
+                    >
+                      <span>{tip.scoreTip}</span>
+                      <span style={{ color: "#ccc" }}>|</span>
+                      <span>{pickLabel(tip.winnerPick)}</span>
+                      <span style={{ color: "#ccc" }}>|</span>
+                      <span style={{ color: ptColor }}>
+                        {pts != null ? `${pts}P` : "–"}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

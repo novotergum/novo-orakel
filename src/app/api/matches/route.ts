@@ -3,7 +3,9 @@ import { getMatches } from "../../../lib/football-data";
 
 export async function GET(req: NextRequest) {
   try {
-    const matches = await getMatches({ status: "SCHEDULED,TIMED" });
+    // Default: upcoming matches. Pass ?status=FINISHED for played matches.
+    const statusParam = req.nextUrl.searchParams.get("status") || "SCHEDULED,TIMED";
+    const matches = await getMatches({ status: statusParam });
 
     const dateParam = req.nextUrl.searchParams.get("date");
     if (dateParam) {

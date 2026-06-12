@@ -647,12 +647,13 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
                   tippt, hat mehr Chancen auf Punkte.
                 </li>
                 <li style={{ marginBottom: 10 }}>
-                  <strong>Deine Tipps nachschauen:</strong> Jedes Spiel, das du
-                  getippt hast, zeigt dein grünes Tipp-Badge direkt auf der
-                  Match-Karte – im Format <strong>Ergebnis&nbsp;|&nbsp;1/X/2&nbsp;|&nbsp;Punkte</strong>
-                  {" "}(z.&nbsp;B. „2:0&nbsp;|&nbsp;1&nbsp;|&nbsp;4P"). Nach Abpfiff
-                  steht dort, wie viele Punkte dein Tipp gebracht hat – so siehst
-                  du, ob du richtig lagst und mit welcher Torangabe.
+                  <strong>Deine Tipps nachschauen:</strong> Unten in der
+                  Spieleliste findest du den Bereich <strong>„Meine
+                  Ergebnisse"</strong> mit allen bereits ausgewerteten Spielen –
+                  je Spiel der <strong>Endstand</strong>, dein Tipp
+                  ({"Ergebnis | Heim/X/Ausw."}) und die erzielten
+                  <strong> Punkte</strong>. So siehst du, ob du richtig lagst und
+                  mit welcher Torangabe.
                 </li>
                 <li>
                   <strong>Das UT&nbsp;Orakel</strong> (unsere KI) tippt jeden Abend
