@@ -410,20 +410,27 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
         {/* ── Leaderboard (ab Platz 4) ── */}
         {rest.length > 0 && (
           <section style={{ marginBottom: 36 }}>
-            <h2
-              style={{
-                fontSize: 13,
-                color: "#999",
-                textTransform: "uppercase",
-                letterSpacing: "0.08em",
-                marginBottom: 16,
-                fontWeight: 600,
-              }}
-            >
-              Leaderboard
-            </h2>
-            <div style={{ ...card, padding: 0, overflow: "hidden" }}>
-              <div style={{ overflowX: "auto" }}>
+            <details style={{ ...card, padding: 0, overflow: "hidden" }}>
+              <summary
+                style={{
+                  listStyle: "none",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "18px 24px",
+                  fontSize: 13,
+                  color: "#999",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.08em",
+                  fontWeight: 600,
+                  userSelect: "none",
+                }}
+              >
+                <span>Leaderboard ab Platz 4</span>
+                <span style={{ fontSize: 12, color: "#bbb" }}>anzeigen ▾</span>
+              </summary>
+              <div style={{ overflowX: "auto", borderTop: "1px solid #f0f0f0" }}>
                 <table
                   style={{
                     width: "100%",
@@ -513,7 +520,7 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
                   </tbody>
                 </table>
               </div>
-            </div>
+            </details>
           </section>
         )}
 
