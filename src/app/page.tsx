@@ -6,7 +6,6 @@ import CountdownScreen from "../components/CountdownScreen";
 import LoginScreen from "../components/LoginScreen";
 import WarmupGame from "../components/WarmupGame";
 import LiveTicker from "../components/LiveTicker";
-import StadionGesang from "../components/StadionGesang";
 import Leaderboard from "../components/Leaderboard";
 import { getAllowedDomains, getSession, userIdFromEmail } from "@/lib/auth";
 
@@ -485,7 +484,6 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
           UT Orakel &middot; WM 2026 Tippspiel
         </footer>
       </div>
-      <StadionGesang />
     </div>
   );
 }
