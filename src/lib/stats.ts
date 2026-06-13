@@ -27,6 +27,7 @@ const MIN_PLAYERS_PER_LOCATION = 2; // Mindestspieler, damit ein Standort gewert
 const LOCATION_ALIASES: Record<string, string> = {
   westerholt: "herten westerholt",
   // "Herten-Westerholt" normalisiert ohnehin zu "herten westerholt"
+  budingen: "budingen rehamed", // "Büdingen" = "Büdingen Rehamed" (ein Standort)
 };
 // Bevorzugte Anzeige je kanonischem Schluessel (sonst Personio-/haeufigste Eingabe).
 const LOCATION_DISPLAY: Record<string, string> = {
