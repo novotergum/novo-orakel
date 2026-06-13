@@ -3,37 +3,20 @@
 import { useEffect, useRef, useState } from "react";
 
 /**
- * Stadion-Sound-Toggle (standardmaessig AUS). Erzeugt selbst per Web Audio API
- * eine Stadion-Atmosphaere: Geraeuschteppich (gefiltertes Rauschen mit langsamen
- * Schwellungen) + einen geloopten "Olé"-Fangesang. Kein externes Audio-File,
- * daher keine Lizenz-/Hosting-Fragen. Start nur per Klick (Autoplay-Policy ok).
+ * Stadion-Atmosphäre-Toggle (standardmaessig AUS). Erzeugt per Web Audio API
+ * einen dezenten, warmen Crowd-Geräuschteppich (gedämpftes braunes Rauschen mit
+ * langsamen Jubel-Schwellungen) – bewusst KEIN synthetischer "Olé"-Gesang mehr
+ * (der klang grell). Kein externes Audio-File, daher keine Lizenz-/Hosting-Frage.
+ * Start nur per Klick (Autoplay-Policy ok).
  *
- * Echte MP3 stattdessen gewuenscht? Datei nach /public legen und hier abspielen.
+ * Echte Stadion-MP3 stattdessen gewuenscht? Datei nach /public legen und hier
+ * abspielen – klingt natürlicher als die Synthese.
  */
-
-// "Olé, olé olé olé …" – Kontur des Terrassen-Gesangs (Frequenz Hz, Dauer s).
-const MELODY: { f: number; d: number }[] = [
-  { f: 392.0, d: 0.34 }, // o
-  { f: 523.25, d: 0.34 }, // lé
-  { f: 392.0, d: 0.34 }, // o
-  { f: 523.25, d: 0.34 }, // lé
-  { f: 392.0, d: 0.34 }, // o
-  { f: 523.25, d: 0.34 }, // lé
-  { f: 392.0, d: 0.44 }, // o
-  { f: 523.25, d: 0.5 }, // lé
-  { f: 440.0, d: 0.34 }, // o
-  { f: 392.0, d: 0.5 }, // lé
-  { f: 349.23, d: 0.34 }, // o
-  { f: 329.63, d: 0.6 }, // lé
-];
-const LOOP_REST = 1.4; // Pause zwischen den Gesang-Durchläufen (s)
-
 export default function StadionGesang() {
   const [on, setOn] = useState(false);
   const ctxRef = useRef<AudioContext | null>(null);
   const stopRef = useRef<(() => void) | null>(null);
 
-  // Aufräumen beim Unmount.
   useEffect(() => {
     return () => {
       stopRef.current?.();
@@ -55,95 +38,54 @@ export default function StadionGesang() {
     const master = ctx.createGain();
     master.gain.value = 0;
     master.connect(ctx.destination);
-    master.gain.linearRampToValueAtTime(0.3, ctx.currentTime + 0.8);
+    // dezent: sanft auf moderate Lautstärke einblenden
+    master.gain.linearRampToValueAtTime(0.18, ctx.currentTime + 1.2);
 
-    // ── Geräuschteppich (Crowd) ──────────────────────────────────────────
+    // Braunes Rauschen als Crowd-Basis
     const bufSize = ctx.sampleRate * 2;
     const buffer = ctx.createBuffer(1, bufSize, ctx.sampleRate);
     const data = buffer.getChannelData(0);
     let last = 0;
     for (let i = 0; i < bufSize; i++) {
       const white = Math.random() * 2 - 1;
-      last = (last + 0.02 * white) / 1.02; // brownish noise -> Stadion-Rauschen
+      last = (last + 0.02 * white) / 1.02;
       data[i] = last * 3.5;
     }
     const noise = ctx.createBufferSource();
     noise.buffer = buffer;
     noise.loop = true;
-    const bp = ctx.createBiquadFilter();
-    bp.type = "bandpass";
-    bp.frequency.value = 600;
-    bp.Q.value = 0.7;
+
+    // Warm & "fern": Tiefpass statt schrillem Bandpass; Hochpass killt Wummern.
+    const lp = ctx.createBiquadFilter();
+    lp.type = "lowpass";
+    lp.frequency.value = 850;
+    lp.Q.value = 0.4;
+    const hp = ctx.createBiquadFilter();
+    hp.type = "highpass";
+    hp.frequency.value = 90;
+
     const noiseGain = ctx.createGain();
-    noiseGain.gain.value = 0.2;
-    // Langsame Schwellungen (Jubel kommt und geht)
+    noiseGain.gain.value = 0.5;
+
+    // Langsame Schwellungen (Jubel kommt und geht) – ruhig.
     const lfo = ctx.createOscillator();
-    lfo.frequency.value = 0.12;
+    lfo.frequency.value = 0.08;
     const lfoGain = ctx.createGain();
-    lfoGain.gain.value = 0.09;
+    lfoGain.gain.value = 0.14;
     lfo.connect(lfoGain);
     lfoGain.connect(noiseGain.gain);
-    noise.connect(bp);
-    bp.connect(noiseGain);
+
+    noise.connect(hp);
+    hp.connect(lp);
+    lp.connect(noiseGain);
     noiseGain.connect(master);
     noise.start();
     lfo.start();
 
-    // ── Fangesang ("Olé") ────────────────────────────────────────────────
-    function playNote(f: number, t: number, d: number) {
-      const o1 = ctx.createOscillator();
-      o1.type = "sawtooth";
-      o1.frequency.value = f;
-      const o2 = ctx.createOscillator();
-      o2.type = "sawtooth";
-      o2.frequency.value = f;
-      o2.detune.value = 8; // leicht verstimmt -> "viele Stimmen"
-      const lp = ctx.createBiquadFilter();
-      lp.type = "lowpass";
-      lp.frequency.value = 1500;
-      const g = ctx.createGain();
-      g.gain.setValueAtTime(0, t);
-      g.gain.linearRampToValueAtTime(0.5, t + 0.04);
-      g.gain.setValueAtTime(0.5, t + d - 0.07);
-      g.gain.linearRampToValueAtTime(0, t + d);
-      // Vibrato
-      const vib = ctx.createOscillator();
-      vib.frequency.value = 5;
-      const vibg = ctx.createGain();
-      vibg.gain.value = 6;
-      vib.connect(vibg);
-      vibg.connect(o1.detune);
-      vibg.connect(o2.detune);
-      o1.connect(lp);
-      o2.connect(lp);
-      lp.connect(g);
-      g.connect(master);
-      o1.start(t);
-      o2.start(t);
-      vib.start(t);
-      o1.stop(t + d);
-      o2.stop(t + d);
-      vib.stop(t + d);
-    }
-
-    let timer: ReturnType<typeof setTimeout>;
-    function scheduleLoop() {
-      const t0 = ctx.currentTime + 0.1;
-      let t = t0;
-      for (const n of MELODY) {
-        playNote(n.f, t, n.d);
-        t += n.d;
-      }
-      const total = t - t0 + LOOP_REST;
-      timer = setTimeout(scheduleLoop, total * 1000);
-    }
-    scheduleLoop();
-
     stopRef.current = () => {
-      clearTimeout(timer);
       try {
         master.gain.cancelScheduledValues(ctx.currentTime);
-        master.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.3);
+        master.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.4);
       } catch {
         // ignore
       }
@@ -158,7 +100,7 @@ export default function StadionGesang() {
         } catch {
           // already stopped
         }
-      }, 350);
+      }, 450);
     };
   }
 
@@ -177,7 +119,7 @@ export default function StadionGesang() {
     <button
       onClick={toggle}
       aria-pressed={on}
-      title={on ? "Stadiongesang aus" : "Stadiongesang an"}
+      title={on ? "Stadion-Sound aus" : "Stadion-Sound an"}
       style={{
         position: "fixed",
         right: 16,
@@ -201,7 +143,7 @@ export default function StadionGesang() {
       }}
     >
       <span style={{ fontSize: 16, lineHeight: 1 }}>{on ? "🔊" : "🔇"}</span>
-      <span>Stadiongesang</span>
+      <span>Stadion-Sound</span>
       {on && (
         <span
           style={{
@@ -209,7 +151,7 @@ export default function StadionGesang() {
             height: 7,
             borderRadius: "50%",
             background: "#fff",
-            animation: "stadion-pulse 1s infinite",
+            animation: "stadion-pulse 1.4s infinite",
           }}
         />
       )}
