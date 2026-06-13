@@ -1281,10 +1281,26 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
           );
         if (myResults.length === 0) return null;
         return (
-          <div style={{ marginTop: 32 }}>
-            <h3 style={{ margin: "0 0 4px", fontSize: 16, color: "#3A3A3A" }}>
-              Meine Ergebnisse
-            </h3>
+          <details style={{ marginTop: 32 }}>
+            <summary
+              style={{
+                listStyle: "none",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                fontSize: 16,
+                fontWeight: 600,
+                color: "#3A3A3A",
+                userSelect: "none",
+                marginBottom: 4,
+              }}
+            >
+              <span>Meine Ergebnisse ({myResults.length})</span>
+              <span style={{ fontSize: 12, color: "#bbb", fontWeight: 400 }}>
+                anzeigen ▾
+              </span>
+            </summary>
             <p style={{ margin: "0 0 12px", fontSize: 12, color: "#7A7A7A" }}>
               Deine bereits ausgewerteten Tipps – Endstand, dein Tipp und
               erzielte Punkte.
@@ -1380,7 +1396,7 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
                 );
               })}
             </div>
-          </div>
+          </details>
         );
       })()}
     </div>
