@@ -108,10 +108,6 @@ export default function Leaderboard({
     };
   }, []);
 
-  const onlineCount = [...top3, ...rest].filter(
-    (e) => e.source === "human" && online.has(e.userId),
-  ).length;
-
   return (
     <>
       {/* ── Top 3 Podium ── */}
@@ -125,18 +121,9 @@ export default function Leaderboard({
               letterSpacing: "0.08em",
               marginBottom: 20,
               fontWeight: 600,
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
             }}
           >
-            <span>Podium</span>
-            {onlineCount > 0 && (
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 4, color: "#2e9e5b" }}>
-                <OnlineTag />
-                {onlineCount} online
-              </span>
-            )}
+            Podium
           </h2>
           <div style={{ display: "flex", gap: 12, justifyContent: "center", alignItems: "flex-end" }}>
             {top3.map((entry, i) => {

@@ -65,6 +65,7 @@ function render(ev: FeedEvent): {
 
 export default function LiveTicker() {
   const [events, setEvents] = useState<FeedEvent[]>([]);
+  const [onlineCount, setOnlineCount] = useState(0);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -74,6 +75,15 @@ export default function LiveTicker() {
       // Skip polling while the tab is hidden — saves background requests.
       if (typeof document !== "undefined" && document.visibilityState === "hidden") {
         return;
+      }
+      try {
+        const pr = await fetch("/api/presence", { cache: "no-store" });
+        if (pr.ok) {
+          const pd = await pr.json();
+          if (alive && typeof pd.count === "number") setOnlineCount(pd.count);
+        }
+      } catch {
+        // ignore
       }
       try {
         const res = await fetch("/api/feed", { cache: "no-store" });
@@ -136,6 +146,29 @@ export default function LiveTicker() {
             }}
           />
           Live-Ticker
+          {onlineCount > 0 && (
+            <span
+              style={{
+                marginLeft: "auto",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 5,
+                color: "#2e9e5b",
+                textTransform: "none",
+                letterSpacing: 0,
+              }}
+            >
+              <span
+                style={{
+                  width: 7,
+                  height: 7,
+                  borderRadius: "50%",
+                  background: "#42d07a",
+                }}
+              />
+              {onlineCount} online
+            </span>
+          )}
         </div>
 
         <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 7 }}>
