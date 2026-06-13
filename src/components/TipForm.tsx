@@ -488,6 +488,14 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
     const sa = m.score?.away;
     const finished = sh != null && sa != null;
     const finalScore = finished ? `${sh}:${sa}` : null;
+    const ptColor =
+      tip?.points == null
+        ? "#7A7A7A"
+        : tip.points >= 4
+          ? "#2e7d32"
+          : tip.points >= 2
+            ? "#E76C0A"
+            : "#b0b0b0";
     const isExpanded = expandedMatch === m.id;
     const orakel = orakelResults[m.id];
     const matchResult = result?.matchId === m.id ? result : null;
@@ -588,24 +596,24 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
                 display: "flex",
                 alignItems: "center",
                 gap: 6,
-                background: "#e8f5e9",
-                border: "1px solid #a5d6a7",
+                background: finished ? "#f5f3f0" : "#e8f5e9",
+                border: finished ? "1px solid #e0ddd9" : "1px solid #a5d6a7",
                 borderRadius: 8,
                 padding: "4px 10px",
                 fontSize: 12,
-                color: "#2e7d32",
+                color: finished ? "#555" : "#2e7d32",
                 fontWeight: 600,
                 flexShrink: 0,
                 cursor: editable ? "pointer" : "default",
               }}
             >
               <span>{tip.scoreTip}</span>
-              <span style={{ color: "#a5d6a7" }}>|</span>
+              <span style={{ color: finished ? "#ccc" : "#a5d6a7" }}>|</span>
               <span>{pickLabel(tip.winnerPick)}</span>
               {tip.points != null && (
                 <>
-                  <span style={{ color: "#a5d6a7" }}>|</span>
-                  <span>{tip.points}P</span>
+                  <span style={{ color: finished ? "#ccc" : "#a5d6a7" }}>|</span>
+                  <span style={finished ? { color: ptColor } : undefined}>{tip.points}P</span>
                 </>
               )}
               {editable && (
