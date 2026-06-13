@@ -19,6 +19,48 @@ import { parseScoreTip, scoreTip, upsetBonus, stageMultiplier } from "./scoring"
 const MIN_TIPS_FOR_RATE = 8; // Mindesttipps fuer "Treffsicherster" (sonst 1/1 = 100 %)
 const MIN_PLAYERS_PER_LOCATION = 2; // Mindestspieler, damit ein Standort gewertet wird
 
+// Der Standort ist ein Freitextfeld -> Schreibvarianten zersplittern denselben
+// Ort. Wir normalisieren (lowercase, ohne Diakritika, Bindestrich=Leerzeichen)
+// und mergen bekannte Varianten ueber LOCATION_ALIASES. Schluessel sind bereits
+// normalisiert. Bewusst KONSERVATIV: nur eindeutig gleiche Orte zusammenfassen
+// (z. B. Koeln Rodenkirchen bleibt getrennt von Koeln).
+const LOCATION_ALIASES: Record<string, string> = {
+  westerholt: "herten westerholt",
+  // "Herten-Westerholt" normalisiert ohnehin zu "herten westerholt"
+};
+// Bevorzugte Anzeige je kanonischem Schluessel (sonst haeufigste Originaleingabe).
+const LOCATION_DISPLAY: Record<string, string> = {
+  "herten westerholt": "Herten-Westerholt",
+};
+
+function normLocation(s: string): string {
+  return s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") // Diakritika entfernen (Hürth -> hurth)
+    .replace(/[-_/]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function canonicalLocationKey(raw: string): string {
+  const k = normLocation(raw);
+  return LOCATION_ALIASES[k] ?? k;
+}
+
+function locationDisplayLabel(key: string, labels: Map<string, number>): string {
+  if (LOCATION_DISPLAY[key]) return LOCATION_DISPLAY[key];
+  let best = "";
+  let bestN = -1;
+  for (const [label, n] of labels) {
+    if (n > bestN) {
+      best = label;
+      bestN = n;
+    }
+  }
+  return best || key;
+}
+
 export interface PlayerStat {
   userId: string;
   userName: string;
@@ -266,24 +308,32 @@ export async function computeStats(): Promise<StatsResult> {
     }
   }
 
-  // Standort-Wertung (nur Menschen, mind. MIN_PLAYERS_PER_LOCATION)
-  const byLocation = new Map<string, number[]>();
+  // Standort-Wertung (nur Menschen, mind. MIN_PLAYERS_PER_LOCATION).
+  // Freitext-Eingaben werden normalisiert + bekannte Varianten gemerged, damit
+  // z. B. "Herten Westerholt"/"Herten-Westerholt"/"Westerholt" EIN Standort sind.
+  const locGroups = new Map<string, { pts: number[]; labels: Map<string, number> }>();
   for (const h of humans) {
     if (h.location === "Unbekannt") continue;
-    const arr = byLocation.get(h.location) || [];
-    arr.push(h.points);
-    byLocation.set(h.location, arr);
+    const key = canonicalLocationKey(h.location);
+    let g = locGroups.get(key);
+    if (!g) {
+      g = { pts: [], labels: new Map() };
+      locGroups.set(key, g);
+    }
+    g.pts.push(h.points);
+    const disp = h.location.trim().replace(/\s+/g, " ");
+    g.labels.set(disp, (g.labels.get(disp) ?? 0) + 1);
   }
-  const locations: LocationStat[] = [...byLocation.entries()]
-    .filter(([, pts]) => pts.length >= MIN_PLAYERS_PER_LOCATION)
-    .map(([location, pts]) => ({
-      location,
-      avg: mean(pts),
-      median: median(pts),
-      players: pts.length,
-      points: pts.reduce((s, n) => s + n, 0),
+  const locations: LocationStat[] = [...locGroups.entries()]
+    .filter(([, g]) => g.pts.length >= MIN_PLAYERS_PER_LOCATION)
+    .map(([key, g]) => ({
+      location: locationDisplayLabel(key, g.labels),
+      avg: mean(g.pts),
+      median: median(g.pts),
+      players: g.pts.length,
+      points: g.pts.reduce((s, n) => s + n, 0),
     }))
-    .sort((a, b) => b.avg - a.avg);
+    .sort((a, b) => b.avg - a.avg || b.players - a.players);
 
   return {
     tournamentEnded,
