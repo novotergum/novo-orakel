@@ -28,6 +28,8 @@ const LOCATION_ALIASES: Record<string, string> = {
   westerholt: "herten westerholt",
   // "Herten-Westerholt" normalisiert ohnehin zu "herten westerholt"
   budingen: "budingen rehamed", // "Büdingen" = "Büdingen Rehamed" (ein Standort)
+  essen: "uthiii.hq", // NOVOTERGUM-Zentrale sitzt in Essen -> "Essen" = Zentrale
+  "essen zentrale": "uthiii.hq",
 };
 // Bevorzugte Anzeige je kanonischem Schluessel (sonst Personio-/haeufigste Eingabe).
 const LOCATION_DISPLAY: Record<string, string> = {
