@@ -683,6 +683,19 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
             paddingBottom: 40,
           }}
         >
+          <a
+            href="/statistik"
+            style={{
+              display: "inline-block",
+              marginBottom: 12,
+              color: "#4293D0",
+              fontWeight: 600,
+              textDecoration: "none",
+            }}
+          >
+            📊 Auswertung &amp; Rückblick
+          </a>
+          <br />
           UT Orakel &middot; WM 2026 Tippspiel
         </footer>
       </div>
