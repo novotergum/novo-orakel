@@ -9,12 +9,20 @@ export async function GET(req: NextRequest) {
 
     const dateParam = req.nextUrl.searchParams.get("date");
     if (dateParam) {
-      const target = dateParam === "today"
-        ? new Date().toISOString().slice(0, 10)
-        : dateParam;
+      // Resolve the calendar day in German local time, so matches that kick
+      // off late (e.g. 22:00 UTC = 00:00 Berlin) land on the day a German fan
+      // would expect.
+      const berlinDay = (d: Date) =>
+        new Intl.DateTimeFormat("en-CA", {
+          timeZone: "Europe/Berlin",
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+        }).format(d);
+      const target = dateParam === "today" ? berlinDay(new Date()) : dateParam;
       const filtered = matches.filter(
         (m: { kickoff?: string }) =>
-          typeof m.kickoff === "string" && m.kickoff.slice(0, 10) === target,
+          typeof m.kickoff === "string" && berlinDay(new Date(m.kickoff)) === target,
       );
       return NextResponse.json({ matches: filtered, count: filtered.length });
     }

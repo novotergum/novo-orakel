@@ -123,7 +123,7 @@ export async function POST() {
         lines.push(`${totalUpsets} Upset-Bonus vergeben!`);
       }
       lines.push("");
-      lines.push("Leaderboard: https://assistant-tau.vercel.app");
+      lines.push("Leaderboard: https://wm-tippspiel.vercel.app");
 
       teamsPosted = await postToTeams(lines.join("\n"));
     }
