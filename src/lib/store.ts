@@ -136,6 +136,18 @@ export async function getPrediction(
   return coerce(v);
 }
 
+// --- Standort-Map (Login-Mail -> offizieller Personio-Standort) ----------
+// Einmalig per scripts/personio-standort-map.mjs befuellt. Das Statistik-Board
+// nimmt diesen Standort als Source of Truth, Selbstangabe nur als Fallback.
+const STANDORT_KEY = "standort:by-email";
+
+export async function readStandortByEmail(): Promise<Record<string, string>> {
+  if (!process.env.UPSTASH_REDIS_REST_URL) return {};
+  const redis = getRedis();
+  const all = await redis.hgetall<Record<string, string>>(STANDORT_KEY);
+  return all || {};
+}
+
 // --- Activity feed -------------------------------------------------------
 // Append-only, capped list of recent events for the live ticker. Stored as a
 // Redis list at FEED_KEY: newest first (LPUSH), trimmed to FEED_MAX (LTRIM).

@@ -593,7 +593,8 @@ export default async function StatistikPage({
             })}
           </div>
           <div style={{ fontSize: 12, color: "#aaa", marginTop: 8, textAlign: "center" }}>
-            Nur Standorte mit mindestens 2 Tippern.
+            Standort aus Personio (Selbstangabe als Fallback) · nur Standorte mit
+            mindestens 2 Tippern.
           </div>
         </section>
       )}

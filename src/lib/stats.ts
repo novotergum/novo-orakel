@@ -12,7 +12,7 @@
  * ("schlaegt X % aller Menschen") — nicht gegen den Glueckstreffer aus ~100.
  */
 
-import { readPredictions } from "./store";
+import { readPredictions, readStandortByEmail } from "./store";
 import { getMatches, type NormalizedMatch } from "./football-data";
 import { parseScoreTip, scoreTip, upsetBonus, stageMultiplier } from "./scoring";
 
@@ -28,9 +28,10 @@ const LOCATION_ALIASES: Record<string, string> = {
   westerholt: "herten westerholt",
   // "Herten-Westerholt" normalisiert ohnehin zu "herten westerholt"
 };
-// Bevorzugte Anzeige je kanonischem Schluessel (sonst haeufigste Originaleingabe).
+// Bevorzugte Anzeige je kanonischem Schluessel (sonst Personio-/haeufigste Eingabe).
 const LOCATION_DISPLAY: Record<string, string> = {
-  "herten westerholt": "Herten-Westerholt",
+  "uthiii.hq": "Zentrale",
+  "uthiii.hq bayern": "Zentrale Bayern",
 };
 
 function normLocation(s: string): string {
@@ -48,8 +49,7 @@ function canonicalLocationKey(raw: string): string {
   return LOCATION_ALIASES[k] ?? k;
 }
 
-function locationDisplayLabel(key: string, labels: Map<string, number>): string {
-  if (LOCATION_DISPLAY[key]) return LOCATION_DISPLAY[key];
+function mostCommon(labels: Map<string, number>): string {
   let best = "";
   let bestN = -1;
   for (const [label, n] of labels) {
@@ -58,7 +58,22 @@ function locationDisplayLabel(key: string, labels: Map<string, number>): string 
       bestN = n;
     }
   }
-  return best || key;
+  return best;
+}
+
+// Anzeige: explizites Label > haeufigste Personio-Schreibweise > haeufigste
+// Selbstangabe. So gewinnt der offizielle Standortname die Beschriftung.
+function locationDisplayLabel(
+  key: string,
+  personioLabels: Map<string, number>,
+  selfLabels: Map<string, number>,
+): string {
+  return (
+    LOCATION_DISPLAY[key] ||
+    mostCommon(personioLabels) ||
+    mostCommon(selfLabels) ||
+    key
+  );
 }
 
 export interface PlayerStat {
@@ -66,6 +81,7 @@ export interface PlayerStat {
   userName: string;
   source: "human" | "agent";
   location: string;
+  fromPersonio: boolean; // Standort aus Personio (sonst Selbstangabe)
   points: number;
   tips: number;
   exact: number;
@@ -147,9 +163,10 @@ function median(arr: number[]): number {
 }
 
 export async function computeStats(): Promise<StatsResult> {
-  const [records, finished] = await Promise.all([
+  const [records, finished, standortByEmail] = await Promise.all([
     readPredictions(),
     getMatches({ status: "FINISHED" }).catch(() => [] as NormalizedMatch[]),
+    readStandortByEmail().catch(() => ({} as Record<string, string>)),
   ]);
 
   const matchById = new Map<number, NormalizedMatch>();
@@ -167,11 +184,13 @@ export async function computeStats(): Promise<StatsResult> {
   for (const r of records) {
     let p = players.get(r.userId);
     if (!p) {
+      const personioLoc = standortByEmail[r.userId.toLowerCase().trim()];
       p = {
         userId: r.userId,
         userName: r.userName,
         source: r.source,
-        location: (r.location || "").trim() || "Unbekannt",
+        location: personioLoc || (r.location || "").trim() || "Unbekannt",
+        fromPersonio: Boolean(personioLoc),
         points: 0,
         tips: 0,
         exact: 0,
@@ -311,23 +330,27 @@ export async function computeStats(): Promise<StatsResult> {
   // Standort-Wertung (nur Menschen, mind. MIN_PLAYERS_PER_LOCATION).
   // Freitext-Eingaben werden normalisiert + bekannte Varianten gemerged, damit
   // z. B. "Herten Westerholt"/"Herten-Westerholt"/"Westerholt" EIN Standort sind.
-  const locGroups = new Map<string, { pts: number[]; labels: Map<string, number> }>();
+  const locGroups = new Map<
+    string,
+    { pts: number[]; personioLabels: Map<string, number>; selfLabels: Map<string, number> }
+  >();
   for (const h of humans) {
     if (h.location === "Unbekannt") continue;
     const key = canonicalLocationKey(h.location);
     let g = locGroups.get(key);
     if (!g) {
-      g = { pts: [], labels: new Map() };
+      g = { pts: [], personioLabels: new Map(), selfLabels: new Map() };
       locGroups.set(key, g);
     }
     g.pts.push(h.points);
     const disp = h.location.trim().replace(/\s+/g, " ");
-    g.labels.set(disp, (g.labels.get(disp) ?? 0) + 1);
+    const bucket = h.fromPersonio ? g.personioLabels : g.selfLabels;
+    bucket.set(disp, (bucket.get(disp) ?? 0) + 1);
   }
   const locations: LocationStat[] = [...locGroups.entries()]
     .filter(([, g]) => g.pts.length >= MIN_PLAYERS_PER_LOCATION)
     .map(([key, g]) => ({
-      location: locationDisplayLabel(key, g.labels),
+      location: locationDisplayLabel(key, g.personioLabels, g.selfLabels),
       avg: mean(g.pts),
       median: median(g.pts),
       players: g.pts.length,
