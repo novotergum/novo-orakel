@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getMatches } from "../../../lib/football-data";
-import { readPredictions, writePredictions } from "../../../lib/store";
+import { readPredictions, writePredictions, recordRankSnapshot } from "../../../lib/store";
 import { parseScoreTip, scoreTip, upsetBonus, stageMultiplier } from "../../../lib/scoring";
 
 /**
@@ -106,6 +106,8 @@ export async function POST() {
 
     if (newlyResolved > 0) {
       await writePredictions(records);
+      // Rang-Snapshot fuer die Motivationssprueche (Spieltag-Bewegung).
+      await recordRankSnapshot(records).catch(() => {});
     }
 
     // Post to Teams only if new tips were resolved

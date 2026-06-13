@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { readPredictions } from "../../../lib/store";
+import { readRankedPredictions } from "../../../lib/store";
 
 const AGENT_ID = "ut-orakel";
 
@@ -87,7 +87,7 @@ function buildNarrative(board: PlayerEntry[]): string {
 
 export async function GET() {
   try {
-    const records = await readPredictions();
+    const records = await readRankedPredictions();
 
     // --- Einzelranking ---
     const playerMap = new Map<string, PlayerEntry>();

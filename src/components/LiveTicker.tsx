@@ -4,7 +4,13 @@ import { useEffect, useRef, useState } from "react";
 
 interface FeedEvent {
   id: string;
-  type: "registered" | "tip_placed" | "tip_changed" | "agent_tipped";
+  type:
+    | "registered"
+    | "tip_placed"
+    | "tip_changed"
+    | "agent_tipped"
+    | "took_lead"
+    | "entered_podium";
   userName: string;
   ts: string;
   matchLabel?: string;
@@ -44,6 +50,25 @@ function render(ev: FeedEvent): {
   }
   if (ev.type === "registered") {
     return { icon: "🆕", text: `${name} ist dabei!`, hot: false, machine: false };
+  }
+  // Rang-Events nach Spieltag-Aufloesung (gebuendelt). Fuehrungswechsel ist das
+  // Highlight -> als "hot" hervorgehoben.
+  if (ev.type === "took_lead") {
+    return {
+      icon: "👑",
+      text: `${name} übernimmt die Führung!`,
+      hot: true,
+      machine: false,
+    };
+  }
+  if (ev.type === "entered_podium") {
+    const n = ev.count ?? 1;
+    return {
+      icon: "🏆",
+      text: `${name} ${n > 1 ? "klettern" : "klettert"} aufs Podium!`,
+      hot: false,
+      machine: false,
+    };
   }
   const hot =
     ev.type === "tip_changed" &&

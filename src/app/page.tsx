@@ -1,12 +1,13 @@
 import { redirect } from "next/navigation";
 import { Redis } from "@upstash/redis";
-import { readPredictions } from "../lib/store";
+import { readRankedPredictions } from "../lib/store";
 import TipForm from "../components/TipForm";
 import CountdownScreen from "../components/CountdownScreen";
 import LoginScreen from "../components/LoginScreen";
 import WarmupGame from "../components/WarmupGame";
 import LiveTicker from "../components/LiveTicker";
 import Leaderboard from "../components/Leaderboard";
+import RankUpBanner from "../components/RankUpBanner";
 import { getAllowedDomains, getSession, userIdFromEmail } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -26,7 +27,7 @@ interface LeaderboardEntry {
 }
 
 async function getData() {
-  const records = await readPredictions();
+  const records = await readRankedPredictions();
 
   const playerMap = new Map<string, LeaderboardEntry>();
   for (const r of records) {
@@ -113,6 +114,10 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
   const top3 = board.slice(0, 3);
   const rest = board.slice(3);
 
+  // Der aktuell Erstplatzierte sieht sein gesamtes Dashboard in einem Gold-Ton —
+  // als kleine Auszeichnung. Greift nur aus SEINER Sicht (eingeloggt + Platz 1).
+  const isLeader = board.length > 0 && board[0].userId === profile.userId;
+
   // Optionaler Beitrittslink zum WM-Teams-Kanal (nur gerendert, wenn gesetzt)
   const teamsJoinUrl = process.env.TEAMS_JOIN_URL;
 
@@ -120,10 +125,31 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
     <div
       style={{
         minHeight: "100vh",
-        background: "linear-gradient(180deg, #0d0d1f 0%, #0d0d1f 260px, #f5f5f7 260px)",
+        // Erstplatzierter: warmer Gold-Ton statt neutralem Grau im Content-Bereich.
+        background: isLeader
+          ? "linear-gradient(180deg, #1a1405 0%, #1a1405 302px, #FBF1D8 302px, #FDF8EC 100%)"
+          : "linear-gradient(180deg, #0d0d1f 0%, #0d0d1f 260px, #f5f5f7 260px)",
         fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
       }}
     >
+      {/* ── „Du führst"-Band (nur für den aktuell Erstplatzierten) ── */}
+      {isLeader && (
+        <div
+          style={{
+            background: "linear-gradient(90deg, #E0A106 0%, #F7C948 50%, #E0A106 100%)",
+            color: "#3a2c00",
+            textAlign: "center",
+            padding: "11px 16px",
+            fontSize: 14,
+            fontWeight: 800,
+            letterSpacing: "0.06em",
+            textTransform: "uppercase",
+            boxShadow: "0 2px 10px rgba(224,161,6,0.45)",
+          }}
+        >
+          👑 Du führst &middot; Platz 1
+        </div>
+      )}
       <div style={{ maxWidth: 720, margin: "0 auto", padding: "0 20px" }}>
         {/* ── 3. Header massiv staerken ── */}
         <header style={{ textAlign: "center", padding: "48px 0 56px", color: "#fff" }}>
@@ -171,6 +197,9 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
             Jetzt tippen
           </a>
         </header>
+
+        {/* ── Motivationsspruch bei verbesserter Position (1× pro Spieltag) ── */}
+        <RankUpBanner />
 
         {/* ── Live-Ticker: Aktivität (Registrierungen, Tipps, Last-Minute-Änderungen) ── */}
         <LiveTicker />

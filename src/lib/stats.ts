@@ -12,7 +12,7 @@
  * ("schlaegt X % aller Menschen") — nicht gegen den Glueckstreffer aus ~100.
  */
 
-import { readPredictions, readStandortByEmail } from "./store";
+import { readRankedPredictions, readStandortByEmail } from "./store";
 import { getMatches, type NormalizedMatch } from "./football-data";
 import { parseScoreTip, scoreTip, upsetBonus, stageMultiplier } from "./scoring";
 
@@ -22,19 +22,21 @@ const MIN_PLAYERS_PER_LOCATION = 2; // Mindestspieler, damit ein Standort gewert
 // Der Standort ist ein Freitextfeld -> Schreibvarianten zersplittern denselben
 // Ort. Wir normalisieren (lowercase, ohne Diakritika, Bindestrich=Leerzeichen)
 // und mergen bekannte Varianten ueber LOCATION_ALIASES. Schluessel sind bereits
-// normalisiert. Bewusst KONSERVATIV: nur eindeutig gleiche Orte zusammenfassen
-// (z. B. Koeln Rodenkirchen bleibt getrennt von Koeln).
+// normalisiert. Bewusst KONSERVATIV: nur eindeutig gleiche Orte zusammenfassen.
 const LOCATION_ALIASES: Record<string, string> = {
   westerholt: "herten westerholt",
   // "Herten-Westerholt" normalisiert ohnehin zu "herten westerholt"
   budingen: "budingen rehamed", // "Büdingen" = "Büdingen Rehamed" (ein Standort)
   essen: "uthiii.hq", // NOVOTERGUM-Zentrale sitzt in Essen -> "Essen" = Zentrale
   "essen zentrale": "uthiii.hq",
+  koln: "koln rodenkirchen", // "Köln" = Standort Köln Rodenkirchen
+  rechnungswesen: "uthiii.hq", // Abteilung Rechnungswesen sitzt in der Zentrale
 };
 // Bevorzugte Anzeige je kanonischem Schluessel (sonst Personio-/haeufigste Eingabe).
 const LOCATION_DISPLAY: Record<string, string> = {
   "uthiii.hq": "Zentrale",
   "uthiii.hq bayern": "Zentrale Bayern",
+  "koln rodenkirchen": "Köln Rodenkirchen",
 };
 
 function normLocation(s: string): string {
@@ -167,7 +169,7 @@ function median(arr: number[]): number {
 
 export async function computeStats(): Promise<StatsResult> {
   const [records, finished, standortByEmail] = await Promise.all([
-    readPredictions(),
+    readRankedPredictions(),
     getMatches({ status: "FINISHED" }).catch(() => [] as NormalizedMatch[]),
     readStandortByEmail().catch(() => ({} as Record<string, string>)),
   ]);

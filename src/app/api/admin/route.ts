@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Redis } from "@upstash/redis";
-import { readPredictions, writePredictions } from "../../../lib/store";
+import {
+  readPredictions,
+  writePredictions,
+  readExcludedUserIds,
+  setUserExcluded,
+} from "../../../lib/store";
 
 let _redis: Redis | null = null;
 function getRedis(): Redis {
@@ -71,11 +76,15 @@ export async function GET(req: NextRequest) {
       jokerResults = await jokerPipeline.exec();
     }
 
+    // Aus der Wertung genommene userIds
+    const excluded = new Set(await readExcludedUserIds());
+
     const enriched = users.map((u, i) => ({
       ...u,
       tips: tipCounts.get(u.userId) ?? 0,
       points: pointsMap.get(u.userId) ?? 0,
       jokersUsed: (jokerResults[i] as number) ?? 0,
+      excluded: excluded.has(u.userId),
     }));
 
     return NextResponse.json({ users: enriched });
@@ -140,6 +149,38 @@ export async function PUT(req: NextRequest) {
     }
 
     return NextResponse.json({ ok: true, user: updated });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : "Unknown error";
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
+}
+
+/**
+ * POST /api/admin?secret=xxx
+ * Actions:
+ *   { action: "toggleExcluded", userId, excluded }
+ *     Nimmt eine userId aus der Wertung (excluded=true) oder zurueck in die
+ *     Wertung (excluded=false). Tipps bleiben in jedem Fall erhalten — der
+ *     Spieler taucht nur in keiner Rangliste/keinem Board mehr auf.
+ */
+export async function POST(req: NextRequest) {
+  if (!checkAuth(req)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  try {
+    const body = await req.json();
+    const { action, userId, excluded } = body;
+
+    if (action === "toggleExcluded") {
+      if (!userId) {
+        return NextResponse.json({ error: "userId required" }, { status: 400 });
+      }
+      await setUserExcluded(userId, Boolean(excluded));
+      return NextResponse.json({ ok: true, userId, excluded: Boolean(excluded) });
+    }
+
+    return NextResponse.json({ error: "Unbekannte action" }, { status: 400 });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "Unknown error";
     return NextResponse.json({ error: msg }, { status: 500 });

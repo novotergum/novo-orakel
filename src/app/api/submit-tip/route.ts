@@ -4,6 +4,7 @@ import {
   upsertPrediction,
   getPrediction,
   pushFeedEvent,
+  bumpTipEditCount,
   type PredictionRecord,
 } from "../../../lib/store";
 import { getMatches } from "../../../lib/football-data";
@@ -108,6 +109,9 @@ export async function POST(req: NextRequest) {
     };
 
     const saved = await upsertPrediction(record);
+
+    // Tipp-Abgaben pro Spieler dauerhaft mitzaehlen (best-effort, Admin-Panel).
+    bumpTipEditCount(userId).catch(() => {});
 
     // Activity feed — best-effort, never blocks the tip. No tip content here.
     try {

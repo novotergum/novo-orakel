@@ -11,6 +11,21 @@ interface AdminUser {
   tips: number;
   points: number;
   jokersUsed: number;
+  excluded: boolean;
+}
+
+interface AnMember { userId: string; userName: string; excluded: boolean }
+interface Anomalies {
+  counts: { humans: number; matchesWithKickoff: number; fieldExactPct: number };
+  duplicates: {
+    sameLocalPart: { localPart: string; members: AnMember[] }[];
+    sameName: { name: string; members: AnMember[] }[];
+    tipTwins: { a: string; aName: string; b: string; bName: string; shared: number; agree: number; pct: number; aExcluded: boolean; bExcluded: boolean }[];
+  };
+  suspiciousAccuracy: { userId: string; userName: string; resolved: number; exact: number; ratePct: number; chancePct: number; excluded: boolean }[];
+  lastMinute: { userId: string; userName: string; lastMinuteTips: number; totalTips: number; share: number; knappsteMinuten: number | null; excluded: boolean }[];
+  frequentChanges: { userId: string; userName: string; submits: number; distinctTips: number; changes: number; excluded: boolean }[];
+  note: string;
 }
 
 const LS_SECRET_KEY = "ut-orakel-admin-secret";
@@ -28,6 +43,8 @@ export default function AdminPage() {
   const [actionMsg, setActionMsg] = useState("");
   const [nlEmails, setNlEmails] = useState<string[]>([]);
   const [nlLoading, setNlLoading] = useState(false);
+  const [anomalies, setAnomalies] = useState<Anomalies | null>(null);
+  const [anLoading, setAnLoading] = useState(false);
 
   const loadUsers = useCallback(async (s: string) => {
     setLoading(true);
@@ -39,8 +56,9 @@ export default function AdminPage() {
         setUsers(data.users ?? []);
         setAuthenticated(true);
         localStorage.setItem(LS_SECRET_KEY, s);
-        // Newsletter-Abonnenten laden
+        // Newsletter-Abonnenten + Auffälligkeiten laden
         loadNewsletter(s);
+        loadAnomalies(s);
       } else {
         setError(data.error ?? "Fehler");
         setAuthenticated(false);
@@ -63,6 +81,18 @@ export default function AdminPage() {
       // ignore
     }
     setNlLoading(false);
+  }, []);
+
+  const loadAnomalies = useCallback(async (s: string) => {
+    setAnLoading(true);
+    try {
+      const res = await fetch(`/api/admin/anomalies?secret=${encodeURIComponent(s)}`);
+      const data = await res.json();
+      if (res.ok) setAnomalies(data as Anomalies);
+    } catch {
+      // ignore
+    }
+    setAnLoading(false);
   }, []);
 
   // Auto-login from localStorage
@@ -113,6 +143,34 @@ export default function AdminPage() {
       if (data.ok) {
         setActionMsg(`${userName} geloescht (${data.tipsDeleted} Tipps entfernt)`);
         loadUsers(secret);
+      } else {
+        setActionMsg(data.error ?? "Fehler");
+      }
+    } catch {
+      setActionMsg("Netzwerkfehler");
+    }
+  }
+
+  async function toggleExcluded(userId: string, userName: string, excluded: boolean) {
+    const verb = excluded ? "aus der Wertung nehmen" : "wieder in die Wertung aufnehmen";
+    if (!confirm(`"${userName}" ${verb}? Die Tipps bleiben erhalten.`)) return;
+    setActionMsg("");
+    try {
+      const res = await fetch(`/api/admin?secret=${encodeURIComponent(secret)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "toggleExcluded", userId, excluded }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setActionMsg(
+          excluded
+            ? `${userName} aus der Wertung genommen`
+            : `${userName} wieder in der Wertung`,
+        );
+        setUsers((prev) =>
+          prev.map((u) => (u.userId === userId ? { ...u, excluded } : u)),
+        );
       } else {
         setActionMsg(data.error ?? "Fehler");
       }
@@ -246,6 +304,43 @@ export default function AdminPage() {
     },
   };
 
+  // ---- Styles fuer das Auffälligkeiten-Panel ----
+  const anStyles = {
+    box: {
+      border: "1px solid #f0d9d9",
+      background: "#fdf7f7",
+      borderRadius: 10,
+      padding: "10px 12px",
+      marginBottom: 10,
+    } as React.CSSProperties,
+    tag: (color: string) =>
+      ({
+        fontSize: 11,
+        fontWeight: 700,
+        color,
+        textTransform: "uppercase",
+        letterSpacing: "0.04em",
+        marginBottom: 6,
+      }) as React.CSSProperties,
+    row: {
+      display: "flex",
+      alignItems: "center",
+      gap: 8,
+      fontSize: 13,
+      padding: "5px 0",
+    } as React.CSSProperties,
+    exBadge: {
+      marginLeft: 8,
+      fontSize: 10,
+      fontWeight: 700,
+      color: "#fff",
+      background: "#9e9e9e",
+      borderRadius: 4,
+      padding: "1px 5px",
+      textTransform: "uppercase" as const,
+    } as React.CSSProperties,
+  };
+
   // ---- Login screen ----
   if (!authenticated) {
     return (
@@ -330,12 +425,13 @@ export default function AdminPage() {
               <th style={s.th}>Punkte</th>
               <th style={s.th}>Joker</th>
               <th style={s.th}>Registriert</th>
+              <th style={s.th}>Wertung</th>
               <th style={s.th}>Aktionen</th>
             </tr>
           </thead>
           <tbody>
             {users.map((u) => (
-              <tr key={u.userId}>
+              <tr key={u.userId} style={u.excluded ? { opacity: 0.5 } : undefined}>
                 {editingId === u.userId ? (
                   <>
                     <td style={s.td}>
@@ -366,6 +462,7 @@ export default function AdminPage() {
                       <span style={{ color: "#7A7A7A" }}> /10</span>
                     </td>
                     <td style={s.td}>{new Date(u.registeredAt).toLocaleDateString("de-DE")}</td>
+                    <td style={s.td}>{u.excluded ? "raus" : "gewertet"}</td>
                     <td style={s.td}>
                       <div style={{ display: "flex", gap: 6 }}>
                         <button style={s.btn("#4293D0")} onClick={() => updateUser(u.userId)}>
@@ -395,6 +492,17 @@ export default function AdminPage() {
                       {new Date(u.registeredAt).toLocaleDateString("de-DE")}
                     </td>
                     <td style={s.td}>
+                      <button
+                        style={u.excluded ? s.btn("#2e7d32") : s.btnOutline}
+                        title={u.excluded
+                          ? "Spieler ist aus der Wertung — Tipps bleiben erhalten"
+                          : "Spieler aus der Wertung nehmen (Tipps bleiben erhalten)"}
+                        onClick={() => toggleExcluded(u.userId, u.userName, !u.excluded)}
+                      >
+                        {u.excluded ? "Reaktivieren" : "Aus Wertung"}
+                      </button>
+                    </td>
+                    <td style={s.td}>
                       <div style={{ display: "flex", gap: 6 }}>
                         <button
                           style={s.btn("#4293D0")}
@@ -422,6 +530,176 @@ export default function AdminPage() {
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* Auffälligkeiten */}
+      <div style={s.card}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+          <h3 style={{ margin: 0, fontSize: 15, color: "#c62828" }}>
+            🔍 Auffälligkeiten
+          </h3>
+          <button style={s.btnOutline} onClick={() => loadAnomalies(secret)}>
+            {anLoading ? "..." : "Aktualisieren"}
+          </button>
+        </div>
+        <p style={{ margin: "0 0 14px", fontSize: 12, color: "#7A7A7A" }}>
+          Indizien aus den vorhandenen Daten – kein Automatismus, Bewertung bleibt bei dir.
+        </p>
+
+        {!anomalies ? (
+          <p style={{ fontSize: 13, color: "#7A7A7A", margin: 0 }}>{anLoading ? "Lädt…" : "—"}</p>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+
+            {/* Doppelregistrierung */}
+            <div>
+              <h4 style={{ margin: "0 0 8px", fontSize: 13, color: "#3A3A3A" }}>
+                Doppelregistrierungs-Verdacht
+              </h4>
+
+              {anomalies.duplicates.sameLocalPart.length === 0 &&
+               anomalies.duplicates.tipTwins.length === 0 &&
+               anomalies.duplicates.sameName.length === 0 && (
+                <p style={{ fontSize: 13, color: "#2e7d32", margin: 0 }}>Keine.</p>
+              )}
+
+              {anomalies.duplicates.sameLocalPart.map((c) => (
+                <div key={`lp-${c.localPart}`} style={anStyles.box}>
+                  <div style={anStyles.tag("#c62828")}>Gleiche E-Mail-Basis „{c.localPart}"</div>
+                  {c.members.map((m) => (
+                    <div key={m.userId} style={anStyles.row}>
+                      <span style={{ flex: 1 }}>
+                        <b>{m.userName}</b> <span style={{ color: "#999" }}>· {m.userId}</span>
+                        {m.excluded && <span style={anStyles.exBadge}>raus</span>}
+                      </span>
+                      <button
+                        style={m.excluded ? s.btn("#2e7d32") : s.btnOutline}
+                        onClick={() => toggleExcluded(m.userId, m.userName, !m.excluded).then(() => loadAnomalies(secret))}
+                      >
+                        {m.excluded ? "Reaktivieren" : "Aus Wertung"}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ))}
+
+              {anomalies.duplicates.tipTwins.map((t) => (
+                <div key={`tw-${t.a}-${t.b}`} style={anStyles.box}>
+                  <div style={anStyles.tag("#c62828")}>
+                    Tipp-Zwillinge · {t.pct}% gleiche Ergebnisse ({t.agree}/{t.shared})
+                  </div>
+                  {[{ id: t.a, name: t.aName, ex: t.aExcluded }, { id: t.b, name: t.bName, ex: t.bExcluded }].map((m) => (
+                    <div key={m.id} style={anStyles.row}>
+                      <span style={{ flex: 1 }}>
+                        <b>{m.name}</b> <span style={{ color: "#999" }}>· {m.id}</span>
+                        {m.ex && <span style={anStyles.exBadge}>raus</span>}
+                      </span>
+                      <button
+                        style={m.ex ? s.btn("#2e7d32") : s.btnOutline}
+                        onClick={() => toggleExcluded(m.id, m.name, !m.ex).then(() => loadAnomalies(secret))}
+                      >
+                        {m.ex ? "Reaktivieren" : "Aus Wertung"}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ))}
+
+              {anomalies.duplicates.sameName.map((c, idx) => (
+                <div key={`nm-${idx}`} style={anStyles.box}>
+                  <div style={anStyles.tag("#9e9e9e")}>Gleicher Anzeigename (schwaches Signal)</div>
+                  {c.members.map((m) => (
+                    <div key={m.userId} style={anStyles.row}>
+                      <span style={{ flex: 1 }}>
+                        <b>{m.userName}</b> <span style={{ color: "#999" }}>· {m.userId}</span>
+                        {m.excluded && <span style={anStyles.exBadge}>raus</span>}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+
+            {/* Verdächtig hohe Trefferquote */}
+            <div>
+              <h4 style={{ margin: "0 0 8px", fontSize: 13, color: "#3A3A3A" }}>
+                Verdächtig hohe Exakt-Quote{" "}
+                <span style={{ color: "#999", fontWeight: 400 }}>
+                  (Feld-Schnitt {anomalies.counts.fieldExactPct}% · statistisch unwahrscheinlich, ab 8 Spielen)
+                </span>
+              </h4>
+              {anomalies.suspiciousAccuracy.length === 0 ? (
+                <p style={{ fontSize: 13, color: "#2e7d32", margin: 0 }}>Keine (oder noch zu wenige Spiele gewertet).</p>
+              ) : (
+                anomalies.suspiciousAccuracy.map((u) => (
+                  <div key={u.userId} style={anStyles.row}>
+                    <span style={{ flex: 1 }}>
+                      <b>{u.userName}</b>
+                      {u.excluded && <span style={anStyles.exBadge}>raus</span>}
+                    </span>
+                    <span style={{ color: "#c62828", fontWeight: 700, marginRight: 10 }}>
+                      {u.ratePct}% exakt
+                    </span>
+                    <span style={{ color: "#999", fontSize: 12 }}>
+                      {u.exact}/{u.resolved} · nur {u.chancePct}% Zufall
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Last-Minute */}
+            <div>
+              <h4 style={{ margin: "0 0 8px", fontSize: 13, color: "#3A3A3A" }}>
+                Last-Minute-Tipper <span style={{ color: "#999", fontWeight: 400 }}>(≤ 5 Min vor Anpfiff, ab 2 Tipps)</span>
+              </h4>
+              {anomalies.lastMinute.length === 0 ? (
+                <p style={{ fontSize: 13, color: "#2e7d32", margin: 0 }}>Keine.</p>
+              ) : (
+                anomalies.lastMinute.map((u) => (
+                  <div key={u.userId} style={anStyles.row}>
+                    <span style={{ flex: 1 }}>
+                      <b>{u.userName}</b>
+                      {u.excluded && <span style={anStyles.exBadge}>raus</span>}
+                    </span>
+                    <span style={{ color: "#c62828", fontWeight: 700, marginRight: 10 }}>
+                      {u.lastMinuteTips}× last-minute
+                    </span>
+                    <span style={{ color: "#999", fontSize: 12 }}>
+                      {u.share}% · knappste {u.knappsteMinuten} Min
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Häufige Änderungen */}
+            <div>
+              <h4 style={{ margin: "0 0 8px", fontSize: 13, color: "#3A3A3A" }}>
+                Häufige Tipp-Änderungen
+              </h4>
+              {anomalies.frequentChanges.length === 0 ? (
+                <p style={{ fontSize: 13, color: "#7A7A7A", margin: 0 }}>Keine (oder noch keine Daten).</p>
+              ) : (
+                anomalies.frequentChanges.map((u) => (
+                  <div key={u.userId} style={anStyles.row}>
+                    <span style={{ flex: 1 }}>
+                      <b>{u.userName}</b>
+                      {u.excluded && <span style={anStyles.exBadge}>raus</span>}
+                    </span>
+                    <span style={{ color: "#c62828", fontWeight: 700, marginRight: 10 }}>
+                      {u.changes} Änderungen
+                    </span>
+                    <span style={{ color: "#999", fontSize: 12 }}>
+                      {u.submits} Abgaben / {u.distinctTips} Spiele
+                    </span>
+                  </div>
+                ))
+              )}
+              <p style={{ margin: "8px 0 0", fontSize: 11, color: "#bbb" }}>{anomalies.note}</p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Newsletter-Abonnenten */}

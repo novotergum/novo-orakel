@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readPredictions, type PredictionRecord } from "../../../lib/store";
+import { readRankedPredictions, type PredictionRecord } from "../../../lib/store";
 import { Redis } from "@upstash/redis";
 
 // ---------------------------------------------------------------------------
@@ -436,7 +436,7 @@ export async function GET(req: NextRequest) {
 
   try {
     const format = req.nextUrl.searchParams.get("format") ?? "html";
-    const records = await readPredictions();
+    const records = await readRankedPredictions();
     const { board } = buildStats(records);
     const standorte = buildStandorte(records);
     const funFacts = generateFunFacts(board, records);

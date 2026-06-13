@@ -31,6 +31,43 @@ function field(matchId: number, userId: string) {
   return `${matchId}_${userId}`;
 }
 
+// --- Wertungs-Ausschluss ("aus der Wertung genommen") --------------------
+// Soft-Ausschluss: userIds in diesem Redis-Set tauchen in KEINER Rangliste /
+// keinem Board mehr auf, ihre Tipps bleiben aber vollstaendig in Redis erhalten.
+// Verwaltung ueber das Admin-Board (POST /api/admin action=toggleExcluded).
+// Wichtig: readPredictions() liefert weiterhin ALLE Records (damit resolve/admin-
+// Schreibpfade die Tipps nicht loeschen) — nur die Anzeige-Pfade nutzen
+// readRankedPredictions(), das die ausgeschlossenen userIds herausfiltert.
+const EXCLUDED_KEY = "ranking:excluded";
+
+export async function readExcludedUserIds(): Promise<string[]> {
+  if (!process.env.UPSTASH_REDIS_REST_URL) return [];
+  const redis = getRedis();
+  return (await redis.smembers<string[]>(EXCLUDED_KEY)) || [];
+}
+
+export async function setUserExcluded(
+  userId: string,
+  excluded: boolean,
+): Promise<void> {
+  const redis = getRedis();
+  if (excluded) await redis.sadd(EXCLUDED_KEY, userId);
+  else await redis.srem(EXCLUDED_KEY, userId);
+}
+
+// Wie readPredictions(), aber ohne die aus der Wertung genommenen userIds. Fuer
+// alle Anzeige-/Ranking-Oberflaechen (Board, Leaderboard, Teams, Newsletter,
+// Statistik) — NICHT fuer Schreib-/Resolve-Pfade.
+export async function readRankedPredictions(): Promise<PredictionRecord[]> {
+  const [records, excluded] = await Promise.all([
+    readPredictions(),
+    readExcludedUserIds().catch(() => [] as string[]),
+  ]);
+  if (!excluded.length) return records;
+  const ex = new Set(excluded);
+  return records.filter((r) => !ex.has(r.userId));
+}
+
 // --- Legacy (pre-hash) layout, read only for the one-time migration ---
 const LEGACY_ALL_KEY = "predictions:all";
 
@@ -148,6 +185,181 @@ export async function readStandortByEmail(): Promise<Record<string, string>> {
   return all || {};
 }
 
+// --- Tipp-Aktivitaet (Änderungs-Zähler) ----------------------------------
+// Zaehlt JEDE Tippabgabe/Änderung pro Spieler dauerhaft hoch (ab Einbau). Aus
+// "Gesamt-Abgaben minus eindeutig getippte Spiele" leitet das Admin-Panel die
+// Zahl der Tipp-Änderungen ab (Indiz fuer auffaellig haeufiges Hin-und-Her).
+const TIP_EDITS_KEY = "tip:edits";
+
+export async function bumpTipEditCount(userId: string): Promise<void> {
+  if (!process.env.UPSTASH_REDIS_REST_URL) return;
+  const redis = getRedis();
+  await redis.hincrby(TIP_EDITS_KEY, userId, 1);
+}
+
+export async function readTipEditCounts(): Promise<Record<string, number>> {
+  if (!process.env.UPSTASH_REDIS_REST_URL) return {};
+  const redis = getRedis();
+  const all = await redis.hgetall<Record<string, number>>(TIP_EDITS_KEY);
+  return all || {};
+}
+
+// --- Rang-Bewegung pro Spieltag ------------------------------------------
+// Nach jeder Spieltag-Aufloesung (resolve-all) snapshotten wir die Rangliste.
+// Aus dem Vergleich "Rang vorher -> Rang jetzt" leiten wir motivierende
+// Sprueche ab, die der Spieler beim naechsten Dashboard-Besuch genau EINMAL
+// sieht (Dismiss ueber rank:seen). Nur Menschen, ausgeschlossene IDs raus.
+const RANK_PREV_KEY = "rank:prev"; // hash userId -> Rang VOR dem letzten Resolve
+const RANK_MOVE_KEY = "rank:move"; // hash userId -> JSON(RankMove) der letzten Bewegung
+const RANK_SEEN_KEY = "rank:seen"; // hash userId -> zuletzt quittierte Runde
+const RANK_ROUND_KEY = "rank:round"; // monoton steigender Runden-Zaehler
+
+export interface RankMove {
+  from: number | null; // null = war vorher nicht in der Wertung
+  to: number;
+  points: number;
+  round: number;
+  improved: boolean; // Rang verbessert (kleinere Zahl)
+  enteredTop3: boolean; // neu ins Podium geklettert
+  becameLeader: boolean; // neu auf Platz 1
+}
+
+// Baut die Menschen-Rangliste (gleiche Sortierung wie Board/Leaderboard).
+function humanRanking(
+  records: PredictionRecord[],
+  excluded: Set<string>,
+): Map<string, { rank: number; points: number }> {
+  const agg = new Map<
+    string,
+    { points: number; exact: number; diff: number; tend: number; name: string }
+  >();
+  for (const r of records) {
+    if (r.source !== "human" || excluded.has(r.userId)) continue;
+    const pts = r.points ?? 0;
+    const e = agg.get(r.userId) ?? { points: 0, exact: 0, diff: 0, tend: 0, name: r.userName };
+    e.points += pts;
+    if (pts === 4) e.exact++;
+    else if (pts === 3) e.diff++;
+    else if (pts === 2) e.tend++;
+    agg.set(r.userId, e);
+  }
+  const sorted = [...agg.entries()].sort(
+    (a, b) =>
+      b[1].points - a[1].points ||
+      b[1].exact - a[1].exact ||
+      b[1].diff - a[1].diff ||
+      b[1].tend - a[1].tend ||
+      a[1].name.localeCompare(b[1].name),
+  );
+  const out = new Map<string, { rank: number; points: number }>();
+  sorted.forEach(([userId, e], i) => out.set(userId, { rank: i + 1, points: e.points }));
+  return out;
+}
+
+// Nach Spieltag-Aufloesung aufrufen: vergleicht mit dem letzten Snapshot,
+// schreibt pro Spieler die Bewegung und aktualisiert den Snapshot.
+export async function recordRankSnapshot(records: PredictionRecord[]): Promise<void> {
+  if (!process.env.UPSTASH_REDIS_REST_URL) return;
+  const redis = getRedis();
+  const excluded = new Set(await readExcludedUserIds().catch(() => [] as string[]));
+  const current = humanRanking(records, excluded);
+  if (current.size === 0) return;
+
+  const prev = (await redis.hgetall<Record<string, number>>(RANK_PREV_KEY)) || {};
+  // Beim allerersten Snapshot (kein prev) waere jeder "neu" — keine Ticker-Events,
+  // nur die Ausgangslage festschreiben.
+  const hadPrev = Object.keys(prev).length > 0;
+  const round = await redis.incr(RANK_ROUND_KEY);
+
+  // userId -> Anzeigename (nur Menschen) fuer die Liveticker-Texte.
+  const names = new Map<string, string>();
+  for (const r of records) {
+    if (r.source === "human" && !names.has(r.userId)) names.set(r.userId, r.userName);
+  }
+
+  const moves: Record<string, string> = {};
+  const newPrev: Record<string, number> = {};
+  let newLeader: string | null = null; // userId der neuen #1
+  const podiumEntrants: string[] = []; // userIds, neu in Top 3 (ohne neuen Leader)
+  for (const [userId, { rank, points }] of current) {
+    const from = userId in prev ? Number(prev[userId]) : null;
+    const becameLeader = rank === 1 && from !== 1;
+    const enteredTop3 = rank <= 3 && (from == null || from > 3);
+    const move: RankMove = {
+      from,
+      to: rank,
+      points,
+      round,
+      improved: from != null && rank < from,
+      enteredTop3,
+      becameLeader,
+    };
+    moves[userId] = JSON.stringify(move);
+    newPrev[userId] = rank;
+    if (becameLeader) newLeader = userId;
+    else if (enteredTop3) podiumEntrants.push(userId);
+  }
+
+  // Snapshot + Bewegungen atomar genug ueber zwei Rewrites ersetzen.
+  await redis.del(RANK_MOVE_KEY);
+  await redis.hset(RANK_MOVE_KEY, moves);
+  await redis.del(RANK_PREV_KEY);
+  await redis.hset(RANK_PREV_KEY, newPrev);
+
+  // Kuratierte Liveticker-Events: nur die zwei Schwellen-Momente mit Erzaehlwert
+  // (Fuehrungswechsel + Podiums-Neuzugang), gebuendelt pro Aufloesung. Der neue
+  // Leader wird nur als Fuehrungswechsel angekuendigt, nicht doppelt als Podium.
+  if (!hadPrev) return;
+  const ts = new Date().toISOString();
+  // Podium zuerst pushen, Leader zuletzt -> Leader steht im Ticker oben (LPUSH).
+  if (podiumEntrants.length > 0) {
+    const names3 = podiumEntrants.map((id) => names.get(id) || "Jemand");
+    const label =
+      names3.length <= 2
+        ? names3.join(" & ")
+        : `${names3.slice(0, -1).join(", ")} & ${names3[names3.length - 1]}`;
+    await pushFeedEvent({
+      id: crypto.randomUUID(),
+      type: "entered_podium",
+      userName: label,
+      ts,
+      count: names3.length,
+    }).catch(() => {});
+  }
+  if (newLeader) {
+    await pushFeedEvent({
+      id: crypto.randomUUID(),
+      type: "took_lead",
+      userName: names.get(newLeader) || "Jemand",
+      ts,
+    }).catch(() => {});
+  }
+}
+
+// Liefert die noch nicht quittierte, positive Bewegung eines Spielers (oder null).
+export async function getPendingRankMove(userId: string): Promise<RankMove | null> {
+  if (!process.env.UPSTASH_REDIS_REST_URL) return null;
+  const redis = getRedis();
+  const raw = await redis.hget(RANK_MOVE_KEY, userId);
+  if (!raw) return null;
+  const move: RankMove = typeof raw === "string" ? JSON.parse(raw) : (raw as RankMove);
+  const seen = await redis.hget<number>(RANK_SEEN_KEY, userId);
+  if (seen != null && Number(seen) >= move.round) return null;
+  // Nur positive Ereignisse feiern.
+  if (!move.improved && !move.enteredTop3 && !move.becameLeader) return null;
+  return move;
+}
+
+// Markiert die aktuelle Bewegung als gesehen (Dismiss).
+export async function markRankMoveSeen(userId: string): Promise<void> {
+  if (!process.env.UPSTASH_REDIS_REST_URL) return;
+  const redis = getRedis();
+  const raw = await redis.hget(RANK_MOVE_KEY, userId);
+  if (!raw) return;
+  const move: RankMove = typeof raw === "string" ? JSON.parse(raw) : (raw as RankMove);
+  await redis.hset(RANK_SEEN_KEY, { [userId]: move.round });
+}
+
 // --- Activity feed -------------------------------------------------------
 // Append-only, capped list of recent events for the live ticker. Stored as a
 // Redis list at FEED_KEY: newest first (LPUSH), trimmed to FEED_MAX (LTRIM).
@@ -158,12 +370,18 @@ const FEED_MAX = 200;
 
 export interface FeedEvent {
   id: string;
-  type: "registered" | "tip_placed" | "tip_changed" | "agent_tipped";
+  type:
+    | "registered"
+    | "tip_placed"
+    | "tip_changed"
+    | "agent_tipped"
+    | "took_lead" // neue Person auf Platz 1
+    | "entered_podium"; // neu in die Top 3 geklettert (gebuendelt pro Spieltag)
   userName: string;
   ts: string; // ISO
   matchLabel?: string; // e.g. "Deutschland – Frankreich" (no score)
   minutesToKickoff?: number; // for the "last minute" badge
-  count?: number; // Anzahl Spiele (fuer agent_tipped: Orakel-Sammel-Event)
+  count?: number; // Anzahl Spiele (agent_tipped) bzw. Anzahl Personen (entered_podium)
 }
 
 export async function pushFeedEvent(ev: FeedEvent): Promise<void> {

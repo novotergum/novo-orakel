@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readPredictions } from "../../../lib/store";
+import { readRankedPredictions } from "../../../lib/store";
 
 const AGENT_ID = "ut-orakel";
 
@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
 
   try {
     if (type === "leaderboard") {
-      const records = await readPredictions();
+      const records = await readRankedPredictions();
 
       const pointsMap = new Map<string, { name: string; points: number; source: string }>();
       for (const r of records) {
