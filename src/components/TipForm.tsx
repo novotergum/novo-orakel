@@ -917,26 +917,21 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
   // Render: Logged in – matches with inline tips
   // =========================================================================
 
-  // Heutige, noch nicht angepfiffene Spiele -> prominenter "Heute"-Block oben
-  const nowDate = new Date(now);
-  const sameLocalDay = (iso: string) => {
-    const d = new Date(iso);
-    return (
-      d.getFullYear() === nowDate.getFullYear() &&
-      d.getMonth() === nowDate.getMonth() &&
-      d.getDate() === nowDate.getDate()
-    );
-  };
+  // Spiele mit Anpfiff in den nächsten 24 h -> prominenter Block oben.
+  // Bewusst rollierendes Fenster statt Kalendertag: viele Spiele starten früh
+  // morgens, ein Spiel "morgen 6:00" ist näher dran als "heute 23:00".
+  const WINDOW_MS = 24 * 60 * 60 * 1000;
   const todayUpcoming = matches
-    .filter(
-      (m) => new Date(m.kickoff).getTime() > now && sameLocalDay(m.kickoff),
-    )
+    .filter((m) => {
+      const t = new Date(m.kickoff).getTime();
+      return t > now && t <= now + WINDOW_MS;
+    })
     .sort(
       (a, b) => new Date(a.kickoff).getTime() - new Date(b.kickoff).getTime(),
     );
   const todayUpcomingIds = new Set(todayUpcoming.map((m) => m.id));
   const todayUntipped = todayUpcoming.filter((m) => !myTips[m.id]).length;
-  // Dringlichster ungetippter Anpfiff heute (Minuten bis Kickoff, sonst null)
+  // Dringlichster ungetippter Anpfiff im Fenster (Minuten bis Kickoff, sonst null)
   const imminentMins = todayUpcoming
     .filter((m) => !myTips[m.id])
     .map((m) => Math.floor((new Date(m.kickoff).getTime() - now) / 60_000))
@@ -1029,7 +1024,7 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
                 gap: 6,
               }}
             >
-              <span style={{ fontSize: 18 }}>⚽</span> Heute
+              <span style={{ fontSize: 18 }}>⚽</span> Nächste 24 Stunden
             </h3>
             {todayUntipped > 0 ? (
               <span
@@ -1072,7 +1067,7 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
           >
             {hasImminent
               ? "Letzte Chance – nach dem Anpfiff ist der Tipp dicht!"
-              : "Diese Spiele starten heute – tippe direkt hier, bevor der Anpfiff kommt."}
+              : "Diese Spiele starten in den nächsten 24 Stunden – tippe direkt hier, bevor der Anpfiff kommt."}
           </p>
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
             {todayUpcoming.map((m) => renderMatchCard(m, "#F39200"))}

@@ -208,11 +208,22 @@ export async function POST(req: NextRequest) {
     const LOOKAHEAD_HOURS = 36;
     const now = Date.now();
     const windowEnd = now + LOOKAHEAD_HOURS * 60 * 60 * 1000;
-    const matches = allMatches.filter((m: { kickoff?: string }) => {
+    const inWindow = allMatches.filter((m: { kickoff?: string }) => {
       if (!m.kickoff) return false;
       const ko = new Date(m.kickoff).getTime();
       return ko > now && ko <= windowEnd;
     });
+
+    // Festnageln: bereits getippte Spiele nicht erneut anfassen. Das Orakel
+    // committet beim ersten Sichten (~36 h vorher) und bleibt dabei – fair
+    // gegenüber den Menschen, statt jede Nacht mit frischem Elo zu überschreiben.
+    const existingTips = await readPredictions();
+    const alreadyTipped = new Set(
+      existingTips.filter((p) => p.userId === AGENT_ID).map((p) => p.matchId),
+    );
+    const matches = inWindow.filter(
+      (m: { id: number }) => !alreadyTipped.has(m.id),
+    );
 
     if (!matches.length) {
       return NextResponse.json({
