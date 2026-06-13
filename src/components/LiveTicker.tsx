@@ -4,11 +4,12 @@ import { useEffect, useRef, useState } from "react";
 
 interface FeedEvent {
   id: string;
-  type: "registered" | "tip_placed" | "tip_changed";
+  type: "registered" | "tip_placed" | "tip_changed" | "agent_tipped";
   userName: string;
   ts: string;
   matchLabel?: string;
   minutesToKickoff?: number;
+  count?: number;
 }
 
 const POLL_MS = 20_000;
@@ -24,10 +25,25 @@ function relTime(iso: string): string {
   return `vor ${Math.floor(h / 24)} Tg`;
 }
 
-function render(ev: FeedEvent): { icon: string; text: string; hot: boolean } {
+function render(ev: FeedEvent): {
+  icon: string;
+  text: string;
+  hot: boolean;
+  machine: boolean;
+} {
   const name = ev.userName || "Jemand";
+  // UT Orakel (Maschine) – gesondertes Sammel-Event, hervorgehoben.
+  if (ev.type === "agent_tipped") {
+    const n = ev.count ?? 0;
+    return {
+      icon: "🤖",
+      text: `${name} hat ${n} ${n === 1 ? "Spiel" : "Spiele"} getippt – Mensch gegen Maschine!`,
+      hot: false,
+      machine: true,
+    };
+  }
   if (ev.type === "registered") {
-    return { icon: "🆕", text: `${name} ist dabei!`, hot: false };
+    return { icon: "🆕", text: `${name} ist dabei!`, hot: false, machine: false };
   }
   const hot =
     ev.type === "tip_changed" &&
@@ -41,9 +57,10 @@ function render(ev: FeedEvent): { icon: string; text: string; hot: boolean } {
         ? `${name} ändert last minute den Tipp${where}! (${ev.minutesToKickoff} Min vor Anpfiff)`
         : `${name} hat den Tipp${where} geändert`,
       hot,
+      machine: false,
     };
   }
-  return { icon: "✍️", text: `${name} hat${where} getippt`, hot: false };
+  return { icon: "✍️", text: `${name} hat${where} getippt`, hot: false, machine: false };
 }
 
 export default function LiveTicker() {
@@ -134,8 +151,9 @@ export default function LiveTicker() {
                   gap: 9,
                   fontSize: 13.5,
                   lineHeight: 1.4,
-                  color: r.hot ? "#c2410c" : "#33333a",
-                  fontWeight: r.hot ? 600 : 400,
+                  color: r.machine ? "#2f6fb0" : r.hot ? "#c2410c" : "#33333a",
+                  fontWeight: r.hot || r.machine ? 600 : 400,
+                  background: r.machine ? "rgba(66,147,208,0.09)" : "transparent",
                   borderRadius: 8,
                   padding: "3px 8px",
                   margin: "0 -8px",

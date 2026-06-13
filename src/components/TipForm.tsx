@@ -484,6 +484,10 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
   function renderMatchCard(m: Match, stageColor: string) {
     const tip = myTips[m.id];
     const editable = new Date(m.kickoff).getTime() > now;
+    const sh = m.score?.home;
+    const sa = m.score?.away;
+    const finished = sh != null && sa != null;
+    const finalScore = finished ? `${sh}:${sa}` : null;
     const isExpanded = expandedMatch === m.id;
     const orakel = orakelResults[m.id];
     const matchResult = result?.matchId === m.id ? result : null;
@@ -514,13 +518,22 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontWeight: 600, fontSize: 13, color: "#3A3A3A", lineHeight: 1.4 }}>
               <FlagImg code={m.homeTeam.code} />{m.homeTeam.code ?? m.homeTeam.name}
-              <span style={{ color: "#7A7A7A", margin: "0 4px" }}>vs</span>
+              {finished ? (
+                <span style={{ color: "#3A3A3A", fontWeight: 700, margin: "0 6px" }}>
+                  {finalScore}
+                </span>
+              ) : (
+                <span style={{ color: "#7A7A7A", margin: "0 4px" }}>vs</span>
+              )}
               <FlagImg code={m.awayTeam.code} />{m.awayTeam.code ?? m.awayTeam.name}
             </div>
             <div style={{ fontSize: 11, color: "#7A7A7A", marginTop: 1 }}>
               {fmtDate(m.kickoff)}
+              {finished && (
+                <span style={{ color: "#7A7A7A", fontWeight: 600 }}> &middot; beendet</span>
+              )}
               {" "}
-              {(() => {
+              {!finished && (() => {
                 const cd = countdownInfo(m.kickoff);
                 return (
                   <span
@@ -599,6 +612,17 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
                 <span style={{ color: "#66bb6a", marginLeft: 2 }}>✎</span>
               )}
             </div>
+          ) : finished ? (
+            <span
+              style={{
+                fontSize: 11,
+                color: "#b0b0b0",
+                fontStyle: "italic",
+                flexShrink: 0,
+              }}
+            >
+              nicht getippt
+            </span>
           ) : currentUser ? (
             <button
               onClick={() => {
@@ -938,7 +962,17 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
     .filter((mins) => mins <= 60)
     .sort((a, b) => a - b)[0];
   const hasImminent = imminentMins !== undefined;
-  const restMatches = matches.filter((m) => !todayUpcomingIds.has(m.id));
+  // Beendete Spiele zusaetzlich in die Stage-Tabellen zuruecknehmen (mit
+  // Endstand) – nicht nur unter "Meine Ergebnisse". Upcoming + finished mergen,
+  // deduplizieren, chronologisch sortieren (damit Gruppen-/KO-Listen stimmen).
+  const allMatchesById = new Map<number, Match>();
+  for (const m of matches) allMatchesById.set(m.id, m);
+  for (const m of finishedMatches)
+    if (!allMatchesById.has(m.id)) allMatchesById.set(m.id, m);
+  const allMatches = [...allMatchesById.values()].sort(
+    (a, b) => new Date(a.kickoff).getTime() - new Date(b.kickoff).getTime(),
+  );
+  const restMatches = allMatches.filter((m) => !todayUpcomingIds.has(m.id));
 
   return (
     <div style={s.section}>

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getMatches } from "../../../lib/football-data";
 import { getTeamRecentMatches, buildTeamElo, predictFromElo } from "../../../lib/elo";
 import { buildTipFromPrediction, type TipStyle } from "../../../lib/tip-engine";
-import { upsertPrediction, readPredictions, type PredictionRecord } from "../../../lib/store";
+import { upsertPrediction, readPredictions, pushFeedEvent, type PredictionRecord } from "../../../lib/store";
 
 const AGENT_ID = "ut-orakel";
 const AGENT_NAME = "UT Orakel";
@@ -259,6 +259,23 @@ export async function POST(req: NextRequest) {
           away: m.awayTeam.name,
           error: msg,
         });
+      }
+    }
+
+    // Live-Ticker: ein gesondertes Sammel-Event fuer die Orakel-Tippabgabe
+    // (Maschine), bewusst ohne Tipp-Inhalte. Best-effort, blockiert nie.
+    const successCount = results.filter((r) => r.ok).length;
+    if (successCount > 0) {
+      try {
+        await pushFeedEvent({
+          id: crypto.randomUUID(),
+          type: "agent_tipped",
+          userName: AGENT_NAME,
+          ts: new Date().toISOString(),
+          count: successCount,
+        });
+      } catch {
+        // ignore feed errors
       }
     }
 

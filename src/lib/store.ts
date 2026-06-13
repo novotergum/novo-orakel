@@ -158,11 +158,12 @@ const FEED_MAX = 200;
 
 export interface FeedEvent {
   id: string;
-  type: "registered" | "tip_placed" | "tip_changed";
+  type: "registered" | "tip_placed" | "tip_changed" | "agent_tipped";
   userName: string;
   ts: string; // ISO
   matchLabel?: string; // e.g. "Deutschland – Frankreich" (no score)
   minutesToKickoff?: number; // for the "last minute" badge
+  count?: number; // Anzahl Spiele (fuer agent_tipped: Orakel-Sammel-Event)
 }
 
 export async function pushFeedEvent(ev: FeedEvent): Promise<void> {
