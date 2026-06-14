@@ -224,9 +224,10 @@ export async function DELETE(req: NextRequest) {
         const pipeline = redis.pipeline();
         for (const k of userKeys) {
           pipeline.del(k);
-          // Extract userId from key "user:xxx" to delete joker
+          // Extract userId from key "user:xxx" to delete joker + IP-Hashes
           const uid = k.replace("user:", "");
           pipeline.del(`joker:${uid}`);
+          pipeline.del(`ip:${uid}`);
         }
         pipeline.del(USERS_KEY);
         // Presence-Daten (online + zuletzt aktiv) komplett mit weg
@@ -248,9 +249,10 @@ export async function DELETE(req: NextRequest) {
     await redis.del(key);
     await redis.srem(USERS_KEY, key);
 
-    // Delete joker count + "zuletzt aktiv"-Eintrag
+    // Delete joker count + "zuletzt aktiv"-Eintrag + IP-Hashes
     await redis.del(`joker:${userId}`);
     await redis.hdel("presence:seen", userId);
+    await redis.del(`ip:${userId}`);
 
     // Optionally delete their tips
     let tipsDeleted = 0;

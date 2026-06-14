@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 
 interface Entry {
   userId: string;
@@ -22,37 +22,6 @@ const card: React.CSSProperties = {
   boxShadow: "0 2px 12px rgba(0,0,0,0.04)",
 };
 
-function OnlineTag({ label }: { label?: boolean }) {
-  return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 4, verticalAlign: "middle" }}>
-      <span
-        style={{
-          width: 7,
-          height: 7,
-          borderRadius: "50%",
-          background: "#42d07a",
-          boxShadow: "0 0 0 0 rgba(66,208,122,0.6)",
-          animation: "presence-pulse 1.8s infinite",
-          flexShrink: 0,
-        }}
-      />
-      {label && (
-        <span
-          style={{
-            fontSize: 10,
-            color: "#2e9e5b",
-            fontWeight: 700,
-            textTransform: "uppercase",
-            letterSpacing: "0.05em",
-          }}
-        >
-          Online
-        </span>
-      )}
-    </span>
-  );
-}
-
 export default function Leaderboard({
   top3,
   rest,
@@ -62,12 +31,11 @@ export default function Leaderboard({
   rest: Entry[];
   currentUserId: string;
 }) {
-  const [online, setOnline] = useState<Set<string>>(new Set());
-
-  // Heartbeat (alle 30 s) + Online-Liste pollen (alle 25 s). Pausiert, wenn der
-  // Tab im Hintergrund ist; aktualisiert sofort beim Zurueckkehren.
+  // Presence-Heartbeat (alle 30 s). Speist "online"-Zaehler im Live-Ticker und
+  // "zuletzt aktiv" im Admin. Die Online-Anzeige im Leaderboard selbst wurde
+  // entfernt — das Signal lebt jetzt nur noch im Live-Ticker. Pausiert im
+  // Hintergrund-Tab, feuert sofort beim Zurueckkehren.
   useEffect(() => {
-    let alive = true;
     const hidden = () =>
       typeof document !== "undefined" && document.visibilityState === "hidden";
 
@@ -79,33 +47,15 @@ export default function Leaderboard({
         /* ignore */
       }
     }
-    async function load() {
-      if (hidden()) return;
-      try {
-        const r = await fetch("/api/presence", { cache: "no-store" });
-        if (!r.ok) return;
-        const d = await r.json();
-        if (alive && Array.isArray(d.online)) setOnline(new Set(d.online));
-      } catch {
-        /* ignore */
-      }
-    }
 
     beat();
-    load();
     const b = setInterval(beat, 30_000);
-    const l = setInterval(load, 25_000);
     const onVis = () => {
-      if (document.visibilityState === "visible") {
-        beat();
-        load();
-      }
+      if (document.visibilityState === "visible") beat();
     };
     document.addEventListener("visibilitychange", onVis);
     return () => {
-      alive = false;
       clearInterval(b);
-      clearInterval(l);
       document.removeEventListener("visibilitychange", onVis);
     };
   }, []);
@@ -138,7 +88,6 @@ export default function Leaderboard({
               };
               const color = medalByRank[entry.rank] ?? "#A0522D";
               const isFirst = i === 0;
-              const isOnline = entry.source === "human" && online.has(entry.userId);
               const isMe = entry.userId === currentUserId;
               return (
                 <div
@@ -202,11 +151,6 @@ export default function Leaderboard({
                   <div style={{ fontSize: isFirst ? 18 : 15, fontWeight: 700, color: "#2a2a2a", marginBottom: 4 }}>
                     {entry.userName}
                   </div>
-                  {isOnline && (
-                    <div style={{ marginBottom: 4 }}>
-                      <OnlineTag label />
-                    </div>
-                  )}
                   {entry.source === "agent" && (
                     <span
                       style={{
@@ -295,7 +239,6 @@ export default function Leaderboard({
                 </thead>
                 <tbody>
                   {rest.map((entry, i) => {
-                    const isOnline = entry.source === "human" && online.has(entry.userId);
                     const isMe = entry.userId === currentUserId;
                     return (
                       <tr
@@ -328,11 +271,6 @@ export default function Leaderboard({
                               }}
                             >
                               Du
-                            </span>
-                          )}
-                          {isOnline && (
-                            <span style={{ marginLeft: 8 }}>
-                              <OnlineTag label />
                             </span>
                           )}
                           {entry.source === "agent" && (
@@ -387,14 +325,6 @@ export default function Leaderboard({
           </details>
         </section>
       )}
-
-      <style>{`
-        @keyframes presence-pulse {
-          0% { box-shadow: 0 0 0 0 rgba(66,208,122,0.5); }
-          70% { box-shadow: 0 0 0 5px rgba(66,208,122,0); }
-          100% { box-shadow: 0 0 0 0 rgba(66,208,122,0); }
-        }
-      `}</style>
     </>
   );
 }

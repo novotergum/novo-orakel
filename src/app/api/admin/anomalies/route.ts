@@ -4,6 +4,7 @@ import {
   readPredictions,
   readExcludedUserIds,
   readTipEditCounts,
+  readIpHashSets,
   type PredictionRecord,
 } from "../../../../lib/store";
 
@@ -150,6 +151,33 @@ export async function GET(req: NextRequest) {
     }
     tipTwins.sort((x, y) => y.pct - x.pct || y.shared - x.shared);
 
+    // IP-Korroboration: markiere Dubletten, die ZUSAETZLICH eine IP teilen.
+    // Reines Bestaetigungssignal auf bereits geflaggten Treffern, KEIN Detektor
+    // (Office-/Heim-NAT teilen IPs legitim). Nur fuer verwickelte User geladen.
+    const involvedIds = new Set<string>();
+    for (const c of sameLocalPart) for (const m of c.members) involvedIds.add(m.userId);
+    for (const c of sameName) for (const m of c.members) involvedIds.add(m.userId);
+    for (const t of tipTwins) { involvedIds.add(t.a); involvedIds.add(t.b); }
+    const ipSets = await readIpHashSets([...involvedIds]).catch(
+      () => new Map<string, Set<string>>(),
+    );
+    const groupSharesIp = (members: { userId: string }[]): boolean => {
+      const seen = new Set<string>();
+      for (const m of members) {
+        for (const h of ipSets.get(m.userId) ?? []) {
+          if (seen.has(h)) return true;
+          seen.add(h);
+        }
+      }
+      return false;
+    };
+    const pairSharesIp = (a: string, b: string): boolean => {
+      const A = ipSets.get(a), B = ipSets.get(b);
+      if (!A || !B) return false;
+      for (const h of A) if (B.has(h)) return true;
+      return false;
+    };
+
     // 1d) Verdächtig hohe Exakt-Trefferquote ------------------------------
     // Exaktes Ergebnis zu treffen ist selten. Statt flacher Quote (bei kleiner
     // Stichprobe reines Rauschen) testen wir statistisch: Wie wahrscheinlich ist
@@ -238,7 +266,11 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       counts: { humans: list.length, matchesWithKickoff: kickoff.size, fieldExactPct: Math.round(fieldRate * 100) },
-      duplicates: { sameLocalPart, sameName, tipTwins },
+      duplicates: {
+        sameLocalPart: sameLocalPart.map((c) => ({ ...c, sharedIp: groupSharesIp(c.members) })),
+        sameName: sameName.map((c) => ({ ...c, sharedIp: groupSharesIp(c.members) })),
+        tipTwins: tipTwins.map((t) => ({ ...t, sharedIp: pairSharesIp(t.a, t.b) })),
+      },
       suspiciousAccuracy,
       lastMinute,
       frequentChanges,

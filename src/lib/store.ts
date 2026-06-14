@@ -12,6 +12,7 @@
  */
 
 import { Redis } from "@upstash/redis";
+import { createHash } from "node:crypto";
 
 let _redis: Redis | null = null;
 
@@ -380,6 +381,52 @@ export async function markRankMoveSeen(userId: string): Promise<void> {
   if (!raw) return;
   const move: RankMove = typeof raw === "string" ? JSON.parse(raw) : (raw as RankMove);
   await redis.hset(RANK_SEEN_KEY, { [userId]: move.round });
+}
+
+// --- IP-Korroboration fuer Doppel-Account-Verdacht -----------------------
+// WICHTIG: Klar-IPs werden NIE gespeichert, nur ein gesalzener SHA-256-Hash
+// (DSGVO-Datensparsamkeit, IP = personenbezogenes Mitarbeiter-Datum). Genutzt
+// AUSSCHLIESSLICH als Bestaetigungssignal auf bereits anderweitig geflaggten
+// Dubletten — niemals als Primaerdetektor (Office-/Heim-NAT teilen IPs).
+const IP_TTL_SECONDS = 60 * 60 * 24 * 60; // 60 Tage Inaktivitaet -> vergessen
+
+function hashIp(ip: string): string {
+  const salt = process.env.IP_HASH_SALT || "novo-orakel-ip";
+  return createHash("sha256").update(salt + ip).digest("hex").slice(0, 16);
+}
+
+// Client-IP aus den Proxy-Headern (Vercel setzt x-forwarded-for).
+export function clientIpFromHeaders(headers: Headers): string | null {
+  const xff = headers.get("x-forwarded-for");
+  if (xff) {
+    const first = xff.split(",")[0]?.trim();
+    if (first) return first;
+  }
+  return headers.get("x-real-ip")?.trim() || null;
+}
+
+// Best-effort: haengt den IP-Hash ans Set des Users und frischt die TTL auf.
+export async function recordClientIp(userId: string, headers: Headers): Promise<void> {
+  if (!process.env.UPSTASH_REDIS_REST_URL) return;
+  const ip = clientIpFromHeaders(headers);
+  if (!ip) return;
+  const redis = getRedis();
+  const key = `ip:${userId}`;
+  await redis.sadd(key, hashIp(ip));
+  await redis.expire(key, IP_TTL_SECONDS);
+}
+
+// Liefert die IP-Hash-Sets der angefragten User (nur die in Dubletten
+// verwickelten, daher klein). Fehlende User -> leeres Set.
+export async function readIpHashSets(userIds: string[]): Promise<Map<string, Set<string>>> {
+  const out = new Map<string, Set<string>>();
+  if (!process.env.UPSTASH_REDIS_REST_URL || userIds.length === 0) return out;
+  const redis = getRedis();
+  const pipe = redis.pipeline();
+  for (const id of userIds) pipe.smembers(`ip:${id}`);
+  const res = (await pipe.exec()) as string[][];
+  userIds.forEach((id, i) => out.set(id, new Set(res[i] ?? [])));
+  return out;
 }
 
 // --- Activity feed -------------------------------------------------------

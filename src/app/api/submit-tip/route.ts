@@ -5,6 +5,7 @@ import {
   getPrediction,
   pushFeedEvent,
   bumpTipEditCount,
+  recordClientIp,
   type PredictionRecord,
 } from "../../../lib/store";
 import { getMatches } from "../../../lib/football-data";
@@ -112,6 +113,9 @@ export async function POST(req: NextRequest) {
 
     // Tipp-Abgaben pro Spieler dauerhaft mitzaehlen (best-effort, Admin-Panel).
     bumpTipEditCount(userId).catch(() => {});
+
+    // IP-Hash fuers Dubletten-Korroborationssignal (best-effort, nie blockierend).
+    recordClientIp(userId, req.headers).catch(() => {});
 
     // Activity feed — best-effort, never blocks the tip. No tip content here.
     try {

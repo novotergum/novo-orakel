@@ -19,9 +19,9 @@ interface AnMember { userId: string; userName: string; excluded: boolean }
 interface Anomalies {
   counts: { humans: number; matchesWithKickoff: number; fieldExactPct: number };
   duplicates: {
-    sameLocalPart: { localPart: string; members: AnMember[] }[];
-    sameName: { name: string; members: AnMember[] }[];
-    tipTwins: { a: string; aName: string; b: string; bName: string; shared: number; agree: number; pct: number; aExcluded: boolean; bExcluded: boolean }[];
+    sameLocalPart: { localPart: string; members: AnMember[]; sharedIp: boolean }[];
+    sameName: { name: string; members: AnMember[]; sharedIp: boolean }[];
+    tipTwins: { a: string; aName: string; b: string; bName: string; shared: number; agree: number; pct: number; aExcluded: boolean; bExcluded: boolean; sharedIp: boolean }[];
   };
   suspiciousAccuracy: { userId: string; userName: string; resolved: number; exact: number; ratePct: number; chancePct: number; excluded: boolean }[];
   lastMinute: { userId: string; userName: string; lastMinuteTips: number; totalTips: number; share: number; knappsteMinuten: number | null; excluded: boolean }[];
@@ -341,6 +341,18 @@ export default function AdminPage() {
       padding: "1px 5px",
       textTransform: "uppercase" as const,
     } as React.CSSProperties,
+    ipBadge: {
+      display: "inline-block",
+      marginLeft: 8,
+      fontSize: 10,
+      fontWeight: 700,
+      color: "#fff",
+      background: "#5b3a8e",
+      borderRadius: 4,
+      padding: "1px 6px",
+      textTransform: "none" as const,
+      letterSpacing: 0,
+    } as React.CSSProperties,
   };
 
   // ---- Login screen ----
@@ -572,7 +584,10 @@ export default function AdminPage() {
 
               {anomalies.duplicates.sameLocalPart.map((c) => (
                 <div key={`lp-${c.localPart}`} style={anStyles.box}>
-                  <div style={anStyles.tag("#c62828")}>Gleiche E-Mail-Basis „{c.localPart}"</div>
+                  <div style={anStyles.tag("#c62828")}>
+                    Gleiche E-Mail-Basis „{c.localPart}"
+                    {c.sharedIp && <span style={anStyles.ipBadge}>🔗 gleiche IP</span>}
+                  </div>
                   {c.members.map((m) => (
                     <div key={m.userId} style={anStyles.row}>
                       <span style={{ flex: 1 }}>
@@ -594,6 +609,7 @@ export default function AdminPage() {
                 <div key={`tw-${t.a}-${t.b}`} style={anStyles.box}>
                   <div style={anStyles.tag("#c62828")}>
                     Tipp-Zwillinge · {t.pct}% gleiche Ergebnisse ({t.agree}/{t.shared})
+                    {t.sharedIp && <span style={anStyles.ipBadge}>🔗 gleiche IP</span>}
                   </div>
                   {[{ id: t.a, name: t.aName, ex: t.aExcluded }, { id: t.b, name: t.bName, ex: t.bExcluded }].map((m) => (
                     <div key={m.id} style={anStyles.row}>
@@ -614,7 +630,10 @@ export default function AdminPage() {
 
               {anomalies.duplicates.sameName.map((c, idx) => (
                 <div key={`nm-${idx}`} style={anStyles.box}>
-                  <div style={anStyles.tag("#9e9e9e")}>Gleicher Anzeigename (schwaches Signal)</div>
+                  <div style={anStyles.tag("#9e9e9e")}>
+                    Gleicher Anzeigename (schwaches Signal)
+                    {c.sharedIp && <span style={anStyles.ipBadge}>🔗 gleiche IP</span>}
+                  </div>
                   {c.members.map((m) => (
                     <div key={m.userId} style={anStyles.row}>
                       <span style={{ flex: 1 }}>
