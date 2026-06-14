@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Redis } from "@upstash/redis";
 import { setSessionCookie, signSession, userIdFromEmail, verifyMagicToken } from "@/lib/auth";
-import { recordClientIp } from "@/lib/store";
 
 let _redis: Redis | null = null;
 function getRedis(): Redis {
@@ -47,10 +46,6 @@ export async function GET(req: NextRequest) {
   // Issue session
   const sessionToken = await signSession(decoded.email);
   await setSessionCookie(sessionToken);
-
-  // IP-Hash beim Login mitnehmen (deckt auch leere Zweit-Accounts ab, die nie
-  // tippen). Best-effort, nie blockierend. Nur Hash, nie Klar-IP.
-  recordClientIp(userIdFromEmail(decoded.email), req.headers).catch(() => {});
 
   // Route: onboarding if no profile yet, home otherwise
   const userKey = `user:${userIdFromEmail(decoded.email)}`;

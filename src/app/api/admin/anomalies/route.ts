@@ -178,6 +178,25 @@ export async function GET(req: NextRequest) {
       return false;
     };
 
+    // Triage-Signal: auf WIE VIELEN Spielen haben die Mitglieder GEMEINSAM
+    // getippt? 0 = reiner Account-Wechsel (kein Wertungsvorteil); viele = beide
+    // Accounts parallel gewertet (der Fall, der zaehlt). Max ueber alle Paare.
+    const groupSharedMatches = (members: { userId: string }[]): number => {
+      let max = 0;
+      for (let i = 0; i < members.length; i++) {
+        const A = users.get(members[i].userId)?.tips;
+        if (!A) continue;
+        for (let j = i + 1; j < members.length; j++) {
+          const B = users.get(members[j].userId)?.tips;
+          if (!B) continue;
+          let c = 0;
+          for (const mid of A.keys()) if (B.has(mid)) c++;
+          if (c > max) max = c;
+        }
+      }
+      return max;
+    };
+
     // 1d) Verdächtig hohe Exakt-Trefferquote ------------------------------
     // Exaktes Ergebnis zu treffen ist selten. Statt flacher Quote (bei kleiner
     // Stichprobe reines Rauschen) testen wir statistisch: Wie wahrscheinlich ist
@@ -267,8 +286,16 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       counts: { humans: list.length, matchesWithKickoff: kickoff.size, fieldExactPct: Math.round(fieldRate * 100) },
       duplicates: {
-        sameLocalPart: sameLocalPart.map((c) => ({ ...c, sharedIp: groupSharesIp(c.members) })),
-        sameName: sameName.map((c) => ({ ...c, sharedIp: groupSharesIp(c.members) })),
+        sameLocalPart: sameLocalPart.map((c) => ({
+          ...c,
+          sharedIp: groupSharesIp(c.members),
+          sharedMatches: groupSharedMatches(c.members),
+        })),
+        sameName: sameName.map((c) => ({
+          ...c,
+          sharedIp: groupSharesIp(c.members),
+          sharedMatches: groupSharedMatches(c.members),
+        })),
         tipTwins: tipTwins.map((t) => ({ ...t, sharedIp: pairSharesIp(t.a, t.b) })),
       },
       suspiciousAccuracy,

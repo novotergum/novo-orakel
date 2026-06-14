@@ -19,8 +19,8 @@ interface AnMember { userId: string; userName: string; excluded: boolean }
 interface Anomalies {
   counts: { humans: number; matchesWithKickoff: number; fieldExactPct: number };
   duplicates: {
-    sameLocalPart: { localPart: string; members: AnMember[]; sharedIp: boolean }[];
-    sameName: { name: string; members: AnMember[]; sharedIp: boolean }[];
+    sameLocalPart: { localPart: string; members: AnMember[]; sharedIp: boolean; sharedMatches: number }[];
+    sameName: { name: string; members: AnMember[]; sharedIp: boolean; sharedMatches: number }[];
     tipTwins: { a: string; aName: string; b: string; bName: string; shared: number; agree: number; pct: number; aExcluded: boolean; bExcluded: boolean; sharedIp: boolean }[];
   };
   suspiciousAccuracy: { userId: string; userName: string; resolved: number; exact: number; ratePct: number; chancePct: number; excluded: boolean }[];
@@ -353,7 +353,26 @@ export default function AdminPage() {
       textTransform: "none" as const,
       letterSpacing: 0,
     } as React.CSSProperties,
+    triage: (warn: boolean) =>
+      ({
+        display: "block",
+        marginTop: 4,
+        fontSize: 11,
+        fontWeight: 600,
+        color: warn ? "#b26a00" : "#2e7d32",
+        textTransform: "none",
+        letterSpacing: 0,
+      }) as React.CSSProperties,
   };
+
+  // Triage-Hinweis: unterscheidet bequemen Account-Wechsel (0 gemeinsame
+  // Spiele, kein Wertungsvorteil) von zwei parallel gewerteten Accounts.
+  const triageLine = (sharedMatches: number) =>
+    sharedMatches === 0 ? (
+      <span style={anStyles.triage(false)}>↔︎ nur Account-Wechsel · 0 gemeinsam getippte Spiele</span>
+    ) : (
+      <span style={anStyles.triage(true)}>⚠ {sharedMatches} Spiele parallel getippt — beide Accounts gewertet</span>
+    );
 
   // ---- Login screen ----
   if (!authenticated) {
@@ -587,6 +606,7 @@ export default function AdminPage() {
                   <div style={anStyles.tag("#c62828")}>
                     Gleiche E-Mail-Basis „{c.localPart}"
                     {c.sharedIp && <span style={anStyles.ipBadge}>🔗 gleiche IP</span>}
+                    {triageLine(c.sharedMatches)}
                   </div>
                   {c.members.map((m) => (
                     <div key={m.userId} style={anStyles.row}>
@@ -633,6 +653,7 @@ export default function AdminPage() {
                   <div style={anStyles.tag("#9e9e9e")}>
                     Gleicher Anzeigename (schwaches Signal)
                     {c.sharedIp && <span style={anStyles.ipBadge}>🔗 gleiche IP</span>}
+                    {triageLine(c.sharedMatches)}
                   </div>
                   {c.members.map((m) => (
                     <div key={m.userId} style={anStyles.row}>
