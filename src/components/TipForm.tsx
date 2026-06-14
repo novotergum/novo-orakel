@@ -509,7 +509,7 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
   };
 
   // ---- Render: inline match card with tip ----
-  function renderMatchCard(m: Match, stageColor: string) {
+  function renderMatchCard(m: Match, stageColor: string, showOracle = false) {
     const tip = myTips[m.id];
     const editable = new Date(m.kickoff).getTime() > now;
     const sh = m.score?.home;
@@ -602,7 +602,7 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
                 );
               })()}
             </div>
-            {oracleTips[m.id] && (() => {
+            {showOracle && oracleTips[m.id] && (() => {
               const ot = oracleTips[m.id];
               let hit: "exact" | "tend" | "miss" | null = null;
               if (finished && sh != null && sa != null) {
@@ -1031,22 +1031,21 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
   const allMatches = [...allMatchesById.values()].sort(
     (a, b) => new Date(a.kickoff).getTime() - new Date(b.kickoff).getTime(),
   );
-  // Rollender „Heute"-Block: alles mit Anpfiff im Fenster −24h … +24h (anstehend,
-  // live oder kürzlich beendet). Nichts fliegt sofort nach Abpfiff raus, sondern
-  // bleibt 24 h sichtbar — mit aufgedecktem Orakel-Tipp daneben.
-  const statusRank = (m: Match) => (m.status === "IN_PLAY" ? 0 : m.status === "FINISHED" ? 2 : 1);
+  // „Heute"-Block: laufende + anstehende Spiele des heutigen Spieltags (Live +
+  // nächste 24 h). BEENDETE Spiele gehören NICHT hierher — die wandern zurück in
+  // die Stage-/Gruppentabellen. Nur hier wird der Orakel-Tipp aufgedeckt.
+  const LIVE_WINDOW_MS = 3.5 * 60 * 60 * 1000;
   const todayWindow = allMatches
     .filter((m) => {
+      if (m.status === "FINISHED") return false;
       const t = new Date(m.kickoff).getTime();
-      return t >= now - WINDOW_MS && t <= now + WINDOW_MS;
+      return t > now - LIVE_WINDOW_MS && t <= now + WINDOW_MS;
     })
     .sort((a, b) => {
-      const ra = statusRank(a);
-      const rb = statusRank(b);
-      if (ra !== rb) return ra - rb; // live → anstehend → beendet
-      const ta = new Date(a.kickoff).getTime();
-      const tb = new Date(b.kickoff).getTime();
-      return ra === 1 ? ta - tb : tb - ta; // anstehend: bald zuerst; sonst: zuletzt zuerst
+      const la = a.status === "IN_PLAY" ? 0 : 1;
+      const lb = b.status === "IN_PLAY" ? 0 : 1;
+      if (la !== lb) return la - lb; // live zuerst
+      return new Date(a.kickoff).getTime() - new Date(b.kickoff).getTime();
     });
   const todayWindowIds = new Set(todayWindow.map((m) => m.id));
   const hasLive = todayWindow.some((m) => m.status === "IN_PLAY");
@@ -1106,7 +1105,7 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
         }
       `}</style>
 
-      {/* ── Heute (rollend −24h…+24h): anstehend, live & kürzlich beendet ── */}
+      {/* ── Heute: anstehende & laufende Spiele des heutigen Spieltags ── */}
       {!loading && todayWindow.length > 0 && (
         <div
           style={{
@@ -1184,10 +1183,10 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
           >
             {hasImminent
               ? "Letzte Chance – nach dem Anpfiff ist der Tipp dicht!"
-              : "Heutiger Spieltag – anstehende, laufende und gerade beendete Spiele. Anstehende tippen, bevor der Anpfiff kommt; das Orakel deckt nach Anpfiff auf."}
+              : "Heutiger Spieltag – anstehende & laufende Spiele. Anstehende tippen, bevor der Anpfiff kommt; bei laufenden deckt das Orakel seinen Tipp auf."}
           </p>
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            {todayWindow.map((m) => renderMatchCard(m, "#F39200"))}
+            {todayWindow.map((m) => renderMatchCard(m, "#F39200", true))}
           </div>
         </div>
       )}
