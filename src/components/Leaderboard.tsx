@@ -238,21 +238,7 @@ export default function Leaderboard({
               <span>Leaderboard ab Platz 4</span>
               <span style={{ fontSize: 12, color: "#bbb" }}>anzeigen ▾</span>
             </summary>
-            <div
-              style={{
-                padding: "12px 24px",
-                borderTop: "1px solid #f0f0f0",
-                fontSize: 12.5,
-                color: "#777",
-                lineHeight: 1.5,
-              }}
-            >
-              <strong style={{ color: "#555" }}>So entstehen die Punkte:</strong> je
-              Spiel 4 (exakt) &middot; 3 (Tordifferenz) &middot; 2 (Tendenz) &middot; 0
-              (daneben). Die Spalten zeigen, <em>wie oft</em> &mdash; die Punkte sind die
-              Summe (z.&nbsp;B. 2&times;4 + 1&times;3 + 2&times;2 = 15).
-            </div>
-            <div style={{ overflowX: "auto" }}>
+            <div style={{ overflowX: "auto", borderTop: "1px solid #f0f0f0" }}>
               <table
                 style={{
                   width: "100%",
@@ -332,9 +318,6 @@ export default function Leaderboard({
                           }}
                         >
                           {entry.points}
-                          <span style={{ fontSize: 11, fontWeight: 600, color: "#999", marginLeft: 3 }}>
-                            Pkt
-                          </span>
                         </td>
                         <td style={{ padding: "14px 16px", textAlign: "right", color: "#999" }}>
                           {entry.tips}
