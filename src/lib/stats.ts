@@ -13,6 +13,7 @@
  */
 
 import { readRankedPredictions, readStandortByEmail } from "./store";
+import { matchRegistrations, type MatchInfo } from "./personio";
 import { getMatches, type NormalizedMatch } from "./football-data";
 import { parseScoreTip, scoreTip, upsetBonus, stageMultiplier } from "./scoring";
 
@@ -174,6 +175,20 @@ export async function computeStats(): Promise<StatsResult> {
     readStandortByEmail().catch(() => ({} as Record<string, string>)),
   ]);
 
+  // Standort primär über den 4-Stufen-Personio-Matcher (gleiche Logik wie das
+  // Admin-Panel) — erfasst auch Privat-Mail-Spieler. Best-effort: bei Ausfall
+  // greift die alte Standort-Map bzw. die Selbstangabe.
+  const uniquePlayers = new Map<string, string>();
+  for (const r of records) if (!uniquePlayers.has(r.userId)) uniquePlayers.set(r.userId, r.userName);
+  let personioMatch = new Map<string, MatchInfo>();
+  try {
+    personioMatch = await matchRegistrations(
+      [...uniquePlayers].map(([userId, userName]) => ({ userId, userName, email: userId })),
+    );
+  } catch {
+    /* Fallback: alte Map / Selbstangabe */
+  }
+
   const matchById = new Map<number, NormalizedMatch>();
   for (const m of finished) matchById.set(m.id, m);
 
@@ -189,7 +204,11 @@ export async function computeStats(): Promise<StatsResult> {
   for (const r of records) {
     let p = players.get(r.userId);
     if (!p) {
-      const personioLoc = standortByEmail[r.userId.toLowerCase().trim()];
+      const m4 = personioMatch.get(r.userId);
+      const personioLoc =
+        (m4?.category === "MA" ? m4.office : null) ||
+        standortByEmail[r.userId.toLowerCase().trim()] ||
+        null;
       p = {
         userId: r.userId,
         userName: r.userName,

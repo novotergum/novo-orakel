@@ -590,60 +590,132 @@ export default function AdminPage() {
         </table>
       </div>
 
-      {/* Auffälligkeiten */}
+      {/* Auffälligkeiten & Personio */}
       <div style={s.card}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
           <h3 style={{ margin: 0, fontSize: 15, color: "#c62828" }}>
-            🔍 Auffälligkeiten
+            🔍 Auffälligkeiten &amp; Personio
           </h3>
-          <button style={s.btnOutline} onClick={() => loadAnomalies(secret)}>
-            {anLoading ? "..." : "Aktualisieren"}
+          <button style={s.btnOutline} onClick={() => { loadUsers(secret); loadAnomalies(secret); }}>
+            {anLoading || loading ? "..." : "Aktualisieren"}
           </button>
         </div>
         <p style={{ margin: "0 0 14px", fontSize: 12, color: "#7A7A7A" }}>
-          Indizien aus den vorhandenen Daten – kein Automatismus, Bewertung bleibt bei dir.
+          Personio-Abgleich + Indizien aus den Tipp-Daten – kein Automatismus, Bewertung bleibt bei dir. Buttons nehmen den Account aus der Wertung (Tipps bleiben).
         </p>
+
+        {/* ── Personio-Abgleich ── */}
+        {personioError && (
+          <p style={{ fontSize: 13, color: "#c62828", margin: "0 0 16px" }}>Personio-Abgleich nicht verfügbar: {personioError}</p>
+        )}
+        {!personioError && (() => {
+          const exNow = (id: string) => users.find((u) => u.userId === id)?.excluded ?? false;
+          const former = users.filter((u) => u.personio?.status === "ehemalig" || u.personio?.status === "aktiv (gek.)");
+          const nonMa = users.filter((u) => u.personio && u.personio.category !== "MA");
+          const ExBtn = ({ id, name }: { id: string; name: string }) => (
+            <button
+              style={exNow(id) ? s.btn("#2e7d32") : s.btnOutline}
+              onClick={() => toggleExcluded(id, name, !exNow(id))}
+            >
+              {exNow(id) ? "Reaktivieren" : "Aus Wertung"}
+            </button>
+          );
+          return (
+            <div style={{ display: "flex", flexDirection: "column", gap: 16, marginBottom: 18 }}>
+              {/* Doppel-Accounts: gleiche Person laut Personio */}
+              <div>
+                <h4 style={{ margin: "0 0 8px", fontSize: 13, color: "#3A3A3A" }}>
+                  👥 Doppel-Accounts (gleiche Person laut Personio)
+                </h4>
+                {personioDups.length === 0 ? (
+                  <p style={{ fontSize: 13, color: "#2e7d32", margin: 0 }}>Keine.</p>
+                ) : (
+                  personioDups.map((d, i) => (
+                    <div key={`pd-${i}`} style={anStyles.box}>
+                      <div style={anStyles.tag("#5b3a8e")}>
+                        {d.empName}{d.office ? ` · ${d.office}` : ""}{d.status && d.status !== "aktiv" ? ` · ${d.status}` : ""}
+                        <span style={{ marginLeft: 8, color: "#999", fontWeight: 400, textTransform: "none" }}>({d.via})</span>
+                      </div>
+                      {d.members.map((m) => (
+                        <div key={m.userId} style={anStyles.row}>
+                          <span style={{ flex: 1 }}>
+                            <b>{m.userName}</b> <span style={{ color: "#999" }}>· {m.email || m.userId}</span>
+                            {exNow(m.userId) && <span style={anStyles.exBadge}>raus</span>}
+                          </span>
+                          <ExBtn id={m.userId} name={m.userName} />
+                        </div>
+                      ))}
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Ehemalige / Kündigung läuft */}
+              <div>
+                <h4 style={{ margin: "0 0 8px", fontSize: 13, color: "#3A3A3A" }}>
+                  🔴 Ehemalige MA / Kündigung läuft
+                </h4>
+                {former.length === 0 ? (
+                  <p style={{ fontSize: 13, color: "#2e7d32", margin: 0 }}>Keine.</p>
+                ) : (
+                  former.map((u) => (
+                    <div key={`fm-${u.userId}`} style={anStyles.row}>
+                      <span style={{ flex: 1 }}>
+                        <b>{u.userName}</b> <span style={{ color: "#999" }}>· {u.userId}</span>
+                        <span style={{ marginLeft: 8, color: u.personio?.status === "ehemalig" ? "#c62828" : "#b26a00", fontWeight: 700, fontSize: 12 }}>
+                          {u.personio?.status === "ehemalig" ? "ehemalig" : "Kündigung läuft"}
+                        </span>
+                        {u.personio?.empName && <span style={{ color: "#999", fontSize: 12 }}> · {u.personio.empName}</span>}
+                        {exNow(u.userId) && <span style={anStyles.exBadge}>raus</span>}
+                      </span>
+                      <span style={{ color: "#999", fontSize: 12, marginRight: 10 }}>{u.tips} Tipps</span>
+                      <ExBtn id={u.userId} name={u.userName} />
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Kein MA-Match */}
+              <div>
+                <h4 style={{ margin: "0 0 8px", fontSize: 13, color: "#3A3A3A" }}>
+                  ⚪ Kein MA-Match (extern / Standort-Postfach / Schwester-Marke)
+                </h4>
+                {nonMa.length === 0 ? (
+                  <p style={{ fontSize: 13, color: "#7A7A7A", margin: 0 }}>Keine.</p>
+                ) : (
+                  nonMa.map((u) => (
+                    <div key={`nm-${u.userId}`} style={anStyles.row}>
+                      <span style={{ flex: 1 }}>
+                        <b>{u.userName}</b> <span style={{ color: "#999" }}>· {u.userId}</span>
+                        <span style={{ marginLeft: 8, color: "#7A7A7A", fontSize: 12 }}>{u.personio?.category}</span>
+                        {exNow(u.userId) && <span style={anStyles.exBadge}>raus</span>}
+                      </span>
+                      <span style={{ color: "#999", fontSize: 12, marginRight: 10 }}>{u.tips} Tipps</span>
+                      <ExBtn id={u.userId} name={u.userName} />
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          );
+        })()}
 
         {!anomalies ? (
           <p style={{ fontSize: 13, color: "#7A7A7A", margin: 0 }}>{anLoading ? "Lädt…" : "—"}</p>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
 
-            {/* Doppelregistrierung */}
+            {/* Weitere Doppel-Signale (Tipps / Name) — E-Mail-Basis steckt schon
+                in den Personio-Doppel-Accounts oben, daher hier ausgelassen. */}
             <div>
               <h4 style={{ margin: "0 0 8px", fontSize: 13, color: "#3A3A3A" }}>
-                Doppelregistrierungs-Verdacht
+                Weitere Doppel-Signale (gleiche Tipps / gleicher Name)
               </h4>
 
-              {anomalies.duplicates.sameLocalPart.length === 0 &&
-               anomalies.duplicates.tipTwins.length === 0 &&
+              {anomalies.duplicates.tipTwins.length === 0 &&
                anomalies.duplicates.sameName.length === 0 && (
                 <p style={{ fontSize: 13, color: "#2e7d32", margin: 0 }}>Keine.</p>
               )}
-
-              {anomalies.duplicates.sameLocalPart.map((c) => (
-                <div key={`lp-${c.localPart}`} style={anStyles.box}>
-                  <div style={anStyles.tag("#c62828")}>
-                    Gleiche E-Mail-Basis „{c.localPart}"
-                    {c.sharedIp && <span style={anStyles.ipBadge}>🔗 gleiche IP</span>}
-                    {triageLine(c.sharedMatches)}
-                  </div>
-                  {c.members.map((m) => (
-                    <div key={m.userId} style={anStyles.row}>
-                      <span style={{ flex: 1 }}>
-                        <b>{m.userName}</b> <span style={{ color: "#999" }}>· {m.userId}</span>
-                        {m.excluded && <span style={anStyles.exBadge}>raus</span>}
-                      </span>
-                      <button
-                        style={m.excluded ? s.btn("#2e7d32") : s.btnOutline}
-                        onClick={() => toggleExcluded(m.userId, m.userName, !m.excluded).then(() => loadAnomalies(secret))}
-                      >
-                        {m.excluded ? "Reaktivieren" : "Aus Wertung"}
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              ))}
 
               {anomalies.duplicates.tipTwins.map((t) => (
                 <div key={`tw-${t.a}-${t.b}`} style={anStyles.box}>
@@ -767,111 +839,6 @@ export default function AdminPage() {
             </div>
           </div>
         )}
-      </div>
-
-      {/* Personio-Abgleich */}
-      <div style={s.card}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-          <h3 style={{ margin: 0, fontSize: 15, color: "#5b3a8e" }}>🪪 Personio-Abgleich</h3>
-          <button style={s.btnOutline} onClick={() => loadUsers(secret)}>Aktualisieren</button>
-        </div>
-        <p style={{ margin: "0 0 14px", fontSize: 12, color: "#7A7A7A" }}>
-          Registrierungen gegen die Personio-Mitarbeiterliste gematcht. Buttons nehmen den Account aus der Wertung (Tipps bleiben).
-        </p>
-        {personioError && (
-          <p style={{ fontSize: 13, color: "#c62828", margin: 0 }}>Abgleich nicht verfügbar: {personioError}</p>
-        )}
-        {!personioError && (() => {
-          const exNow = (id: string) => users.find((u) => u.userId === id)?.excluded ?? false;
-          const former = users.filter((u) => u.personio?.status === "ehemalig" || u.personio?.status === "aktiv (gek.)");
-          const nonMa = users.filter((u) => u.personio && u.personio.category !== "MA");
-          const ExBtn = ({ id, name }: { id: string; name: string }) => (
-            <button
-              style={exNow(id) ? s.btn("#2e7d32") : s.btnOutline}
-              onClick={() => toggleExcluded(id, name, !exNow(id))}
-            >
-              {exNow(id) ? "Reaktivieren" : "Aus Wertung"}
-            </button>
-          );
-          return (
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              {/* Doppel-Accounts: gleiche Person laut Personio */}
-              <div>
-                <h4 style={{ margin: "0 0 8px", fontSize: 13, color: "#3A3A3A" }}>
-                  👥 Doppel-Accounts (gleiche Person laut Personio)
-                </h4>
-                {personioDups.length === 0 ? (
-                  <p style={{ fontSize: 13, color: "#2e7d32", margin: 0 }}>Keine.</p>
-                ) : (
-                  personioDups.map((d, i) => (
-                    <div key={`pd-${i}`} style={anStyles.box}>
-                      <div style={anStyles.tag("#5b3a8e")}>
-                        {d.empName}{d.office ? ` · ${d.office}` : ""}{d.status && d.status !== "aktiv" ? ` · ${d.status}` : ""}
-                        <span style={{ marginLeft: 8, color: "#999", fontWeight: 400, textTransform: "none" }}>({d.via})</span>
-                      </div>
-                      {d.members.map((m) => (
-                        <div key={m.userId} style={anStyles.row}>
-                          <span style={{ flex: 1 }}>
-                            <b>{m.userName}</b> <span style={{ color: "#999" }}>· {m.email || m.userId}</span>
-                            {exNow(m.userId) && <span style={anStyles.exBadge}>raus</span>}
-                          </span>
-                          <ExBtn id={m.userId} name={m.userName} />
-                        </div>
-                      ))}
-                    </div>
-                  ))
-                )}
-              </div>
-
-              {/* Ehemalige / Kündigung läuft */}
-              <div>
-                <h4 style={{ margin: "0 0 8px", fontSize: 13, color: "#3A3A3A" }}>
-                  🔴 Ehemalige MA / Kündigung läuft
-                </h4>
-                {former.length === 0 ? (
-                  <p style={{ fontSize: 13, color: "#2e7d32", margin: 0 }}>Keine.</p>
-                ) : (
-                  former.map((u) => (
-                    <div key={`fm-${u.userId}`} style={anStyles.row}>
-                      <span style={{ flex: 1 }}>
-                        <b>{u.userName}</b> <span style={{ color: "#999" }}>· {u.email || u.userId}</span>
-                        <span style={{ marginLeft: 8, color: u.personio?.status === "ehemalig" ? "#c62828" : "#b26a00", fontWeight: 700, fontSize: 12 }}>
-                          {u.personio?.status === "ehemalig" ? "ehemalig" : "Kündigung läuft"}
-                        </span>
-                        {u.personio?.empName && <span style={{ color: "#999", fontSize: 12 }}> · {u.personio.empName}</span>}
-                        {exNow(u.userId) && <span style={anStyles.exBadge}>raus</span>}
-                      </span>
-                      <span style={{ color: "#999", fontSize: 12, marginRight: 10 }}>{u.tips} Tipps</span>
-                      <ExBtn id={u.userId} name={u.userName} />
-                    </div>
-                  ))
-                )}
-              </div>
-
-              {/* Kein MA-Match */}
-              <div>
-                <h4 style={{ margin: "0 0 8px", fontSize: 13, color: "#3A3A3A" }}>
-                  ⚪ Kein MA-Match (extern / Standort-Postfach / Schwester-Marke)
-                </h4>
-                {nonMa.length === 0 ? (
-                  <p style={{ fontSize: 13, color: "#7A7A7A", margin: 0 }}>Keine.</p>
-                ) : (
-                  nonMa.map((u) => (
-                    <div key={`nm-${u.userId}`} style={anStyles.row}>
-                      <span style={{ flex: 1 }}>
-                        <b>{u.userName}</b> <span style={{ color: "#999" }}>· {u.email || u.userId}</span>
-                        <span style={{ marginLeft: 8, color: "#7A7A7A", fontSize: 12 }}>{u.personio?.category}</span>
-                        {exNow(u.userId) && <span style={anStyles.exBadge}>raus</span>}
-                      </span>
-                      <span style={{ color: "#999", fontSize: 12, marginRight: 10 }}>{u.tips} Tipps</span>
-                      <ExBtn id={u.userId} name={u.userName} />
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          );
-        })()}
       </div>
 
       {/* Newsletter-Abonnenten */}
