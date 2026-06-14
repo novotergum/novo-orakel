@@ -559,10 +559,6 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
                 <span style={{ color: "#3A3A3A", fontWeight: 700, margin: "0 6px" }}>
                   {shownScore}
                 </span>
-              ) : live ? (
-                <span style={{ color: "#c62828", fontWeight: 800, margin: "0 6px" }}>
-                  {shownScore}
-                </span>
               ) : (
                 <span style={{ color: "#7A7A7A", margin: "0 4px" }}>vs</span>
               )}

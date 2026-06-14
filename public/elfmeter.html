@@ -129,6 +129,11 @@ const DIFF={
 };
 const S={ut:0,ap:0,sudden:false,phase:'idle',locked:true,dotsUT:[],dotsAP:[],diff:'leicht'};
 
+/* Vielfältige Hauttöne (hell → dunkel). Schützen variieren pro Anlauf, Keeper je Spiel zufällig
+   (NICHT an die Gegner-Rolle gekoppelt). */
+const SKINS=['#f4d3b6','#e8b98f','#d49a6a','#b87a4b','#8a5a32','#5e3a1e'];
+const pickSkin=()=>SKINS[(Math.random()*SKINS.length)|0];
+
 const W=384,H=326;
 const GOAL={x1:96,x2:288,y1:148,y2:216};          // Tor-Innenraum
 const COLS=[128,192,256], ROWS=[166,199];
@@ -139,8 +144,8 @@ const KZ=[{x:130,y:172,r:-70},{x:192,y:164,r:0},{x:254,y:172,r:70},
 
 /* Entities (vom Renderloop gezeichnet) */
 const ball={x:BALL0.x,y:BALL0.y,s:1,vis:true};
-const keeper={x:KEEP0.x,y:KEEP0.y,r:0,team:'ap'};
-const shooter={x:150,y:276,kick:0,team:'ut',vis:true};
+const keeper={x:KEEP0.x,y:KEEP0.y,r:0,team:'ap',skin:SKINS[2]};
+const shooter={x:150,y:276,kick:0,team:'ut',vis:true,skin:SKINS[1]};
 const aimC={x:0,y:0,vis:false};
 let flashTxt=null;          // {lines:[..],color,until}
 let bottomMsg='', adScroll=0, zonesVisible=false;
@@ -266,7 +271,7 @@ function drawKeeper(){
   px(-13,-20,6,4,body); px(7,-20,6,4,body);              // Arme
   px(-14,-21,4,3,'#fff'); px(10,-21,4,3,'#fff');         // Handschuhe
   px(-7,-2,5,12,'#161628'); px(2,-2,5,12,'#161628');     // Beine
-  px(-4,-30,8,8,'#e8b98f'); px(-4,-31,8,2,'#2b1d12');    // Kopf
+  px(-4,-30,8,8,k.skin||'#e8b98f'); px(-4,-31,8,2,'#2b1d12');    // Kopf
   cx.restore();
 }
 function drawShooter(){
@@ -278,7 +283,7 @@ function drawShooter(){
   px(-12,-18,6,3,body); px(6,-18,6,3,body);              // Arme
   px(-5,-4,4,11,'#fff'); const kickAng=s.kick;           // Standbein
   cx.save(); cx.translate(2,-4); cx.rotate(-kickAng*Math.PI/180); px(-1,0,4,11,'#fff'); cx.restore(); // Schussbein
-  px(-3,-27,7,7,'#e8b98f'); px(-3,-28,7,2,'#2b1d12');
+  px(-3,-27,7,7,s.skin||'#e8b98f'); px(-3,-28,7,2,'#2b1d12');
   cx.restore();
 }
 
@@ -304,7 +309,7 @@ function limb(x,y,ang,len,w,c,end){
 /* Großer Spieler (vorne, Füße = Ursprung) für End-Szenen */
 function bigFigure(p){
   const team=p.team||'ut';
-  const body=team==='ut'?'#1B2B5E':'#D23A2E', trim=team==='ut'?'#F46524':'#fff', skin='#e8b98f';
+  const body=team==='ut'?'#1B2B5E':'#D23A2E', trim=team==='ut'?'#F46524':'#fff', skin=p.skin||'#e8b98f';
   cx.save();
   cx.translate(0,p.jumpY||0);
   if(p.flipX) cx.scale(-1,1);
@@ -383,7 +388,7 @@ function drawEndScene(now){
   }else{
     px(0,0,W,H,'rgba(10,12,26,.4)');                       // gedrückte Stimmung
   }
-  const pose=endScene.celeb.fn(t); pose.team='ut';
+  const pose=endScene.celeb.fn(t); pose.team='ut'; pose.skin=endScene.skin;
   cx.save(); cx.translate(W/2+(pose.xo||0), 258); cx.scale(2.7,2.7); bigFigure(pose); cx.restore();
   /* großer Szenen-Titel */
   if(t>.45){
@@ -480,14 +485,14 @@ async function nextTurn(){
   if(S.dotsUT.length<=S.dotsAP.length){
     S.phase='shoot'; zonesVisible=false;
     keeper.team='ap'; shooter.team='ut'; shooter.vis=true;
-    Object.assign(keeper,{...KEEP0,r:0}); Object.assign(ball,{...BALL0,s:1,vis:true});
-    Object.assign(shooter,{x:150,y:276,kick:0});
+    Object.assign(keeper,{...KEEP0,r:0,skin:(S.keeperSkin&&S.keeperSkin.ap)||SKINS[2]}); Object.assign(ball,{...BALL0,s:1,vis:true});
+    Object.assign(shooter,{x:150,y:276,kick:0,skin:SKINS[S.dotsUT.length%SKINS.length]});
     bottomMsg=(S.sudden?'ENTSCHEIDUNG':'SCHUETZE '+(S.dotsUT.length+1)+'/5')+' – WISCHE ZUM SCHIESSEN';
   }else{
     S.phase='keep'; zonesVisible=true;
     keeper.team='ut'; shooter.team='ap'; shooter.vis=true;
-    Object.assign(keeper,{...KEEP0,r:0}); Object.assign(ball,{...BALL0,s:1,vis:true});
-    Object.assign(shooter,{x:150,y:276,kick:0});
+    Object.assign(keeper,{...KEEP0,r:0,skin:(S.keeperSkin&&S.keeperSkin.ut)||SKINS[2]}); Object.assign(ball,{...BALL0,s:1,vis:true});
+    Object.assign(shooter,{x:150,y:276,kick:0,skin:SKINS[S.dotsAP.length%SKINS.length]});
     bottomMsg=(S.sudden?'ENTSCHEIDUNG':'APELOS SCHUETZE '+(S.dotsAP.length+1)+'/5')+' – NOVOTERGUM: TIPPE ZONE 1-6';
   }
   S.locked=false;
@@ -601,7 +606,7 @@ const memLines=['MEMORY CARD (8MB) WIRD GEPRUEFT ...','TIPPSPIEL-SPIELSTAND GEFU
 
 function startGame(){
   audio(); sWhistle();
-  Object.assign(S,{ut:0,ap:0,sudden:false,dotsUT:[],dotsAP:[],locked:true});
+  Object.assign(S,{ut:0,ap:0,sudden:false,dotsUT:[],dotsAP:[],locked:true,keeperSkin:{ut:pickSkin(),ap:pickSkin()}});
   endScene=null; confetti.length=0; ball.vis=true; shooter.vis=true;
   document.getElementById('bootOv').classList.add('hidden');
   document.getElementById('endOv').classList.add('hidden');
@@ -612,7 +617,7 @@ function endGame(winner){
   const win=winner==='ut';
   const celeb=rnd(win?WIN_CELEBS:LOSE_CELEBS);
   ball.vis=false; shooter.vis=false; keeper.team='ap';
-  endScene={win, celeb, t0:performance.now(), dur:win?2700:2400};
+  endScene={win, celeb, t0:performance.now(), dur:win?2700:2400, skin:SKINS[(S.dotsUT.length-1+SKINS.length)%SKINS.length]};
   sWhistle();
   if(win){ initConfetti(); sGoal(); setTimeout(sGoal,260); setTimeout(sGoal,520); buzz([40,60,120]); }
   else { sMiss(); buzz(200); }

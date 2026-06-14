@@ -231,7 +231,7 @@ export default function Leaderboard({
                     <th style={{ padding: "14px 16px", width: 40, textAlign: "center" }}>#</th>
                     <th style={{ padding: "14px 16px", textAlign: "left" }}>Spieler</th>
                     <th style={{ padding: "14px 16px", textAlign: "right" }}>Punkte</th>
-                    <th style={{ padding: "14px 16px", textAlign: "right" }} title="Abgegebene Tipps insgesamt">Getippt</th>
+                    <th style={{ padding: "14px 16px", textAlign: "right" }} title="Abgegebene Tipps insgesamt">Tipps</th>
                     <th style={{ padding: "14px 16px", textAlign: "right" }} title="Exaktes Ergebnis = 4 Punkte">Exakt &times;4</th>
                     <th style={{ padding: "14px 16px", textAlign: "right" }} title="Richtige Tordifferenz = 3 Punkte">Diff &times;3</th>
                     <th style={{ padding: "14px 16px", textAlign: "right" }} title="Richtige Tendenz = 2 Punkte">Tendenz &times;2</th>
