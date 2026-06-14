@@ -21,6 +21,7 @@ interface LeaderboardEntry {
   source: "human" | "agent";
   points: number;
   tips: number;
+  evaluated: number; // bereits ausgewertete Tipps (gespielte Spiele)
   exact: number;
   diffCorrect: number;
   tendencyCorrect: number;
@@ -34,13 +35,15 @@ async function getData() {
   for (const r of records) {
     const pts = r.points ?? 0;
     // "tips" = abgegebene Tipps insgesamt (Beteiligung, auch noch nicht
-    // gespielte Spiele). Exakt/Diff/Tendenz kommen dagegen aus den Basis-
-    // Punkten der bereits ausgewerteten Spiele.
+    // gespielte Spiele). "evaluated" = davon bereits ausgewertet. Exakt/Diff/
+    // Tendenz kommen aus den Basis-Punkten der ausgewerteten Spiele.
+    const resolved = r.points != null;
     const base = r.basePoints ?? r.points ?? 0;
     const existing = playerMap.get(r.userId);
     if (existing) {
       existing.points += pts;
       existing.tips += 1;
+      if (resolved) existing.evaluated += 1;
       if (base === 4) existing.exact += 1;
       else if (base === 3) existing.diffCorrect += 1;
       else if (base === 2) existing.tendencyCorrect += 1;
@@ -51,6 +54,7 @@ async function getData() {
         source: r.source,
         points: pts,
         tips: 1,
+        evaluated: resolved ? 1 : 0,
         exact: base === 4 ? 1 : 0,
         diffCorrect: base === 3 ? 1 : 0,
         tendencyCorrect: base === 2 ? 1 : 0,

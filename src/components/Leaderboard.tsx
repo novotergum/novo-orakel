@@ -8,6 +8,7 @@ interface Entry {
   source: "human" | "agent";
   points: number;
   tips: number;
+  evaluated: number; // bereits ausgewertete Tipps (gespielte Spiele)
   exact: number;
   diffCorrect: number;
   tendencyCorrect: number;
@@ -265,6 +266,7 @@ export default function Leaderboard({
                     <th style={{ padding: "14px 16px", textAlign: "left" }}>Spieler</th>
                     <th style={{ padding: "14px 16px", textAlign: "right" }}>Punkte</th>
                     <th style={{ padding: "14px 16px", textAlign: "right" }} title="Abgegebene Tipps insgesamt">Getippt</th>
+                    <th style={{ padding: "14px 16px", textAlign: "right" }} title="Davon bereits ausgewertet (gespielte Spiele)">Ausgewertet</th>
                     <th style={{ padding: "14px 16px", textAlign: "right" }} title="Exaktes Ergebnis = 4 Punkte">Exakt &times;4</th>
                     <th style={{ padding: "14px 16px", textAlign: "right" }} title="Richtige Tordifferenz = 3 Punkte">Diff &times;3</th>
                     <th style={{ padding: "14px 16px", textAlign: "right" }} title="Richtige Tendenz = 2 Punkte">Tendenz &times;2</th>
@@ -325,6 +327,9 @@ export default function Leaderboard({
                         </td>
                         <td style={{ padding: "14px 16px", textAlign: "right", color: "#999" }}>
                           {entry.tips}
+                        </td>
+                        <td style={{ padding: "14px 16px", textAlign: "right", color: "#999" }}>
+                          {entry.evaluated}
                         </td>
                         <td style={{ padding: "14px 16px", textAlign: "right", color: "#2e7d32" }}>
                           {entry.exact}
