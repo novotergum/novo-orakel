@@ -33,16 +33,14 @@ async function getData() {
   const playerMap = new Map<string, LeaderboardEntry>();
   for (const r of records) {
     const pts = r.points ?? 0;
-    // Nur ausgewertete Tipps zaehlen (Punkte vergeben). So meinen Punkte,
-    // Exakt/Diff/Tendenz UND die Tipp-Zahl dieselben Spiele — sonst stehen
-    // 72 abgegebene Tipps neben Treffern aus nur 7 gespielten Partien.
-    const resolved = r.points != null;
-    // Kategorie aus den Basis-Punkten (vor K.o.-Multiplikator).
+    // "tips" = abgegebene Tipps insgesamt (Beteiligung, auch noch nicht
+    // gespielte Spiele). Exakt/Diff/Tendenz kommen dagegen aus den Basis-
+    // Punkten der bereits ausgewerteten Spiele.
     const base = r.basePoints ?? r.points ?? 0;
     const existing = playerMap.get(r.userId);
     if (existing) {
       existing.points += pts;
-      if (resolved) existing.tips += 1;
+      existing.tips += 1;
       if (base === 4) existing.exact += 1;
       else if (base === 3) existing.diffCorrect += 1;
       else if (base === 2) existing.tendencyCorrect += 1;
@@ -52,7 +50,7 @@ async function getData() {
         userName: r.userName,
         source: r.source,
         points: pts,
-        tips: resolved ? 1 : 0,
+        tips: 1,
         exact: base === 4 ? 1 : 0,
         diffCorrect: base === 3 ? 1 : 0,
         tendencyCorrect: base === 2 ? 1 : 0,
