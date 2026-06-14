@@ -142,20 +142,27 @@ export async function GET(req: NextRequest) {
     //  - sonst: der Zweit-Account mit weniger Tipps raus, vollständigeren behalten
     //    (Gleichstand → weniger Punkte behalten, dann Arbeits-Mail bevorzugen)
     //  - ist schon einer raus: erledigt (keine Empfehlung)
+    const lastActive = (u: (typeof enriched)[number]) => (u.lastActiveAt ? new Date(u.lastActiveAt).getTime() : 0);
     const recommendFor = (
       g: typeof enriched,
       status: string,
       shared: number,
     ): { removeId: string | null; note: string } => {
       const active = g.filter((u) => !u.excluded);
-      if (status === "ehemalig") {
-        if (!active.length) return { removeId: null, note: "ehemalige(r) MA – bereits komplett aus der Wertung" };
-        const a = [...active].sort((x, y) => y.tips - x.tips)[0];
-        return { removeId: a.userId, note: "ehemalige(r) MA – nicht teilnahmeberechtigt" };
-      }
-      if (active.length <= 1) return { removeId: null, note: "bereits entschärft – ein Account ist schon aus der Wertung" };
+      // Ehemalige MA: NICHT eigenmächtig deaktivieren — erst Rücksprache.
+      if (status === "ehemalig")
+        return { removeId: null, note: "ehemalige(r) MA – vor vollständiger Deaktivierung mit Dana abklären" };
+      // 0 gemeinsame Spiele = kein paralleler Wertungsvorteil → nur beobachten.
+      if (shared === 0)
+        return { removeId: null, note: "nur beobachten – 0 gemeinsame Spiele, kein Wertungsvorteil" };
+      if (active.length <= 1)
+        return { removeId: null, note: "bereits entschärft – ein Account ist schon aus der Wertung" };
+      // Parallel gewertet: aktiveren Account behalten (zuletzt aktiv ist das beste
+      // Signal für den „echten" Account), sonst mehr Tipps / weniger Punkte / Arbeits-Mail.
+      const haveActivity = g.some((u) => u.lastActiveAt);
       const ranked = [...g].sort(
         (a, b) =>
+          lastActive(b) - lastActive(a) ||
           b.tips - a.tips ||
           a.points - b.points ||
           (a.userId.endsWith("@novotergum.de") === b.userId.endsWith("@novotergum.de")
@@ -165,9 +172,9 @@ export async function GET(req: NextRequest) {
       const remove = ranked[ranked.length - 1];
       return {
         removeId: remove.userId,
-        note: shared === 0
-          ? "nur Account-Wechsel – Zweit-Account (weniger Tipps) genügt"
-          : "Zweit-Account mit weniger Tipps raus, vollständigeren behalten",
+        note: haveActivity
+          ? "aktiveren Account behalten (zuletzt aktiv), Zweit-Account raus"
+          : "Zweit-Account mit weniger Tipps raus – letzte Aktivität noch unbekannt, ggf. manuell prüfen",
       };
     };
 
@@ -193,7 +200,7 @@ export async function GET(req: NextRequest) {
         sharedMatches: shared,
         recommendRemoveId: rec.removeId,
         recommendNote: rec.note,
-        members: g.map((u) => ({ userId: u.userId, userName: u.userName, excluded: u.excluded, registeredAt: u.registeredAt })),
+        members: g.map((u) => ({ userId: u.userId, userName: u.userName, excluded: u.excluded, registeredAt: u.registeredAt, lastActiveAt: u.lastActiveAt })),
       });
     }
 

@@ -31,7 +31,7 @@ interface PersonioDup {
   sharedMatches: number;
   recommendRemoveId: string | null;
   recommendNote: string;
-  members: { userId: string; userName: string; email?: string; excluded: boolean; registeredAt: string }[];
+  members: { userId: string; userName: string; email?: string; excluded: boolean; registeredAt: string; lastActiveAt: string | null }[];
 }
 
 interface AnMember { userId: string; userName: string; excluded: boolean }
@@ -645,6 +645,7 @@ export default function AdminPage() {
                           <span style={{ flex: 1 }}>
                             <b>{m.userName}</b> <span style={{ color: "#999" }}>· {m.email || m.userId}</span>
                             <span style={{ color: "#bbb", fontSize: 11 }}> · angelegt {new Date(m.registeredAt).toLocaleString("de-DE", { dateStyle: "short", timeStyle: "short" })}</span>
+                            <span style={{ color: "#bbb", fontSize: 11 }}> · {m.lastActiveAt ? `zuletzt aktiv ${new Date(m.lastActiveAt).toLocaleString("de-DE", { dateStyle: "short", timeStyle: "short" })}` : "noch nie aktiv"}</span>
                             {exNow(m.userId) && <span style={anStyles.exBadge}>raus</span>}
                             {d.recommendRemoveId === m.userId && !exNow(m.userId) && (
                               <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 700, color: "#fff", background: "#b26a00", borderRadius: 4, padding: "1px 6px" }}>
@@ -666,8 +667,8 @@ export default function AdminPage() {
                           </div>
                         );
                       })()}
-                      <div style={{ marginTop: 8, fontSize: 12, fontWeight: 600, color: d.recommendRemoveId ? "#5b3a8e" : "#2e7d32" }}>
-                        💡 Empfehlung: {d.recommendNote}
+                      <div style={{ marginTop: 8, fontSize: 12, fontWeight: 600, color: d.recommendRemoveId ? "#b26a00" : "#5b6b8e" }}>
+                        {d.recommendRemoveId ? "💡 Empfehlung: " : "👀 Hinweis: "}{d.recommendNote}
                       </div>
                     </div>
                   ))
