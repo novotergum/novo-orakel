@@ -93,13 +93,18 @@ export async function GET() {
     const playerMap = new Map<string, PlayerEntry>();
     for (const r of records) {
       const pts = r.points ?? 0;
+      // Nur ausgewertete Tipps zaehlen — konsistent mit Punkten & Trefferspalten.
+      const resolved = r.points != null;
+      // Kategorie aus den Basis-Punkten (vor K.o.-Multiplikator), damit
+      // Multiplikator-Treffer korrekt als exakt/Diff/Tendenz zaehlen.
+      const base = r.basePoints ?? r.points ?? 0;
       const existing = playerMap.get(r.userId);
       if (existing) {
         existing.points += pts;
-        existing.tips += 1;
-        if (pts === 4) existing.exact += 1;
-        else if (pts === 3) existing.diffCorrect += 1;
-        else if (pts === 2) existing.tendencyCorrect += 1;
+        if (resolved) existing.tips += 1;
+        if (base === 4) existing.exact += 1;
+        else if (base === 3) existing.diffCorrect += 1;
+        else if (base === 2) existing.tendencyCorrect += 1;
       } else {
         playerMap.set(r.userId, {
           userId: r.userId,
@@ -107,10 +112,10 @@ export async function GET() {
           source: r.source,
           location: r.location ?? null,
           points: pts,
-          tips: 1,
-          exact: pts === 4 ? 1 : 0,
-          diffCorrect: pts === 3 ? 1 : 0,
-          tendencyCorrect: pts === 2 ? 1 : 0,
+          tips: resolved ? 1 : 0,
+          exact: base === 4 ? 1 : 0,
+          diffCorrect: base === 3 ? 1 : 0,
+          tendencyCorrect: base === 2 ? 1 : 0,
         });
       }
     }

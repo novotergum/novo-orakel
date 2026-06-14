@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readPredictions, writePredictions } from "../../../lib/store";
-import { parseScoreTip, scoreTip, upsetBonus, stageMultiplier } from "../../../lib/scoring";
+import { parseScoreTip, scoreTip, stageMultiplier } from "../../../lib/scoring";
 
 interface ResolveBody {
   matchId: number;
@@ -25,34 +25,25 @@ export async function POST(req: NextRequest) {
 
     const records = await readPredictions();
     let updated = 0;
-    let upsets = 0;
 
     for (const r of records) {
       if (r.matchId !== body.matchId) continue;
       try {
         const parsed = parseScoreTip(r.scoreTip);
-        let basePoints = scoreTip(
+        const basePoints = scoreTip(
           parsed.home,
           parsed.away,
           body.actualHome,
           body.actualAway,
         );
 
-        // Upset-Bonus: +5 wenn korrekte Tendenz bei <35% Wahrscheinlichkeit
-        const pickProb = typeof r.pickProbability === "number" ? r.pickProbability : 1;
-        const bonus = upsetBonus(
-          r.winnerPick,
-          body.actualHome,
-          body.actualAway,
-          pickProb,
-        );
-        if (bonus > 0) upsets++;
-
-        // K.O.-Multiplikator anwenden
+        // K.O.-Multiplikator anwenden (einheitlich 4/3/2/0, kein Upset-Bonus mehr)
         const multiplier = stageMultiplier(r.stage);
-        r.points = Math.round((basePoints + bonus) * multiplier);
+        r.basePoints = basePoints;
+        r.points = Math.round(basePoints * multiplier);
         updated++;
       } catch {
+        r.basePoints = 0;
         r.points = 0;
       }
     }
@@ -64,7 +55,6 @@ export async function POST(req: NextRequest) {
       matchId: body.matchId,
       actual: { home: body.actualHome, away: body.actualAway },
       tipsResolved: updated,
-      upsetBonuses: upsets,
     });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "Unknown error";

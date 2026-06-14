@@ -24,6 +24,7 @@ interface LeaderboardEntry {
   exact: number;
   diffCorrect: number;
   tendencyCorrect: number;
+  rank: number; // Competition-Rang: Punktgleiche teilen sich denselben Rang
 }
 
 async function getData() {
@@ -32,23 +33,30 @@ async function getData() {
   const playerMap = new Map<string, LeaderboardEntry>();
   for (const r of records) {
     const pts = r.points ?? 0;
+    // Nur ausgewertete Tipps zaehlen (Punkte vergeben). So meinen Punkte,
+    // Exakt/Diff/Tendenz UND die Tipp-Zahl dieselben Spiele — sonst stehen
+    // 72 abgegebene Tipps neben Treffern aus nur 7 gespielten Partien.
+    const resolved = r.points != null;
+    // Kategorie aus den Basis-Punkten (vor K.o.-Multiplikator).
+    const base = r.basePoints ?? r.points ?? 0;
     const existing = playerMap.get(r.userId);
     if (existing) {
       existing.points += pts;
-      existing.tips += 1;
-      if (pts === 4) existing.exact += 1;
-      else if (pts === 3) existing.diffCorrect += 1;
-      else if (pts === 2) existing.tendencyCorrect += 1;
+      if (resolved) existing.tips += 1;
+      if (base === 4) existing.exact += 1;
+      else if (base === 3) existing.diffCorrect += 1;
+      else if (base === 2) existing.tendencyCorrect += 1;
     } else {
       playerMap.set(r.userId, {
         userId: r.userId,
         userName: r.userName,
         source: r.source,
         points: pts,
-        tips: 1,
-        exact: pts === 4 ? 1 : 0,
-        diffCorrect: pts === 3 ? 1 : 0,
-        tendencyCorrect: pts === 2 ? 1 : 0,
+        tips: resolved ? 1 : 0,
+        exact: base === 4 ? 1 : 0,
+        diffCorrect: base === 3 ? 1 : 0,
+        tendencyCorrect: base === 2 ? 1 : 0,
+        rank: 0,
       });
     }
   }
@@ -60,6 +68,19 @@ async function getData() {
     b.tendencyCorrect - a.tendencyCorrect ||
     a.userName.localeCompare(b.userName)
   );
+
+  // Competition-Ranking (1-2-2-4): Punktgleiche teilen sich den Rang. Verhindert,
+  // dass die Reihenfolge innerhalb eines Punkte-Clusters (per Tiebreaker/Alphabet)
+  // wie ein echter Auf-/Abstieg aussieht. Anzeige- und Banner-Rang sind identisch.
+  let prevPts: number | null = null;
+  board.forEach((e, i) => {
+    if (prevPts === null || e.points < prevPts) {
+      e.rank = i + 1;
+      prevPts = e.points;
+    } else {
+      e.rank = board[i - 1].rank;
+    }
+  });
 
   const humans = board.filter((e) => e.source === "human");
   const agents = board.filter((e) => e.source === "agent");

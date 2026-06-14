@@ -11,6 +11,7 @@ interface Entry {
   exact: number;
   diffCorrect: number;
   tendencyCorrect: number;
+  rank: number; // Competition-Rang: Punktgleiche teilen sich denselben Rang
 }
 
 const card: React.CSSProperties = {
@@ -165,7 +166,7 @@ export default function Leaderboard({
                       boxShadow: `0 3px 12px ${colors[i]}55`,
                     }}
                   >
-                    {i + 1}
+                    {entry.rank}
                   </div>
 
                   <div style={{ fontSize: isFirst ? 18 : 15, fontWeight: 700, color: "#2a2a2a", marginBottom: 4 }}>
@@ -206,7 +207,7 @@ export default function Leaderboard({
                   <div style={{ fontSize: isFirst ? 12 : 11, color: "#999" }}>Punkte</div>
                   {isFirst && (
                     <div style={{ fontSize: 11, color: "#bbb", marginTop: 4 }}>
-                      {entry.exact} exakt &middot; {entry.tips} Tipps
+                      {entry.exact} exakt &middot; {entry.tips} gewertet
                     </div>
                   )}
                 </div>
@@ -260,7 +261,7 @@ export default function Leaderboard({
                   >
                     <th style={{ padding: "14px 16px", width: 40, textAlign: "center" }}>#</th>
                     <th style={{ padding: "14px 16px", textAlign: "left" }}>Spieler</th>
-                    <th style={{ padding: "14px 16px", textAlign: "right" }}>Tipps</th>
+                    <th style={{ padding: "14px 16px", textAlign: "right" }} title="Ausgewertete Spiele (bereits gespielt)">Gewertet</th>
                     <th style={{ padding: "14px 16px", textAlign: "right" }} title="4P">Exakt</th>
                     <th style={{ padding: "14px 16px", textAlign: "right" }} title="3P">Diff</th>
                     <th style={{ padding: "14px 16px", textAlign: "right" }} title="2P">Tendenz</th>
@@ -278,7 +279,7 @@ export default function Leaderboard({
                         }}
                       >
                         <td style={{ padding: "14px 16px", textAlign: "center", color: "#bbb", fontWeight: 600 }}>
-                          {i + 4}
+                          {entry.rank}
                         </td>
                         <td style={{ padding: "14px 16px" }}>
                           <span style={{ color: "#2a2a2a", fontWeight: 600 }}>

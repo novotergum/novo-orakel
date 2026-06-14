@@ -85,6 +85,10 @@ export interface PredictionRecord {
   pickProbability?: number; // Wahrscheinlichkeit des getippten Outcomes (fuer Upset-Bonus)
   createdAt: string;
   points?: number;
+  // Basis-Punkte aus scoreTip vs. Ergebnis (4/3/2/0) VOR dem K.o.-Multiplikator.
+  // Damit die Exakt/Diff/Tendenz-Zaehler korrekt kategorisieren, auch wenn
+  // `points` durch einen Multiplikator von der Basis abweicht.
+  basePoints?: number;
 }
 
 // The Upstash SDK auto-deserializes JSON values, so a record may come back as
@@ -224,35 +228,37 @@ export interface RankMove {
   becameLeader: boolean; // neu auf Platz 1
 }
 
-// Baut die Menschen-Rangliste (gleiche Sortierung wie Board/Leaderboard).
-function humanRanking(
+// Baut die Rangliste fuer die Bewegungs-Banner — IDENTISCH zur sichtbaren
+// Tabelle (page.tsx): alle Spieler inkl. Orakel, Competition-Ranking nach
+// Punkten (Punktgleiche teilen sich den Rang). Damit stimmt der Banner-Rang
+// mit dem Tabellen-Rang ueberein und reine Tiebreaker-/Alphabet-Verschiebungen
+// in einem Punkte-Cluster erzeugen keine falschen "+N Plaetze"-Meldungen mehr.
+function boardRanking(
   records: PredictionRecord[],
   excluded: Set<string>,
 ): Map<string, { rank: number; points: number }> {
-  const agg = new Map<
-    string,
-    { points: number; exact: number; diff: number; tend: number; name: string }
-  >();
+  const agg = new Map<string, { points: number; name: string }>();
   for (const r of records) {
-    if (r.source !== "human" || excluded.has(r.userId)) continue;
+    if (excluded.has(r.userId)) continue;
     const pts = r.points ?? 0;
-    const e = agg.get(r.userId) ?? { points: 0, exact: 0, diff: 0, tend: 0, name: r.userName };
+    const e = agg.get(r.userId) ?? { points: 0, name: r.userName };
     e.points += pts;
-    if (pts === 4) e.exact++;
-    else if (pts === 3) e.diff++;
-    else if (pts === 2) e.tend++;
     agg.set(r.userId, e);
   }
+  // Anzeige-Reihenfolge: Punkte, dann Name (nur fuer stabile Sortierung —
+  // der Rang selbst kommt aus dem Competition-Schema und ignoriert den Namen).
   const sorted = [...agg.entries()].sort(
-    (a, b) =>
-      b[1].points - a[1].points ||
-      b[1].exact - a[1].exact ||
-      b[1].diff - a[1].diff ||
-      b[1].tend - a[1].tend ||
-      a[1].name.localeCompare(b[1].name),
+    (a, b) => b[1].points - a[1].points || a[1].name.localeCompare(b[1].name),
   );
   const out = new Map<string, { rank: number; points: number }>();
-  sorted.forEach(([userId, e], i) => out.set(userId, { rank: i + 1, points: e.points }));
+  let prevPts: number | null = null;
+  let prevRank = 0;
+  sorted.forEach(([userId, e], i) => {
+    const rank = prevPts === null || e.points < prevPts ? i + 1 : prevRank;
+    out.set(userId, { rank, points: e.points });
+    prevPts = e.points;
+    prevRank = rank;
+  });
   return out;
 }
 
@@ -262,7 +268,7 @@ export async function recordRankSnapshot(records: PredictionRecord[]): Promise<v
   if (!process.env.UPSTASH_REDIS_REST_URL) return;
   const redis = getRedis();
   const excluded = new Set(await readExcludedUserIds().catch(() => [] as string[]));
-  const current = humanRanking(records, excluded);
+  const current = boardRanking(records, excluded);
   if (current.size === 0) return;
 
   const prev = (await redis.hgetall<Record<string, number>>(RANK_PREV_KEY)) || {};
@@ -296,6 +302,9 @@ export async function recordRankSnapshot(records: PredictionRecord[]): Promise<v
     };
     moves[userId] = JSON.stringify(move);
     newPrev[userId] = rank;
+    // Ticker-Events nur fuer Menschen (names kennt nur Menschen). Das Orakel
+    // wird zwar mitgerankt, aber nicht namentlich angekuendigt.
+    if (!names.has(userId)) continue;
     if (becameLeader) newLeader = userId;
     else if (enteredTop3) podiumEntrants.push(userId);
   }

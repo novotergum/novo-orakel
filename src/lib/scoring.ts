@@ -4,7 +4,7 @@
  *   3P richtige Tordifferenz
  *   2P richtige Tendenz (Sieg/Unentschieden/Niederlage)
  *   0P falsch
- *   +5P Upset-Bonus (korrekte Prediction bei < 35% Wahrscheinlichkeit)
+ *   (Upset-Bonus 2026-06-14 entfernt — siehe upsetBonus() unten)
  *
  * K.O.-Runden-Multiplikator:
  *   Gruppenphase:  1x
@@ -51,10 +51,6 @@ export function scoreTip(
 }
 
 /**
- * Upset-Bonus: +5 wenn die getippte Tendenz korrekt war
- * UND die Wahrscheinlichkeit des getippten Outcomes < 0.35.
- */
-/**
  * Multiplikator basierend auf der Turnierphase.
  * Punkte werden gerundet (Math.round).
  */
@@ -84,14 +80,21 @@ export const STAGE_LABELS: Record<string, string> = {
   FINAL: "Finale",
 };
 
+/**
+ * Upset-Bonus: ENTFERNT (2026-06-14).
+ *
+ * Der Bonus basierte auf einer Modell-Wahrscheinlichkeit (pickProbability),
+ * die ausschliesslich die Orakel-Tipps tragen. Menschen-Tipps haben das Feld
+ * nie und fielen auf den Default 1.0 (100%) zurueck, konnten den Bonus also
+ * strukturell nie bekommen — er war de facto Orakel-exklusiv und damit unfair.
+ * Die Funktion gibt jetzt immer 0 zurueck (Signatur bleibt fuer die Aufrufer
+ * in resolve-all/resolve-match/stats erhalten). Es gilt einheitlich 4/3/2/0.
+ */
 export function upsetBonus(
-  winnerPick: "1" | "X" | "2",
-  actualHome: number,
-  actualAway: number,
-  pickProbability: number,
+  _winnerPick: "1" | "X" | "2",
+  _actualHome: number,
+  _actualAway: number,
+  _pickProbability: number,
 ): number {
-  const actualTendency = tendency(actualHome, actualAway);
-  if (winnerPick !== actualTendency) return 0;
-  if (pickProbability >= 0.35) return 0;
-  return 5;
+  return 0;
 }
