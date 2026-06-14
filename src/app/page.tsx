@@ -7,7 +7,6 @@ import LoginScreen from "../components/LoginScreen";
 import WarmupGame from "../components/WarmupGame";
 import LiveTicker from "../components/LiveTicker";
 import Leaderboard from "../components/Leaderboard";
-import FeatureSurvey from "../components/FeatureSurvey";
 import RankUpBanner from "../components/RankUpBanner";
 import { getAllowedDomains, getSession, userIdFromEmail } from "@/lib/auth";
 
@@ -361,8 +360,6 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
         </section>
 
         <Leaderboard top3={top3} rest={rest} currentUserId={profile.userId} />
-
-        <FeatureSurvey />
 
         {/* ── Empty state ── */}
         {board.length === 0 && (
