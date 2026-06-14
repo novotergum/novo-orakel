@@ -598,6 +598,80 @@ export default async function StatistikPage({
           </div>
         </section>
       )}
+
+      {/* ── 🔮 Das Orakel — Anspruchnahme ── */}
+      {s.oracleUsage && (() => {
+        const ou = s.oracleUsage;
+        const GREEN = "#2e9e5b";
+        const beats = ou.vsOracle.filter((v) => v.diff > 0).slice(0, 5);
+        const shouldve = [...ou.vsOracle].filter((v) => v.diff < 0).sort((a, b) => a.diff - b.diff).slice(0, 5);
+        const juenger = ou.loyalty.slice(0, 5);
+        const rebellen = [...ou.loyalty].reverse().slice(0, 5);
+        const sog = ou.sog.slice(0, 6);
+        const miniList = (
+          label: string,
+          entries: { name: string; val: string }[],
+          color: string,
+          empty?: string,
+        ) => (
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ fontSize: 11, color: "#999", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 700, marginBottom: 4 }}>
+              {label}
+            </div>
+            {entries.length === 0 ? (
+              <div style={{ fontSize: 13, color: "#bbb" }}>{empty ?? "—"}</div>
+            ) : (
+              entries.map((e, i) => (
+                <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "3px 0" }}>
+                  <span style={{ color: "#2a2a2a" }}>{e.name}</span>
+                  <span style={{ fontWeight: 700, color }}>{e.val}</span>
+                </div>
+              ))
+            )}
+          </div>
+        );
+        return (
+          <section style={{ marginBottom: 40 }}>
+            <SectionTitle>🔮 Das Orakel — wer hat ihm vertraut?</SectionTitle>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 16 }}>
+              <div style={{ ...card, padding: "14px 16px" }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: "#2a2a2a", marginBottom: 4 }}>🤖 Mensch gegen Maschine</div>
+                <div style={{ fontSize: 13, color: "#666", marginBottom: 12 }}>
+                  <strong>{ou.beatOracle}</strong> von {ou.ratedPlayers} haben das „reine Orakel" geschlagen. Wer drunter liegt, hätte mit blindem Orakel-Kopieren mehr Punkte gehabt.
+                </div>
+                {miniList("Helden — schlugen die Maschine", beats.map((v) => ({ name: v.userName, val: `+${v.diff}` })), GREEN, "Niemand 😅")}
+                {miniList("Hätten besser dem Orakel vertraut", shouldve.map((v) => ({ name: v.userName, val: `${v.diff}` })), RED)}
+              </div>
+
+              <div style={{ ...card, padding: "14px 16px" }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: "#2a2a2a", marginBottom: 12 }}>🙏 Orakel-Jünger &amp; 🤘 Rebellen</div>
+                {miniList("Treueste Jünger (Tendenz wie das Orakel)", juenger.map((l) => ({ name: l.userName, val: `${l.tendPct}%` })), BLUE)}
+                {miniList("Sturste Rebellen (eigener Weg)", rebellen.map((l) => ({ name: l.userName, val: `${l.tendPct}%` })), ORANGE)}
+              </div>
+
+              <div style={{ ...card, padding: "14px 16px" }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: "#2a2a2a", marginBottom: 4 }}>😰 Größter Orakel-Sog</div>
+                <div style={{ fontSize: 13, color: "#666", marginBottom: 12 }}>
+                  Partien, bei denen die meisten dem Orakel folgten — und ob es aufging.
+                </div>
+                {sog.length === 0 ? (
+                  <div style={{ fontSize: 13, color: "#bbb" }}>Noch zu wenig ausgewertet.</div>
+                ) : (
+                  sog.map((sm, i) => (
+                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 0", borderBottom: i < sog.length - 1 ? "1px solid #f2f2f2" : "none" }}>
+                      <div style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 600, color: "#2a2a2a", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{sm.label}</div>
+                      <div style={{ fontSize: 12, color: "#999", flexShrink: 0 }}>{sm.tendPct}% folgten</div>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: sm.oracleHitTendency ? GREEN : RED, flexShrink: 0, width: 96, textAlign: "right" }}>
+                        {sm.oracleHitTendency ? "✓ aufgegangen" : "✗ reingefallen"}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </section>
+        );
+      })()}
     </>,
   );
 }

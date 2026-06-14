@@ -128,6 +128,20 @@ export interface OrakelStat {
   beatsHumans: number; // Anzahl Menschen mit weniger Punkten
 }
 
+// Anspruchnahme des Orakels: wie sehr lehnten sich Menschen ans Orakel an?
+export interface OracleUsage {
+  oracleName: string;
+  // Mensch vs. Maschine: echte Punkte vs. Punkte bei blindem Orakel-Kopieren
+  // (über die Spiele, die der Spieler selbst getippt hat).
+  vsOracle: { userName: string; actual: number; copy: number; diff: number }[];
+  beatOracle: number; // wie viele schlugen das "reine Orakel"
+  ratedPlayers: number;
+  // Treue: Anteil der Tipps, die mit dem Orakel übereinstimmten (Tendenz/exakt)
+  loyalty: { userName: string; tips: number; tendPct: number; exactPct: number }[];
+  // Sog pro Partie: Anteil der Tipper, die exakt/tendenziell das Orakel kopierten
+  sog: { label: string; tippedBy: number; tendPct: number; exactPct: number; oracleHitTendency: boolean }[];
+}
+
 export interface StatsResult {
   tournamentEnded: boolean;
   finishedMatches: number;
@@ -152,6 +166,8 @@ export interface StatsResult {
   mostTippedScore: { score: string; count: number; correctCount: number } | null;
   // Standort
   locations: LocationStat[];
+  // Orakel-Anspruchnahme
+  oracleUsage: OracleUsage | null;
   // Voll-Ranking (fuer optionale Tabelle)
   board: PlayerStat[];
 }
@@ -200,6 +216,11 @@ export async function computeStats(): Promise<StatsResult> {
   const facts: RecordFact[] = [];
   const scoreCounter = new Map<string, { count: number; correct: number }>();
   let resolvedTips = 0;
+
+  // Orakel-Tipps + erzielte Punkte je Spiel (für die Anspruchnahme-Stats).
+  const ORACLE_ID = "ut-orakel";
+  const oracleTipByMatch = new Map<number, { score: string; pick: string; hitTendency: boolean }>();
+  const oraclePtsByMatch = new Map<number, number>();
 
   for (const r of records) {
     let p = players.get(r.userId);
@@ -257,6 +278,11 @@ export async function computeStats(): Promise<StatsResult> {
     else if (base === 3) p.diff += 1;
     else if (base === 2) p.tendency += 1;
     if (bonus > 0) p.upsetHits += 1;
+
+    if (r.userId === ORACLE_ID) {
+      oraclePtsByMatch.set(r.matchId, total);
+      oracleTipByMatch.set(r.matchId, { score: r.scoreTip, pick: r.winnerPick, hitTendency: base >= 2 });
+    }
 
     facts.push({
       userName: r.userName,
@@ -382,6 +408,51 @@ export async function computeStats(): Promise<StatsResult> {
     }))
     .sort((a, b) => b.avg - a.avg || b.players - a.players);
 
+  // --- Orakel-Anspruchnahme: Treue, Mensch-vs-Maschine, Sog pro Partie ---
+  const ORACLE_MIN_TIPS = 5;
+  const loy = new Map<string, { userName: string; tips: number; tend: number; exact: number; copy: number; actual: number }>();
+  const sogM = new Map<number, { label: string; n: number; tend: number; exact: number; hitTend: boolean }>();
+  for (const r of records) {
+    if (r.source !== "human") continue;
+    const ot = oracleTipByMatch.get(r.matchId);
+    const opts = oraclePtsByMatch.get(r.matchId);
+    if (!ot || opts == null) continue; // nur ausgewertete Spiele, die das Orakel getippt hat
+    const m = matchById.get(r.matchId)!;
+    let pts = 0;
+    try {
+      const p = parseScoreTip(r.scoreTip);
+      const base = scoreTip(p.home, p.away, m.score.home as number, m.score.away as number);
+      const bonus = upsetBonus(r.winnerPick, m.score.home as number, m.score.away as number, typeof r.pickProbability === "number" ? r.pickProbability : 1);
+      pts = typeof r.points === "number" ? r.points : Math.round((base + bonus) * stageMultiplier(r.stage || m.stage));
+    } catch {
+      pts = typeof r.points === "number" ? r.points : 0;
+    }
+    const exactCopy = r.scoreTip === ot.score;
+    const tendCopy = r.winnerPick === ot.pick;
+    let L = loy.get(r.userId);
+    if (!L) { L = { userName: r.userName, tips: 0, tend: 0, exact: 0, copy: 0, actual: 0 }; loy.set(r.userId, L); }
+    L.tips += 1; if (tendCopy) L.tend += 1; if (exactCopy) L.exact += 1; L.copy += opts; L.actual += pts;
+    let S = sogM.get(r.matchId);
+    if (!S) { S = { label: `${m.homeTeam.name} – ${m.awayTeam.name}`, n: 0, tend: 0, exact: 0, hitTend: ot.hitTendency }; sogM.set(r.matchId, S); }
+    S.n += 1; if (tendCopy) S.tend += 1; if (exactCopy) S.exact += 1;
+  }
+
+  let oracleUsage: OracleUsage | null = null;
+  if (orakel && loy.size) {
+    const rated = [...loy.values()].filter((l) => l.tips >= ORACLE_MIN_TIPS);
+    const vsOracle = rated
+      .map((l) => ({ userName: l.userName, actual: l.actual, copy: l.copy, diff: l.actual - l.copy }))
+      .sort((a, b) => b.diff - a.diff);
+    const loyalty = rated
+      .map((l) => ({ userName: l.userName, tips: l.tips, tendPct: Math.round((l.tend / l.tips) * 100), exactPct: Math.round((l.exact / l.tips) * 100) }))
+      .sort((a, b) => b.tendPct - a.tendPct || b.exactPct - a.exactPct);
+    const sog = [...sogM.values()]
+      .filter((s) => s.n >= ORACLE_MIN_TIPS)
+      .map((s) => ({ label: s.label, tippedBy: s.n, tendPct: Math.round((s.tend / s.n) * 100), exactPct: Math.round((s.exact / s.n) * 100), oracleHitTendency: s.hitTend }))
+      .sort((a, b) => b.tendPct - a.tendPct || b.exactPct - a.exactPct);
+    oracleUsage = { oracleName: orakel.userName, vsOracle, beatOracle: vsOracle.filter((v) => v.diff > 0).length, ratedPlayers: vsOracle.length, loyalty, sog };
+  }
+
   return {
     tournamentEnded,
     finishedMatches: finished.filter((m) => m.score.home != null).length,
@@ -402,6 +473,7 @@ export async function computeStats(): Promise<StatsResult> {
     worstMiss,
     mostTippedScore,
     locations,
+    oracleUsage,
     board,
   };
 }
