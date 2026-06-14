@@ -137,7 +137,14 @@ export default function Leaderboard({
           </h2>
           <div style={{ display: "flex", gap: 12, justifyContent: "center", alignItems: "flex-end" }}>
             {top3.map((entry, i) => {
-              const colors = ["#F39200", "#8a8a8a", "#A0522D"];
+              // Medaillenfarbe nach Rang, nicht nach Position: geteilter Platz 1
+              // -> beide Gold, geteilter Platz 2 -> beide Silber usw.
+              const medalByRank: Record<number, string> = {
+                1: "#F39200",
+                2: "#8a8a8a",
+                3: "#A0522D",
+              };
+              const color = medalByRank[entry.rank] ?? "#A0522D";
               const isFirst = i === 0;
               const isOnline = entry.source === "human" && online.has(entry.userId);
               return (
@@ -150,9 +157,9 @@ export default function Leaderboard({
                     position: "relative",
                     paddingTop: isFirst ? 44 : 36,
                     paddingBottom: isFirst ? 28 : 24,
-                    borderTop: `${isFirst ? 4 : 3}px solid ${colors[i]}`,
+                    borderTop: `${isFirst ? 4 : 3}px solid ${color}`,
                     boxShadow: isFirst
-                      ? `0 4px 24px ${colors[i]}22, 0 2px 12px rgba(0,0,0,0.06)`
+                      ? `0 4px 24px ${color}22, 0 2px 12px rgba(0,0,0,0.06)`
                       : "0 2px 12px rgba(0,0,0,0.04)",
                   }}
                 >
@@ -165,14 +172,14 @@ export default function Leaderboard({
                       width: isFirst ? 44 : 36,
                       height: isFirst ? 44 : 36,
                       borderRadius: "50%",
-                      background: colors[i],
+                      background: color,
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
                       fontSize: isFirst ? 20 : 16,
                       fontWeight: 800,
                       color: "#fff",
-                      boxShadow: `0 3px 12px ${colors[i]}55`,
+                      boxShadow: `0 3px 12px ${color}55`,
                     }}
                   >
                     {entry.rank}
@@ -206,7 +213,7 @@ export default function Leaderboard({
                     style={{
                       fontSize: isFirst ? 56 : 40,
                       fontWeight: 800,
-                      color: colors[i],
+                      color: color,
                       lineHeight: 1,
                       margin: isFirst ? "12px 0 6px" : "8px 0 4px",
                     }}
