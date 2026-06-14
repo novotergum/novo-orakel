@@ -178,6 +178,8 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
   const [finishedMatches, setFinishedMatches] = useState<Match[]>([]);
   // Orakel-Tipps, aufgedeckt nur für Spiele nach Anpfiff (server-seitig gegated).
   const [oracleTips, setOracleTips] = useState<Record<number, { scoreTip: string; winnerPick: string; confidence: number | null }>>({});
+  // Aktuell laufende Spiele (IN_PLAY) — prominent mit aufgedecktem Orakel-Tipp.
+  const [liveMatches, setLiveMatches] = useState<Match[]>([]);
   const [showTbd, setShowTbd] = useState(false);
   const [loading, setLoading] = useState(true);
   const [myTips, setMyTips] = useState<Record<number, MyTip>>({});
@@ -219,6 +221,12 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
       .then((d) => setOracleTips(d.tips ?? {}))
       .catch(() => {});
 
+    // Aktuell laufende Spiele
+    fetch("/api/matches?status=IN_PLAY")
+      .then((r) => r.json())
+      .then((d) => setLiveMatches(d.matches ?? []))
+      .catch(() => {});
+
     // Only fall back to localStorage if no server-side profile was passed in.
     if (!initialUser) {
       try {
@@ -229,6 +237,18 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
       }
     }
   }, [initialUser]);
+
+  // Live-Stand + Orakel-Reveals + frische Endstände alle 60 s nachziehen, damit
+  // der rollende „Heute"-Block aktuell bleibt (angepfiffen → live → beendet).
+  useEffect(() => {
+    const tick = () => {
+      fetch("/api/matches?status=IN_PLAY").then((r) => r.json()).then((d) => setLiveMatches(d.matches ?? [])).catch(() => {});
+      fetch("/api/oracle-tips").then((r) => r.json()).then((d) => setOracleTips(d.tips ?? {})).catch(() => {});
+      fetch("/api/matches?status=FINISHED").then((r) => r.json()).then((d) => setFinishedMatches(d.matches ?? [])).catch(() => {});
+    };
+    const id = setInterval(tick, 60_000);
+    return () => clearInterval(id);
+  }, []);
 
   // Load user's tips + joker count when user is set
   useEffect(() => {
@@ -494,8 +514,9 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
     const editable = new Date(m.kickoff).getTime() > now;
     const sh = m.score?.home;
     const sa = m.score?.away;
-    const finished = sh != null && sa != null;
-    const finalScore = finished ? `${sh}:${sa}` : null;
+    const finished = m.status === "FINISHED";
+    const live = m.status === "IN_PLAY";
+    const shownScore = sh != null && sa != null ? `${sh}:${sa}` : "–";
     const ptColor =
       tip?.points == null
         ? "#7A7A7A"
@@ -536,7 +557,11 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
               <FlagImg code={m.homeTeam.code} />{m.homeTeam.code ?? m.homeTeam.name}
               {finished ? (
                 <span style={{ color: "#3A3A3A", fontWeight: 700, margin: "0 6px" }}>
-                  {finalScore}
+                  {shownScore}
+                </span>
+              ) : live ? (
+                <span style={{ color: "#c62828", fontWeight: 800, margin: "0 6px" }}>
+                  {shownScore}
                 </span>
               ) : (
                 <span style={{ color: "#7A7A7A", margin: "0 4px" }}>vs</span>
@@ -548,8 +573,11 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
               {finished && (
                 <span style={{ color: "#7A7A7A", fontWeight: 600 }}> &middot; beendet</span>
               )}
+              {live && (
+                <span className="cd-pulse" style={{ color: "#c62828", fontWeight: 700 }}> &middot; LIVE</span>
+              )}
               {" "}
-              {!finished && (() => {
+              {!finished && !live && (() => {
                 const cd = countdownInfo(m.kickoff);
                 return (
                   <span
@@ -574,6 +602,22 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
                 );
               })()}
             </div>
+            {oracleTips[m.id] && (() => {
+              const ot = oracleTips[m.id];
+              let hit: "exact" | "tend" | "miss" | null = null;
+              if (finished && sh != null && sa != null) {
+                const actualPick = sh > sa ? "1" : sh < sa ? "2" : "X";
+                hit = ot.scoreTip === `${sh}:${sa}` ? "exact" : ot.winnerPick === actualPick ? "tend" : "miss";
+              }
+              return (
+                <div style={{ fontSize: 11, color: "#5b3a8e", marginTop: 3, fontWeight: 600 }}>
+                  🔮 Orakel: {ot.scoreTip}{ot.confidence != null ? ` · ${ot.confidence}%` : ""}
+                  {hit === "exact" && <span style={{ color: "#2e7d32" }}> ✓ exakt</span>}
+                  {hit === "tend" && <span style={{ color: "#E76C0A" }}> ✓ Tendenz</span>}
+                  {hit === "miss" && <span style={{ color: "#b0b0b0" }}> ✗</span>}
+                </div>
+              );
+            })()}
           </div>
 
           {/* Existing tip badge OR tip button */}
@@ -969,7 +1013,6 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
     .sort(
       (a, b) => new Date(a.kickoff).getTime() - new Date(b.kickoff).getTime(),
     );
-  const todayUpcomingIds = new Set(todayUpcoming.map((m) => m.id));
   const todayUntipped = todayUpcoming.filter((m) => !myTips[m.id]).length;
   // Dringlichster ungetippter Anpfiff im Fenster (Minuten bis Kickoff, sonst null)
   const imminentMins = todayUpcoming
@@ -983,12 +1026,31 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
   // deduplizieren, chronologisch sortieren (damit Gruppen-/KO-Listen stimmen).
   const allMatchesById = new Map<number, Match>();
   for (const m of matches) allMatchesById.set(m.id, m);
-  for (const m of finishedMatches)
-    if (!allMatchesById.has(m.id)) allMatchesById.set(m.id, m);
+  for (const m of liveMatches) allMatchesById.set(m.id, m); // Live frisch
+  for (const m of finishedMatches) allMatchesById.set(m.id, m); // beendet ist autoritativ
   const allMatches = [...allMatchesById.values()].sort(
     (a, b) => new Date(a.kickoff).getTime() - new Date(b.kickoff).getTime(),
   );
-  const restMatches = allMatches.filter((m) => !todayUpcomingIds.has(m.id));
+  // Rollender „Heute"-Block: alles mit Anpfiff im Fenster −24h … +24h (anstehend,
+  // live oder kürzlich beendet). Nichts fliegt sofort nach Abpfiff raus, sondern
+  // bleibt 24 h sichtbar — mit aufgedecktem Orakel-Tipp daneben.
+  const statusRank = (m: Match) => (m.status === "IN_PLAY" ? 0 : m.status === "FINISHED" ? 2 : 1);
+  const todayWindow = allMatches
+    .filter((m) => {
+      const t = new Date(m.kickoff).getTime();
+      return t >= now - WINDOW_MS && t <= now + WINDOW_MS;
+    })
+    .sort((a, b) => {
+      const ra = statusRank(a);
+      const rb = statusRank(b);
+      if (ra !== rb) return ra - rb; // live → anstehend → beendet
+      const ta = new Date(a.kickoff).getTime();
+      const tb = new Date(b.kickoff).getTime();
+      return ra === 1 ? ta - tb : tb - ta; // anstehend: bald zuerst; sonst: zuletzt zuerst
+    });
+  const todayWindowIds = new Set(todayWindow.map((m) => m.id));
+  const hasLive = todayWindow.some((m) => m.status === "IN_PLAY");
+  const restMatches = allMatches.filter((m) => !todayWindowIds.has(m.id));
 
   return (
     <div style={s.section}>
@@ -1044,13 +1106,13 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
         }
       `}</style>
 
-      {/* ── Heute: noch nicht angepfiffene Spiele, prominent zum Sofort-Tippen ── */}
-      {!loading && todayUpcoming.length > 0 && (
+      {/* ── Heute (rollend −24h…+24h): anstehend, live & kürzlich beendet ── */}
+      {!loading && todayWindow.length > 0 && (
         <div
           style={{
             marginBottom: 24,
-            background: hasImminent ? "#fdecec" : "#fff8ef",
-            border: hasImminent ? "1px solid #c6282855" : "1px solid #F3920055",
+            background: hasImminent || hasLive ? "#fdecec" : "#fff8ef",
+            border: hasImminent || hasLive ? "1px solid #c6282855" : "1px solid #F3920055",
             borderRadius: 14,
             padding: "16px 16px 18px",
           }}
@@ -1074,9 +1136,14 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
                 gap: 6,
               }}
             >
-              <span style={{ fontSize: 18 }}>⚽</span> Nächste 24 Stunden
+              <span style={{ fontSize: 18 }}>⚽</span> Heute
+              {hasLive && (
+                <span className="cd-pulse" style={{ color: "#c62828", fontSize: 12, fontWeight: 700 }}>
+                  🔴 LIVE
+                </span>
+              )}
             </h3>
-            {todayUntipped > 0 ? (
+            {todayUpcoming.length === 0 ? null : todayUntipped > 0 ? (
               <span
                 className={hasImminent ? "cd-pulse" : undefined}
                 style={{
@@ -1117,10 +1184,10 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
           >
             {hasImminent
               ? "Letzte Chance – nach dem Anpfiff ist der Tipp dicht!"
-              : "Diese Spiele starten in den nächsten 24 Stunden – tippe direkt hier, bevor der Anpfiff kommt."}
+              : "Heutiger Spieltag – anstehende, laufende und gerade beendete Spiele. Anstehende tippen, bevor der Anpfiff kommt; das Orakel deckt nach Anpfiff auf."}
           </p>
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            {todayUpcoming.map((m) => renderMatchCard(m, "#F39200"))}
+            {todayWindow.map((m) => renderMatchCard(m, "#F39200"))}
           </div>
         </div>
       )}
@@ -1375,25 +1442,6 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
                       >
                         {fmtDate(m.kickoff)}
                       </div>
-                      {oracleTips[m.id] && (() => {
-                        const ot = oracleTips[m.id];
-                        const sh = m.score?.home;
-                        const sa = m.score?.away;
-                        let hit: "exact" | "tend" | "miss" | null = null;
-                        if (sh != null && sa != null) {
-                          const actualPick = sh > sa ? "1" : sh < sa ? "2" : "X";
-                          hit = ot.scoreTip === `${sh}:${sa}` ? "exact" : ot.winnerPick === actualPick ? "tend" : "miss";
-                        }
-                        return (
-                          <div style={{ fontSize: 11, color: "#7A7A7A", marginTop: 2 }}>
-                            🔮 Orakel: <b style={{ color: "#5b3a8e" }}>{ot.scoreTip}</b>
-                            {ot.confidence != null ? ` · ${ot.confidence}%` : ""}
-                            {hit === "exact" && <span style={{ color: "#2e7d32", fontWeight: 700 }}> ✓ exakt</span>}
-                            {hit === "tend" && <span style={{ color: "#E76C0A", fontWeight: 700 }}> ✓ Tendenz</span>}
-                            {hit === "miss" && <span style={{ color: "#b0b0b0", fontWeight: 700 }}> ✗</span>}
-                          </div>
-                        );
-                      })()}
                     </div>
                     <div
                       style={{
