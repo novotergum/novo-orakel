@@ -489,6 +489,12 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
                   Viertelfinale 2× &middot; Halbfinale 2,5× &middot; Finale 3×
                 </li>
                 <li style={{ marginBottom: 10 }}>
+                  <strong>Gleichstand:</strong> Bei gleicher Punktzahl teilt man sich
+                  denselben Platz. Für die Reihenfolge zählt dann der Reihe nach: mehr
+                  exakte Treffer, mehr richtige Tordifferenzen, mehr richtige Tendenzen
+                  – und zuletzt der Name (alphabetisch).
+                </li>
+                <li style={{ marginBottom: 10 }}>
                   <strong>Nicht getippt = 0 Punkte.</strong> Wer mehr Spiele
                   tippt, hat mehr Chancen auf Punkte.
                 </li>
