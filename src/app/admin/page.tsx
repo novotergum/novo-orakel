@@ -28,6 +28,7 @@ interface PersonioDup {
   office: string | null;
   status: string;
   via: string;
+  sharedMatches: number;
   members: { userId: string; userName: string; email?: string; excluded: boolean }[];
 }
 
@@ -635,6 +636,7 @@ export default function AdminPage() {
                       <div style={anStyles.tag("#5b3a8e")}>
                         {d.empName}{d.office ? ` · ${d.office}` : ""}{d.status && d.status !== "aktiv" ? ` · ${d.status}` : ""}
                         <span style={{ marginLeft: 8, color: "#999", fontWeight: 400, textTransform: "none" }}>({d.via})</span>
+                        {triageLine(d.sharedMatches)}
                       </div>
                       {d.members.map((m) => (
                         <div key={m.userId} style={anStyles.row}>

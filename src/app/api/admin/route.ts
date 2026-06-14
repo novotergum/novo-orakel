@@ -64,9 +64,11 @@ export async function GET(req: NextRequest) {
     const predictions = await readPredictions();
     const tipCounts = new Map<string, number>();
     const pointsMap = new Map<string, number>();
+    const tippedByUser = new Map<string, Set<number>>();
     for (const p of predictions) {
       tipCounts.set(p.userId, (tipCounts.get(p.userId) ?? 0) + 1);
       pointsMap.set(p.userId, (pointsMap.get(p.userId) ?? 0) + (p.points ?? 0));
+      (tippedByUser.get(p.userId) ?? tippedByUser.set(p.userId, new Set()).get(p.userId)!).add(p.matchId);
     }
 
     // Load joker usage
@@ -117,9 +119,28 @@ export async function GET(req: NextRequest) {
       const lk = `lp:${localNorm(u.userId)}`;
       (groups.get(lk) ?? groups.set(lk, []).get(lk)!).push(u);
     }
+    // Triage: auf wie vielen Spielen haben zwei Accounts der Gruppe GEMEINSAM
+    // getippt? 0 = reiner Wechsel (kein Wertungsvorteil), >0 = parallel gewertet.
+    const groupSharedMatches = (members: { userId: string }[]): number => {
+      let max = 0;
+      for (let i = 0; i < members.length; i++) {
+        const a = tippedByUser.get(members[i].userId);
+        if (!a) continue;
+        for (let j = i + 1; j < members.length; j++) {
+          const b = tippedByUser.get(members[j].userId);
+          if (!b) continue;
+          let c = 0;
+          for (const mid of a) if (b.has(mid)) c++;
+          if (c > max) max = c;
+        }
+      }
+      return max;
+    };
+
     const seenGroup = new Set<string>();
     const personioDuplicates: {
       empName: string; office: string | null; status: string; via: string;
+      sharedMatches: number;
       members: { userId: string; userName: string; excluded: boolean }[];
     }[] = [];
     for (const g of groups.values()) {
@@ -133,6 +154,7 @@ export async function GET(req: NextRequest) {
         office: matched?.personio?.office ?? null,
         status: matched?.personio?.status ?? "",
         via: matched ? "Personio-Identität" : "gleicher E-Mail-Handle",
+        sharedMatches: groupSharedMatches(g),
         members: g.map((u) => ({ userId: u.userId, userName: u.userName, excluded: u.excluded })),
       });
     }
