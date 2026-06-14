@@ -61,15 +61,6 @@ export default function Leaderboard({
   rest: Entry[];
   currentUserId: string;
 }) {
-  // Geteilte Plaetze (Gleichstand): Raenge, die sich mehrere Spieler teilen.
-  // Nur dann zeigt das Treppchen die Aufschluesselung (x exakt / x gewertet).
-  const sharedRanks = new Set<number>();
-  const seenRanks = new Set<number>();
-  for (const e of [...top3, ...rest]) {
-    if (seenRanks.has(e.rank)) sharedRanks.add(e.rank);
-    else seenRanks.add(e.rank);
-  }
-
   const [online, setOnline] = useState<Set<string>>(new Set());
 
   // Heartbeat (alle 30 s) + Online-Liste pollen (alle 25 s). Pausiert, wenn der
@@ -221,11 +212,6 @@ export default function Leaderboard({
                     {entry.points}
                   </div>
                   <div style={{ fontSize: isFirst ? 12 : 11, color: "#999" }}>Punkte</div>
-                  {sharedRanks.has(entry.rank) && (
-                    <div style={{ fontSize: 11, color: "#bbb", marginTop: 4 }}>
-                      {entry.exact} exakt &middot; {entry.tips} gewertet
-                    </div>
-                  )}
                 </div>
               );
             })}
