@@ -1271,6 +1271,120 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
         </div>
       )}
 
+      {/* ── Meine Tipps (kommende Spiele, read-only Überblick) ── */}
+      {(() => {
+        // Noch offene, tippbare Spiele (Teams stehen fest, Anpfiff in der Zukunft).
+        const open = matches.filter(
+          (m) => matchTeamsKnown(m) && new Date(m.kickoff).getTime() > now,
+        );
+        const myUpcoming = open
+          .filter((m) => myTips[m.id])
+          .sort(
+            (a, b) =>
+              new Date(a.kickoff).getTime() - new Date(b.kickoff).getTime(),
+          );
+        if (myUpcoming.length === 0) return null;
+        return (
+          <details style={{ marginTop: 32 }}>
+            <summary
+              style={{
+                listStyle: "none",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                fontSize: 16,
+                fontWeight: 600,
+                color: "#3A3A3A",
+                userSelect: "none",
+                marginBottom: 4,
+              }}
+            >
+              <span>
+                Meine Tipps ({myUpcoming.length} von {open.length} getippt)
+              </span>
+              <span style={{ fontSize: 12, color: "#bbb", fontWeight: 400 }}>
+                anzeigen ▾
+              </span>
+            </summary>
+            <p style={{ margin: "0 0 12px", fontSize: 12, color: "#7A7A7A" }}>
+              Deine Tipps für noch nicht gespielte Spiele – bis zum Anpfiff
+              jederzeit änderbar.
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              {myUpcoming.map((m) => {
+                const tip = myTips[m.id];
+                return (
+                  <div
+                    key={m.id}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 8,
+                      background: "#fff",
+                      border: "1px solid #e0ddd9",
+                      borderRadius: 10,
+                      padding: "10px 12px",
+                    }}
+                  >
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div
+                        style={{
+                          fontWeight: 600,
+                          fontSize: 13,
+                          color: "#3A3A3A",
+                          lineHeight: 1.4,
+                        }}
+                      >
+                        <FlagImg code={m.homeTeam.code} />
+                        {m.homeTeam.code ?? m.homeTeam.name}
+                        <span
+                          style={{
+                            color: "#bbb",
+                            fontWeight: 700,
+                            margin: "0 6px",
+                          }}
+                        >
+                          vs
+                        </span>
+                        <FlagImg code={m.awayTeam.code} />
+                        {m.awayTeam.code ?? m.awayTeam.name}
+                      </div>
+                      <div
+                        style={{ fontSize: 11, color: "#7A7A7A", marginTop: 1 }}
+                      >
+                        {fmtDate(m.kickoff)}
+                      </div>
+                    </div>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
+                        background: "#e8f5e9",
+                        border: "1px solid #a5d6a7",
+                        borderRadius: 8,
+                        padding: "4px 10px",
+                        fontSize: 12,
+                        color: "#2e7d32",
+                        fontWeight: 600,
+                        flexShrink: 0,
+                      }}
+                      title="Dein Tipp"
+                    >
+                      <span>{tip.scoreTip}</span>
+                      <span style={{ color: "#a5d6a7" }}>|</span>
+                      <span>{pickLabel(tip.winnerPick)}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </details>
+        );
+      })()}
+
       {/* ── Meine Ergebnisse (beendete Spiele, read-only) ── */}
       {(() => {
         const myResults = finishedMatches
