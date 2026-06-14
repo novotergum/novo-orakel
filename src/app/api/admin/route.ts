@@ -6,6 +6,7 @@ import {
   readExcludedUserIds,
   setUserExcluded,
 } from "../../../lib/store";
+import { matchRegistrations, type MatchInfo } from "../../../lib/personio";
 
 let _redis: Redis | null = null;
 function getRedis(): Redis {
@@ -82,6 +83,19 @@ export async function GET(req: NextRequest) {
     // Aus der Wertung genommene userIds
     const excluded = new Set(await readExcludedUserIds());
 
+    // Personio-Abgleich (best-effort): Status/Kategorie pro User + Doppel-Account-
+    // Gruppen (zwei Registrierungen → dieselbe Personio-Person). Faellt der Abruf
+    // aus, bleibt das Panel ohne Personio-Daten, der Rest funktioniert weiter.
+    let matches: Map<string, MatchInfo> | null = null;
+    let personioError: string | null = null;
+    try {
+      matches = await matchRegistrations(
+        users.map((u) => ({ userId: u.userId, userName: u.userName, email: u.userId })),
+      );
+    } catch (e) {
+      personioError = e instanceof Error ? e.message : "Personio nicht verfügbar";
+    }
+
     const enriched = users.map((u, i) => ({
       ...u,
       tips: tipCounts.get(u.userId) ?? 0,
@@ -89,9 +103,27 @@ export async function GET(req: NextRequest) {
       jokersUsed: (jokerResults[i] as number) ?? 0,
       lastActiveAt: seen[u.userId] != null ? new Date(Number(seen[u.userId])).toISOString() : null,
       excluded: excluded.has(u.userId),
+      personio: matches?.get(u.userId) ?? null,
     }));
 
-    return NextResponse.json({ users: enriched });
+    // Doppel-Accounts: gruppiere Registrierungen mit gleicher Personio-Identitaet.
+    const byEmp = new Map<string, typeof enriched>();
+    if (matches) {
+      for (const u of enriched) {
+        const empId = u.personio?.empId;
+        if (empId) (byEmp.get(empId) ?? byEmp.set(empId, []).get(empId)!).push(u);
+      }
+    }
+    const personioDuplicates = [...byEmp.values()]
+      .filter((g) => g.length > 1)
+      .map((g) => ({
+        empName: g[0].personio?.empName ?? "?",
+        office: g[0].personio?.office ?? null,
+        status: g[0].personio?.status ?? "",
+        members: g.map((u) => ({ userId: u.userId, userName: u.userName, excluded: u.excluded })),
+      }));
+
+    return NextResponse.json({ users: enriched, personioDuplicates, personioError });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "Unknown error";
     return NextResponse.json({ error: msg }, { status: 500 });
