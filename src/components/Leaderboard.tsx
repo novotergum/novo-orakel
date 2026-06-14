@@ -253,7 +253,7 @@ export default function Leaderboard({
                 userSelect: "none",
               }}
             >
-              <span>Leaderboard ab Platz 4</span>
+              <span>Leaderboard ab Platz {rest[0].rank}</span>
               <span style={{ fontSize: 12, color: "#bbb" }}>anzeigen ▾</span>
             </summary>
             <div style={{ overflowX: "auto", borderTop: "1px solid #f0f0f0" }}>
