@@ -56,6 +56,7 @@ function OnlineTag({ label }: { label?: boolean }) {
 export default function Leaderboard({
   top3,
   rest,
+  currentUserId,
 }: {
   top3: Entry[];
   rest: Entry[];
@@ -138,6 +139,7 @@ export default function Leaderboard({
               const color = medalByRank[entry.rank] ?? "#A0522D";
               const isFirst = i === 0;
               const isOnline = entry.source === "human" && online.has(entry.userId);
+              const isMe = entry.userId === currentUserId;
               return (
                 <div
                   key={entry.userId}
@@ -149,11 +151,32 @@ export default function Leaderboard({
                     paddingTop: isFirst ? 44 : 36,
                     paddingBottom: isFirst ? 28 : 24,
                     borderTop: `${isFirst ? 4 : 3}px solid ${color}`,
+                    outline: isMe ? "2px solid #4293D0" : undefined,
+                    outlineOffset: isMe ? "1px" : undefined,
                     boxShadow: isFirst
                       ? `0 4px 24px ${color}22, 0 2px 12px rgba(0,0,0,0.06)`
                       : "0 2px 12px rgba(0,0,0,0.04)",
                   }}
                 >
+                  {isMe && (
+                    <span
+                      style={{
+                        position: "absolute",
+                        top: 8,
+                        right: 8,
+                        fontSize: 9,
+                        padding: "2px 6px",
+                        background: "#4293D0",
+                        color: "#fff",
+                        borderRadius: 4,
+                        fontWeight: 700,
+                        textTransform: "uppercase",
+                        letterSpacing: "0.05em",
+                      }}
+                    >
+                      Du
+                    </span>
+                  )}
                   <div
                     style={{
                       position: "absolute",
@@ -273,20 +296,40 @@ export default function Leaderboard({
                 <tbody>
                   {rest.map((entry, i) => {
                     const isOnline = entry.source === "human" && online.has(entry.userId);
+                    const isMe = entry.userId === currentUserId;
                     return (
                       <tr
                         key={entry.userId}
                         style={{
                           borderBottom: i < rest.length - 1 ? "1px solid #f0f0f0" : "none",
+                          background: isMe ? "#eaf4fb" : undefined,
                         }}
                       >
-                        <td style={{ padding: "14px 16px", textAlign: "center", color: "#bbb", fontWeight: 600 }}>
+                        <td style={{ padding: "14px 16px", textAlign: "center", color: isMe ? "#4293D0" : "#bbb", fontWeight: isMe ? 800 : 600 }}>
                           {entry.rank}
                         </td>
                         <td style={{ padding: "14px 16px" }}>
-                          <span style={{ color: "#2a2a2a", fontWeight: 600 }}>
+                          <span style={{ color: "#2a2a2a", fontWeight: isMe ? 800 : 600 }}>
                             {entry.userName}
                           </span>
+                          {isMe && (
+                            <span
+                              style={{
+                                marginLeft: 8,
+                                fontSize: 9,
+                                padding: "2px 6px",
+                                background: "#4293D0",
+                                color: "#fff",
+                                borderRadius: 4,
+                                verticalAlign: "middle",
+                                fontWeight: 700,
+                                textTransform: "uppercase",
+                                letterSpacing: "0.05em",
+                              }}
+                            >
+                              Du
+                            </span>
+                          )}
                           {isOnline && (
                             <span style={{ marginLeft: 8 }}>
                               <OnlineTag label />
