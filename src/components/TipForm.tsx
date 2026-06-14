@@ -11,6 +11,7 @@ interface Match {
   homeTeam: { id: number; name: string; code: string | null };
   awayTeam: { id: number; name: string; code: string | null };
   score?: { home: number | null; away: number | null };
+  halftime?: boolean;
 }
 
 interface UserProfile {
@@ -584,7 +585,9 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
                 <span style={{ color: "#7A7A7A", fontWeight: 600 }}> &middot; beendet</span>
               )}
               {live && (
-                <span className="cd-pulse" style={{ color: "#c62828", fontWeight: 700 }}> &middot; LIVE</span>
+                <span className="cd-pulse" style={{ color: "#c62828", fontWeight: 700 }}>
+                  {" "}&middot; {m.halftime ? "HZ" : "LIVE"}
+                </span>
               )}
               {" "}
               {!finished && !live && (() => {

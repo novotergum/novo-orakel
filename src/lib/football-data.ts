@@ -38,6 +38,7 @@ export type NormalizedMatch = {
   homeTeam: { id: number; name: string; code: string | null };
   awayTeam: { id: number; name: string; code: string | null };
   score: { home: number | null; away: number | null };
+  halftime?: boolean; // true when the live game is paused at half-time
 };
 
 // ---------------------------------------------------------------------------
@@ -118,6 +119,7 @@ function normalize(m: FDMatch): NormalizedMatch {
     homeTeam: { id: home.id, name: home.name, code: home.tla ?? null },
     awayTeam: { id: away.id, name: away.name, code: away.tla ?? null },
     score: { home: sh, away: sa },
+    halftime: m.status === "PAUSED",
   };
 }
 
