@@ -34,8 +34,8 @@ export interface Employee {
 }
 
 export interface MatchInfo {
-  category: "MA" | "Standort-Postfach" | "Schwester-Marke (UT)" | "Schwester-Marke (Vita)" | "Extern";
-  method: "email" | "name" | "localpart" | "localpart-name" | "";
+  category: "MA" | "MA? (Mismatch)" | "Standort-Postfach" | "Schwester-Marke (UT)" | "Schwester-Marke (Vita)" | "Extern";
+  method: "email" | "name" | "localpart" | "localpart~" | "localpart-name" | "";
   empId: string | null;
   empName: string | null;
   office: string | null;
@@ -50,6 +50,8 @@ const norm = (s: string) =>
 const normName = (s: string) =>
   norm(s).replace(/[^a-z0-9]+/g, " ").trim().split(" ").filter(Boolean).sort().join(" ");
 const localOf = (email: string) => (email || "").toLowerCase().split("@")[0];
+// Localpart ohne Trenner: "t.scharein" und "tscharein" werden gleich.
+export const localNorm = (email: string) => localOf(email).replace(/[._-]+/g, "");
 
 async function fetchEmployees(): Promise<Employee[]> {
   const cid = process.env.NTG_PERSONIO_CLIENT_ID;
@@ -110,12 +112,17 @@ export async function matchRegistrations(users: RegLike[]): Promise<Map<string, 
   const byEmail = new Map<string, Employee>();
   const byName = new Map<string, Employee[]>();
   const byLocal = new Map<string, Employee[]>();
+  const byLocalN = new Map<string, Employee[]>();
   for (const e of emps) {
     if (e.email) byEmail.set(e.email, e);
     const nk = normName(`${e.first} ${e.last}`);
     (byName.get(nk) ?? byName.set(nk, []).get(nk)!).push(e);
     const lk = localOf(e.email);
-    if (lk) (byLocal.get(lk) ?? byLocal.set(lk, []).get(lk)!).push(e);
+    if (lk) {
+      (byLocal.get(lk) ?? byLocal.set(lk, []).get(lk)!).push(e);
+      const ln = localNorm(e.email);
+      (byLocalN.get(ln) ?? byLocalN.set(ln, []).get(ln)!).push(e);
+    }
   }
 
   const tier = (u: RegLike): { emp: Employee | null; method: MatchInfo["method"] } => {
@@ -125,6 +132,8 @@ export async function matchRegistrations(users: RegLike[]): Promise<Map<string, 
     if (nm?.length === 1) return { emp: nm[0], method: "name" };
     const lp = byLocal.get(localOf(email));
     if (lp?.length === 1) return { emp: lp[0], method: "localpart" };
+    const lpn = byLocalN.get(localNorm(email));
+    if (lpn?.length === 1) return { emp: lpn[0], method: "localpart~" };
     const toks = localOf(email).split(/[._-]+/).map((t) => norm(t.replace(/\d+$/, ""))).filter(Boolean);
     const cands = emps.filter((e) => {
       const fn = norm(e.first), ln = norm(e.last);
@@ -146,6 +155,7 @@ export async function matchRegistrations(users: RegLike[]): Promise<Map<string, 
       const email = (u.email || u.userId || "").toLowerCase();
       const [local, dom = ""] = email.split("@");
       if (dom === "novotergum.de" && !local.includes(".")) category = "Standort-Postfach";
+      else if (dom === "novotergum.de") category = "MA? (Mismatch)";
       else if (dom.includes("united-therapy") || dom.includes("uth")) category = "Schwester-Marke (UT)";
       else if (dom.includes("vita-gesundheit")) category = "Schwester-Marke (Vita)";
       else category = "Extern";

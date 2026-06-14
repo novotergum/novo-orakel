@@ -14,7 +14,7 @@ interface AdminUser {
   jokersUsed: number;
   excluded: boolean;
   personio?: {
-    category: "MA" | "Standort-Postfach" | "Schwester-Marke (UT)" | "Schwester-Marke (Vita)" | "Extern";
+    category: "MA" | "MA? (Mismatch)" | "Standort-Postfach" | "Schwester-Marke (UT)" | "Schwester-Marke (Vita)" | "Extern";
     method: string;
     empId: string | null;
     empName: string | null;
@@ -27,6 +27,7 @@ interface PersonioDup {
   empName: string;
   office: string | null;
   status: string;
+  via: string;
   members: { userId: string; userName: string; email?: string; excluded: boolean }[];
 }
 
@@ -806,6 +807,7 @@ export default function AdminPage() {
                     <div key={`pd-${i}`} style={anStyles.box}>
                       <div style={anStyles.tag("#5b3a8e")}>
                         {d.empName}{d.office ? ` · ${d.office}` : ""}{d.status && d.status !== "aktiv" ? ` · ${d.status}` : ""}
+                        <span style={{ marginLeft: 8, color: "#999", fontWeight: 400, textTransform: "none" }}>({d.via})</span>
                       </div>
                       {d.members.map((m) => (
                         <div key={m.userId} style={anStyles.row}>

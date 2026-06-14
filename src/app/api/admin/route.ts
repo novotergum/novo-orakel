@@ -6,7 +6,7 @@ import {
   readExcludedUserIds,
   setUserExcluded,
 } from "../../../lib/store";
-import { matchRegistrations, type MatchInfo } from "../../../lib/personio";
+import { matchRegistrations, localNorm, type MatchInfo } from "../../../lib/personio";
 
 let _redis: Redis | null = null;
 function getRedis(): Redis {
@@ -106,22 +106,36 @@ export async function GET(req: NextRequest) {
       personio: matches?.get(u.userId) ?? null,
     }));
 
-    // Doppel-Accounts: gruppiere Registrierungen mit gleicher Personio-Identitaet.
-    const byEmp = new Map<string, typeof enriched>();
-    if (matches) {
-      for (const u of enriched) {
-        const empId = u.personio?.empId;
-        if (empId) (byEmp.get(empId) ?? byEmp.set(empId, []).get(empId)!).push(u);
-      }
+    // Doppel-Accounts = zwei+ Registrierungen, die dieselbe Person sind:
+    //   (a) gleiche Personio-Identitaet (empId) — fängt z.B. Tobi Hellmann/Scharein
+    //   (b) gleicher normalisierter E-Mail-Handle über Domains — fängt z.B.
+    //       verena.limbacher@gmail ↔ @gmx (auch ohne Personio-Treffer)
+    const groups = new Map<string, typeof enriched>();
+    for (const u of enriched) {
+      const empId = u.personio?.empId;
+      if (empId) (groups.get(`emp:${empId}`) ?? groups.set(`emp:${empId}`, []).get(`emp:${empId}`)!).push(u);
+      const lk = `lp:${localNorm(u.userId)}`;
+      (groups.get(lk) ?? groups.set(lk, []).get(lk)!).push(u);
     }
-    const personioDuplicates = [...byEmp.values()]
-      .filter((g) => g.length > 1)
-      .map((g) => ({
-        empName: g[0].personio?.empName ?? "?",
-        office: g[0].personio?.office ?? null,
-        status: g[0].personio?.status ?? "",
+    const seenGroup = new Set<string>();
+    const personioDuplicates: {
+      empName: string; office: string | null; status: string; via: string;
+      members: { userId: string; userName: string; excluded: boolean }[];
+    }[] = [];
+    for (const g of groups.values()) {
+      if (g.length < 2) continue;
+      const key = g.map((u) => u.userId).sort().join("|");
+      if (seenGroup.has(key)) continue;
+      seenGroup.add(key);
+      const matched = g.find((u) => u.personio?.empName);
+      personioDuplicates.push({
+        empName: matched?.personio?.empName ?? `gleicher E-Mail-Handle „${localNorm(g[0].userId)}"`,
+        office: matched?.personio?.office ?? null,
+        status: matched?.personio?.status ?? "",
+        via: matched ? "Personio-Identität" : "gleicher E-Mail-Handle",
         members: g.map((u) => ({ userId: u.userId, userName: u.userName, excluded: u.excluded })),
-      }));
+      });
+    }
 
     return NextResponse.json({ users: enriched, personioDuplicates, personioError });
   } catch (e: unknown) {
