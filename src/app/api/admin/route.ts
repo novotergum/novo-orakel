@@ -137,10 +137,44 @@ export async function GET(req: NextRequest) {
       return max;
     };
 
+    // Empfehlung, welcher Account aus der Wertung soll:
+    //  - ehemalige MA: der noch aktive (nicht teilnahmeberechtigt)
+    //  - sonst: der Zweit-Account mit weniger Tipps raus, vollständigeren behalten
+    //    (Gleichstand → weniger Punkte behalten, dann Arbeits-Mail bevorzugen)
+    //  - ist schon einer raus: erledigt (keine Empfehlung)
+    const recommendFor = (
+      g: typeof enriched,
+      status: string,
+      shared: number,
+    ): { removeId: string | null; note: string } => {
+      const active = g.filter((u) => !u.excluded);
+      if (status === "ehemalig") {
+        if (!active.length) return { removeId: null, note: "ehemalige(r) MA – bereits komplett aus der Wertung" };
+        const a = [...active].sort((x, y) => y.tips - x.tips)[0];
+        return { removeId: a.userId, note: "ehemalige(r) MA – nicht teilnahmeberechtigt" };
+      }
+      if (active.length <= 1) return { removeId: null, note: "bereits entschärft – ein Account ist schon aus der Wertung" };
+      const ranked = [...g].sort(
+        (a, b) =>
+          b.tips - a.tips ||
+          a.points - b.points ||
+          (a.userId.endsWith("@novotergum.de") === b.userId.endsWith("@novotergum.de")
+            ? 0
+            : a.userId.endsWith("@novotergum.de") ? -1 : 1),
+      );
+      const remove = ranked[ranked.length - 1];
+      return {
+        removeId: remove.userId,
+        note: shared === 0
+          ? "nur Account-Wechsel – Zweit-Account (weniger Tipps) genügt"
+          : "Zweit-Account mit weniger Tipps raus, vollständigeren behalten",
+      };
+    };
+
     const seenGroup = new Set<string>();
     const personioDuplicates: {
       empName: string; office: string | null; status: string; via: string;
-      sharedMatches: number;
+      sharedMatches: number; recommendRemoveId: string | null; recommendNote: string;
       members: { userId: string; userName: string; excluded: boolean }[];
     }[] = [];
     for (const g of groups.values()) {
@@ -149,12 +183,16 @@ export async function GET(req: NextRequest) {
       if (seenGroup.has(key)) continue;
       seenGroup.add(key);
       const matched = g.find((u) => u.personio?.empName);
+      const shared = groupSharedMatches(g);
+      const rec = recommendFor(g, matched?.personio?.status ?? "", shared);
       personioDuplicates.push({
         empName: matched?.personio?.empName ?? `gleicher E-Mail-Handle „${localNorm(g[0].userId)}"`,
         office: matched?.personio?.office ?? null,
         status: matched?.personio?.status ?? "",
         via: matched ? "Personio-Identität" : "gleicher E-Mail-Handle",
-        sharedMatches: groupSharedMatches(g),
+        sharedMatches: shared,
+        recommendRemoveId: rec.removeId,
+        recommendNote: rec.note,
         members: g.map((u) => ({ userId: u.userId, userName: u.userName, excluded: u.excluded })),
       });
     }
