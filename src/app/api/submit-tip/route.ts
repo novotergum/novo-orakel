@@ -68,28 +68,39 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Deadline-Logik, Stage & Feed-Metadaten ermitteln
+    // Deadline-Logik, Stage & Feed-Metadaten ermitteln.
+    // FAIL-CLOSED: Lässt sich die Partie nicht verifizieren (API unten), wird
+    // der Tipp ABGELEHNT statt durchgewunken – sonst könnte bei API-Ausfall auf
+    // bereits angepfiffene Spiele getippt werden.
     let stage: string | undefined;
     let matchLabel: string | undefined;
     let minutesToKickoff: number | undefined;
+    let matches;
     try {
-      const matches = await getMatches();
-      const match = matches.find((m) => m.id === body.matchId);
-      if (match) {
-        const kickoff = new Date(match.kickoff).getTime();
-        if (Date.now() >= kickoff) {
-          return NextResponse.json(
-            { error: "Tippabgabe geschlossen" },
-            { status: 400 },
-          );
-        }
-        if (match.stage) stage = match.stage;
-        matchLabel = `${match.homeTeam?.name ?? "?"} – ${match.awayTeam?.name ?? "?"}`;
-        minutesToKickoff = Math.max(0, Math.round((kickoff - Date.now()) / 60000));
-      }
+      matches = await getMatches();
     } catch {
-      // If match lookup fails, allow the tip (graceful degradation)
+      return NextResponse.json(
+        { error: "Spieldaten gerade nicht erreichbar – bitte in einem Moment erneut versuchen." },
+        { status: 503 },
+      );
     }
+    const match = matches.find((m) => m.id === body.matchId);
+    if (!match) {
+      return NextResponse.json(
+        { error: "Spiel nicht gefunden." },
+        { status: 404 },
+      );
+    }
+    const kickoff = new Date(match.kickoff).getTime();
+    if (Date.now() >= kickoff) {
+      return NextResponse.json(
+        { error: "Tippabgabe geschlossen" },
+        { status: 400 },
+      );
+    }
+    if (match.stage) stage = match.stage;
+    matchLabel = `${match.homeTeam?.name ?? "?"} – ${match.awayTeam?.name ?? "?"}`;
+    minutesToKickoff = Math.max(0, Math.round((kickoff - Date.now()) / 60000));
 
     // Did this user already have a tip for this match? Decides new vs. change.
     const prior = await getPrediction(body.matchId, userId).catch(() => null);

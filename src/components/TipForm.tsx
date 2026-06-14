@@ -175,6 +175,7 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
 
   // Match + tip state
   const [matches, setMatches] = useState<Match[]>([]);
+  const [matchesError, setMatchesError] = useState(false);
   const [finishedMatches, setFinishedMatches] = useState<Match[]>([]);
   // Orakel-Tipps, aufgedeckt nur für Spiele nach Anpfiff (server-seitig gegated).
   const [oracleTips, setOracleTips] = useState<Record<number, { scoreTip: string; winnerPick: string; confidence: number | null }>>({});
@@ -204,10 +205,19 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
     fetch("/api/matches")
       .then((r) => r.json())
       .then((d) => {
-        setMatches(d.matches ?? []);
+        // Bei API-Ausfall liefert die Route { error } statt { matches } – das
+        // ehrlich anzeigen statt faelschlich "Keine anstehenden Spiele".
+        if (d.error) {
+          setMatchesError(true);
+        } else {
+          setMatches(d.matches ?? []);
+        }
         setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch(() => {
+        setMatchesError(true);
+        setLoading(false);
+      });
 
     // Beendete Spiele fuer die "Meine Ergebnisse"-Ansicht
     fetch("/api/matches?status=FINISHED")
@@ -1190,6 +1200,20 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
       {/* Match list */}
       {loading ? (
         <p style={{ color: "#7A7A7A", fontSize: 14 }}>Lade Spiele...</p>
+      ) : matchesError ? (
+        <div
+          style={{
+            background: "#fff8ef",
+            border: "1px solid #F3920055",
+            borderRadius: 12,
+            padding: "14px 16px",
+            fontSize: 14,
+            color: "#7A4A00",
+          }}
+        >
+          ⚠️ Spieldaten gerade nicht erreichbar. Die Spiele stehen weiter an –
+          bitte in ein paar Minuten neu laden.
+        </div>
       ) : matches.length === 0 ? (
         <p style={{ color: "#7A7A7A", fontSize: 14 }}>Keine anstehenden Spiele.</p>
       ) : restMatches.length === 0 ? null : (

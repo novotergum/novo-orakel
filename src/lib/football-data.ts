@@ -1,9 +1,23 @@
 /**
- * Match data layer — powered by WC2026 API (api.wc2026api.com)
+ * Match data layer — powered by football-data.org (competition WC, id 2000).
  *
- * Single source for all match data: fixtures, live scores, results.
- * No rate-limit issues, stable IDs, dedicated WC 2026 API.
+ * Replaces the WC2026 API, whose free key was auto-suspended for exceeding its
+ * 100-requests/day limit. football-data.org gives the full 104-match schedule
+ * with real live scores at 10 req/min.
+ *
+ * Canonical match IDs are preserved: group-stage fixtures are mapped to the
+ * original WC2026 match numbers (1..72) via src/lib/match-map.ts, and scores are
+ * re-oriented to the home/away the existing 4109 tips were placed against — so
+ * all stored predictions keep resolving correctly. Knockout matches (not yet
+ * tippable) carry football-data.org's own stable id.
+ *
+ * Rate limit is killed by a layered cache: per-instance memory (30s) →
+ * shared Upstash (60s) → football-data.org, with a stale-on-error fallback so an
+ * upstream blip never blanks the app.
  */
+
+import { Redis } from "@upstash/redis";
+import { groupMatchId, isCanonicalHome } from "./match-map";
 
 // ---------------------------------------------------------------------------
 // Shared types (unchanged interface for all consumers)
@@ -27,197 +41,216 @@ export type NormalizedMatch = {
 };
 
 // ---------------------------------------------------------------------------
-// WC2026 API types
+// football-data.org types (only what we use)
 // ---------------------------------------------------------------------------
 
-interface WCMatch {
+interface FDTeam {
   id: number;
-  match_number: number;
-  round: string;
-  group_name: string | null;
-  home_team_id: number;
-  home_team: string;
-  home_team_code: string;
-  home_team_flag: string | null;
-  away_team_id: number;
-  away_team: string;
-  away_team_code: string;
-  away_team_flag: string | null;
-  stadium_id: number;
-  stadium: string;
-  stadium_city: string;
-  stadium_country: string;
-  kickoff_utc: string;
-  home_score: number | null;
-  away_score: number | null;
-  status: string; // "scheduled", "live", "completed"
+  name: string;
+  tla: string | null;
+}
+interface FDMatch {
+  id: number;
+  utcDate: string;
+  status: string; // SCHEDULED, TIMED, IN_PLAY, PAUSED, FINISHED, ...
+  stage: string; // GROUP_STAGE, LAST_32, LAST_16, QUARTER_FINALS, ...
+  group: string | null; // "GROUP_A"
+  homeTeam: FDTeam;
+  awayTeam: FDTeam;
+  score: { fullTime: { home: number | null; away: number | null } };
 }
 
 // ---------------------------------------------------------------------------
-// Cache
+// Status / group mapping
 // ---------------------------------------------------------------------------
 
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 min
-const cache = new Map<string, { data: NormalizedMatch[]; ts: number }>();
-
-// ---------------------------------------------------------------------------
-// Map WC2026 API round to our stage constants
-// ---------------------------------------------------------------------------
-
-function mapStage(round: string): string | null {
-  switch (round) {
-    case "group": return "GROUP_STAGE";
-    case "R32": return "ROUND_OF_32";
-    case "R16": return "LAST_16";
-    case "QF": return "QUARTER_FINALS";
-    case "SF": return "SEMI_FINALS";
-    case "3rd": return "THIRD_PLACE";
-    case "final": return "FINAL";
-    default: return null;
-  }
-}
-
-// Map WC2026 API status to our status constants
 function mapStatus(status: string): string {
   switch (status) {
-    case "completed": return "FINISHED";
-    case "live": return "IN_PLAY";
-    case "scheduled": return "SCHEDULED";
-    default: return "SCHEDULED";
+    case "IN_PLAY":
+    case "PAUSED":
+      return "IN_PLAY";
+    case "FINISHED":
+    case "AWARDED":
+      return "FINISHED";
+    default:
+      return "SCHEDULED"; // SCHEDULED, TIMED, POSTPONED, SUSPENDED, CANCELLED
   }
 }
 
-// Map our status filter to WC2026 API status
-function mapStatusFilter(status: string): string | null {
-  switch (status.toUpperCase()) {
-    case "FINISHED": return "completed";
-    case "IN_PLAY": return "live";
-    case "SCHEDULED":
-    case "TIMED": return "scheduled";
-    default: return null;
+function mapGroup(g: string | null): string | null {
+  if (!g) return null;
+  // "GROUP_A" -> "Group A"
+  return g
+    .replace(/^GROUP_/, "Group ")
+    .replace(/_/g, " ");
+}
+
+// ---------------------------------------------------------------------------
+// Normalize one football-data match -> canonical NormalizedMatch
+// ---------------------------------------------------------------------------
+
+function normalize(m: FDMatch): NormalizedMatch {
+  let home = m.homeTeam;
+  let away = m.awayTeam;
+  let sh = m.score?.fullTime?.home ?? null;
+  let sa = m.score?.fullTime?.away ?? null;
+
+  let id = m.id; // knockouts & any unmapped fixture keep football-data's stable id
+
+  if (m.stage === "GROUP_STAGE") {
+    const mid = groupMatchId(m.homeTeam.name, m.awayTeam.name);
+    if (mid != null) {
+      id = mid;
+      // Re-orient to the canonical home/away the tips were placed against.
+      if (!isCanonicalHome(mid, m.homeTeam.name)) {
+        [home, away] = [away, home];
+        [sh, sa] = [sa, sh];
+      }
+    }
+  }
+
+  return {
+    id,
+    kickoff: m.utcDate,
+    status: mapStatus(m.status),
+    stage: m.stage,
+    group: mapGroup(m.group),
+    homeTeam: { id: home.id, name: home.name, code: home.tla ?? null },
+    awayTeam: { id: away.id, name: away.name, code: away.tla ?? null },
+    score: { home: sh, away: sa },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Fetch from football-data.org
+// ---------------------------------------------------------------------------
+
+const FD_BASE = "https://api.football-data.org/v4";
+const COMP = process.env.FOOTBALL_DATA_COMPETITION_CODE || "WC";
+
+async function fetchAllFromFD(): Promise<NormalizedMatch[]> {
+  const token = process.env.FOOTBALL_DATA_API_KEY;
+  if (!token) throw new Error("FOOTBALL_DATA_API_KEY is not set");
+
+  const res = await fetch(`${FD_BASE}/competitions/${COMP}/matches`, {
+    headers: { "X-Auth-Token": token },
+    cache: "no-store",
+  });
+
+  if (!res.ok) {
+    const msg =
+      res.status === 429
+        ? "Zu viele Anfragen – bitte warte einen Moment und versuche es erneut."
+        : `football-data.org Fehler: ${res.status} ${res.statusText}`;
+    throw new Error(msg);
+  }
+
+  const data: { matches?: FDMatch[] } = await res.json();
+  return (data.matches ?? [])
+    .map(normalize)
+    .sort((a, b) => new Date(a.kickoff).getTime() - new Date(b.kickoff).getTime());
+}
+
+// ---------------------------------------------------------------------------
+// Layered cache: memory (per instance) -> Upstash (shared) -> football-data.org
+// Upstash also holds a "last good" snapshot for stale-on-error fallback.
+// ---------------------------------------------------------------------------
+
+const MEM_TTL_MS = 30 * 1000;
+const REDIS_TTL_S = 60;
+const FRESH_KEY = "fd:matches:all";
+const LASTGOOD_KEY = "fd:matches:lastgood";
+
+let mem: { data: NormalizedMatch[]; ts: number } | null = null;
+
+let _redis: Redis | null = null;
+function getRedis(): Redis | null {
+  if (_redis) return _redis;
+  const url = process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  if (!url || !token) return null;
+  _redis = new Redis({ url, token });
+  return _redis;
+}
+
+async function getAllMatches(): Promise<NormalizedMatch[]> {
+  // 1) per-instance memory
+  if (mem && Date.now() - mem.ts < MEM_TTL_MS) return mem.data;
+
+  const redis = getRedis();
+
+  // 2) shared fresh cache
+  if (redis) {
+    try {
+      const cached = await redis.get<NormalizedMatch[]>(FRESH_KEY);
+      if (cached && Array.isArray(cached) && cached.length) {
+        mem = { data: cached, ts: Date.now() };
+        return cached;
+      }
+    } catch {
+      // ignore cache read errors
+    }
+  }
+
+  // 3) origin
+  try {
+    const data = await fetchAllFromFD();
+    mem = { data, ts: Date.now() };
+    if (redis) {
+      try {
+        await redis.set(FRESH_KEY, data, { ex: REDIS_TTL_S });
+        await redis.set(LASTGOOD_KEY, data); // no expiry: survives outages
+      } catch {
+        // ignore cache write errors
+      }
+    }
+    return data;
+  } catch (err) {
+    // 4) stale-on-error: last known good snapshot keeps the app usable
+    if (redis) {
+      try {
+        const stale = await redis.get<NormalizedMatch[]>(LASTGOOD_KEY);
+        if (stale && Array.isArray(stale) && stale.length) {
+          mem = { data: stale, ts: Date.now() };
+          return stale;
+        }
+      } catch {
+        // ignore
+      }
+    }
+    throw err;
   }
 }
 
 // ---------------------------------------------------------------------------
-// Main: getMatches
+// Public API (unchanged signature)
 // ---------------------------------------------------------------------------
-
-const API_BASE = "https://api.wc2026api.com";
 
 export async function getMatches(params?: {
   dateFrom?: string;
   dateTo?: string;
   status?: string;
 }): Promise<NormalizedMatch[]> {
-  const cacheKey = JSON.stringify(params ?? {});
-  const cached = cache.get(cacheKey);
-  if (cached && Date.now() - cached.ts < CACHE_TTL_MS) {
-    return cached.data;
-  }
+  let matches = await getAllMatches();
 
-  const token = process.env.WC2026_API_KEY;
-  if (!token) {
-    throw new Error("WC2026_API_KEY is not set");
-  }
-
-  // Determine API status filter
-  const statusFilters = params?.status?.split(",").map((s) => s.trim()) ?? [];
-  const apiStatuses = statusFilters
-    .map(mapStatusFilter)
-    .filter((s): s is string => s !== null);
-
-  // Fetch matches (possibly multiple calls for different statuses, or one call without filter)
-  let allApiMatches: WCMatch[] = [];
-
-  if (apiStatuses.length === 0 || apiStatuses.length > 2) {
-    // Fetch all
-    const res = await fetchWC(token, "/matches");
-    allApiMatches = res;
-  } else {
-    // Fetch per status to use API filtering
-    for (const st of [...new Set(apiStatuses)]) {
-      const res = await fetchWC(token, `/matches?status=${st}`);
-      allApiMatches.push(...res);
-    }
-  }
-
-  // Normalize
-  const mapped: NormalizedMatch[] = allApiMatches.map((m) => ({
-    id: m.id,
-    kickoff: m.kickoff_utc,
-    status: mapStatus(m.status),
-    stage: mapStage(m.round),
-    group: m.group_name ? `Group ${m.group_name}` : null,
-    homeTeam: {
-      id: m.home_team_id,
-      name: m.home_team,
-      code: m.home_team_code || null,
-    },
-    awayTeam: {
-      id: m.away_team_id,
-      name: m.away_team,
-      code: m.away_team_code || null,
-    },
-    score: {
-      home: m.home_score,
-      away: m.away_score,
-    },
-  }));
-
-  // Apply date filters client-side
-  let filtered = mapped;
-
-  if (params?.dateFrom) {
-    const from = new Date(params.dateFrom).getTime();
-    filtered = filtered.filter((m) => new Date(m.kickoff).getTime() >= from);
-  }
-  if (params?.dateTo) {
-    const to = new Date(params.dateTo).getTime();
-    filtered = filtered.filter((m) => new Date(m.kickoff).getTime() <= to);
-  }
-
-  // Apply status filter client-side (for mixed filters like "SCHEDULED,TIMED")
+  const statusFilters = params?.status?.split(",").map((s) => s.trim().toUpperCase()) ?? [];
   if (statusFilters.length > 0) {
-    filtered = filtered.filter((m) => {
-      if (statusFilters.includes("TIMED") || statusFilters.includes("SCHEDULED")) {
-        if (m.status === "SCHEDULED" || m.status === "TIMED") return true;
-      }
+    const wantScheduled =
+      statusFilters.includes("SCHEDULED") || statusFilters.includes("TIMED");
+    matches = matches.filter((m) => {
+      if (wantScheduled && m.status === "SCHEDULED") return true;
       return statusFilters.includes(m.status);
     });
   }
 
-  // Sort by kickoff
-  filtered.sort((a, b) => new Date(a.kickoff).getTime() - new Date(b.kickoff).getTime());
-
-  // Cache
-  cache.set(cacheKey, { data: filtered, ts: Date.now() });
-  if (cache.size > 20) {
-    const oldest = [...cache.entries()].sort((a, b) => a[1].ts - b[1].ts)[0];
-    if (oldest) cache.delete(oldest[0]);
+  if (params?.dateFrom) {
+    const from = new Date(params.dateFrom).getTime();
+    matches = matches.filter((m) => new Date(m.kickoff).getTime() >= from);
+  }
+  if (params?.dateTo) {
+    const to = new Date(params.dateTo).getTime();
+    matches = matches.filter((m) => new Date(m.kickoff).getTime() <= to);
   }
 
-  return filtered;
+  return matches;
 }
-
-// ---------------------------------------------------------------------------
-// HTTP helper
-// ---------------------------------------------------------------------------
-
-async function fetchWC(token: string, path: string): Promise<WCMatch[]> {
-  const res = await fetch(`${API_BASE}${path}`, {
-    headers: { Authorization: `Bearer ${token}` },
-    cache: "no-store",
-  });
-
-  if (!res.ok) {
-    const msg = res.status === 429
-      ? "Zu viele Anfragen – bitte warte einen Moment und versuche es erneut."
-      : `WC2026 API Fehler: ${res.status} ${res.statusText}`;
-    throw new Error(msg);
-  }
-
-  return res.json();
-}
-
-export const FootballData = { getMatches };
-export default FootballData;
