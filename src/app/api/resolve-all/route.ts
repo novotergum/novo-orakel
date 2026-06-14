@@ -9,6 +9,31 @@ import { parseScoreTip, scoreTip, stageMultiplier } from "../../../lib/scoring";
  * Posts to Teams only if new results were resolved.
  */
 
+// Berlin-lokaler Kalendertag (YYYY-MM-DD) eines UTC-Anstoßes. Lexikografisch
+// vergleichbar, daher als simpler String-Vergleich nutzbar.
+function berlinDay(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-CA", { timeZone: "Europe/Berlin" });
+}
+
+// Höchster Kalendertag, an dem ALLE angesetzten Spiele FINISHED sind. Das ist
+// der Tag, dessen Rang-Snapshot/Banner jetzt fällig ist (null = kein Tag fertig).
+function latestCompletedDay(allMatches: { kickoff: string; status: string }[]): string | null {
+  const byDay = new Map<string, { total: number; finished: number }>();
+  for (const m of allMatches) {
+    if (!m.kickoff) continue;
+    const d = berlinDay(m.kickoff);
+    const e = byDay.get(d) ?? { total: 0, finished: 0 };
+    e.total++;
+    if (m.status === "FINISHED") e.finished++;
+    byDay.set(d, e);
+  }
+  const complete = [...byDay.entries()]
+    .filter(([, v]) => v.total > 0 && v.finished === v.total)
+    .map(([d]) => d)
+    .sort();
+  return complete.length ? complete[complete.length - 1] : null;
+}
+
 async function postToTeams(text: string): Promise<boolean> {
   const url = process.env.TEAMS_WEBHOOK_ERGEBNIS;
   if (!url) return false;
@@ -26,7 +51,10 @@ async function postToTeams(text: string): Promise<boolean> {
 
 export async function POST() {
   try {
-    const matches = await getMatches({ status: "FINISHED" });
+    // Alle Spiele holen, damit wir Tag-Vollständigkeit bestimmen können; fürs
+    // Scoring zählen nur die beendeten.
+    const allMatches = await getMatches();
+    const matches = allMatches.filter((m) => m.status === "FINISHED");
     if (!matches.length) {
       return NextResponse.json({
         ok: true,
@@ -104,9 +132,12 @@ export async function POST() {
 
     if (newlyResolved > 0) {
       await writePredictions(records);
-      // Rang-Snapshot fuer die Motivationssprueche (Spieltag-Bewegung).
-      await recordRankSnapshot(records).catch(() => {});
     }
+    // Rang-Snapshot/Banner: einmal pro vollständig beendetem Kalendertag (intern
+    // gegen rank:lastDay gegated). Bewusst ENTKOPPELT vom Per-Spiel-Scoring oben,
+    // damit der "Starker Spieltag +N"-Banner die volle Tages-Bewegung zeigt statt
+    // pro Einzelspiel zu feuern. Punkte/Teams bleiben weiterhin zeitnah pro Lauf.
+    await recordRankSnapshot(records, latestCompletedDay(allMatches)).catch(() => {});
 
     // Post to Teams only if new tips were resolved
     let teamsPosted = false;

@@ -8,6 +8,7 @@ interface AdminUser {
   email?: string;
   location: string;
   registeredAt: string;
+  lastActiveAt?: string | null;
   tips: number;
   points: number;
   jokersUsed: number;
@@ -216,7 +217,7 @@ export default function AdminPage() {
       const s = String(v ?? "");
       return /[",\n;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
     };
-    const header = ["Name", "Email", "Standort", "Tipps", "Punkte", "JokerGenutzt", "JokerMax", "Registriert"];
+    const header = ["Name", "Email", "Standort", "Tipps", "Punkte", "JokerGenutzt", "JokerMax", "Registriert", "ZuletztAktiv"];
     const rows = users.map((u) => [
       esc(u.userName),
       esc(u.email ?? ""),
@@ -226,6 +227,7 @@ export default function AdminPage() {
       u.jokersUsed,
       10,
       esc(new Date(u.registeredAt).toISOString().slice(0, 10)),
+      esc(u.lastActiveAt ? new Date(u.lastActiveAt).toISOString().slice(0, 16).replace("T", " ") : ""),
     ].join(","));
     const csv = "﻿" + [header.join(","), ...rows].join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
@@ -425,6 +427,7 @@ export default function AdminPage() {
               <th style={s.th}>Punkte</th>
               <th style={s.th}>Joker</th>
               <th style={s.th}>Registriert</th>
+              <th style={s.th}>Zuletzt aktiv</th>
               <th style={s.th}>Wertung</th>
               <th style={s.th}>Aktionen</th>
             </tr>
@@ -462,6 +465,7 @@ export default function AdminPage() {
                       <span style={{ color: "#7A7A7A" }}> /10</span>
                     </td>
                     <td style={s.td}>{new Date(u.registeredAt).toLocaleDateString("de-DE")}</td>
+                    <td style={s.td}>{u.lastActiveAt ? new Date(u.lastActiveAt).toLocaleString("de-DE", { dateStyle: "short", timeStyle: "short" }) : "—"}</td>
                     <td style={s.td}>{u.excluded ? "raus" : "gewertet"}</td>
                     <td style={s.td}>
                       <div style={{ display: "flex", gap: 6 }}>
@@ -490,6 +494,9 @@ export default function AdminPage() {
                     <td style={s.td}>{u.jokersUsed}/10</td>
                     <td style={{ ...s.td, fontSize: 12, color: "#7A7A7A" }}>
                       {new Date(u.registeredAt).toLocaleDateString("de-DE")}
+                    </td>
+                    <td style={{ ...s.td, fontSize: 12, color: "#7A7A7A" }}>
+                      {u.lastActiveAt ? new Date(u.lastActiveAt).toLocaleString("de-DE", { dateStyle: "short", timeStyle: "short" }) : "—"}
                     </td>
                     <td style={s.td}>
                       <button

@@ -217,6 +217,7 @@ const RANK_PREV_KEY = "rank:prev"; // hash userId -> Rang VOR dem letzten Resolv
 const RANK_MOVE_KEY = "rank:move"; // hash userId -> JSON(RankMove) der letzten Bewegung
 const RANK_SEEN_KEY = "rank:seen"; // hash userId -> zuletzt quittierte Runde
 const RANK_ROUND_KEY = "rank:round"; // monoton steigender Runden-Zaehler
+const RANK_LASTDAY_KEY = "rank:lastDay"; // letzter Kalendertag (YYYY-MM-DD), fuer den gesnappt wurde
 
 export interface RankMove {
   from: number | null; // null = war vorher nicht in der Wertung
@@ -264,9 +265,18 @@ function boardRanking(
 
 // Nach Spieltag-Aufloesung aufrufen: vergleicht mit dem letzten Snapshot,
 // schreibt pro Spieler die Bewegung und aktualisiert den Snapshot.
-export async function recordRankSnapshot(records: PredictionRecord[]): Promise<void> {
+export async function recordRankSnapshot(
+  records: PredictionRecord[],
+  completedDay: string | null,
+): Promise<void> {
   if (!process.env.UPSTASH_REDIS_REST_URL) return;
+  // Nur einmal pro vollstaendig beendetem Kalendertag snapshotten. Ohne fertigen
+  // Tag (oder Tag bereits gesnappt) passiert nichts -> Banner/Ticker buendeln die
+  // volle Tages-Bewegung statt pro Einzelspiel zu feuern.
+  if (!completedDay) return;
   const redis = getRedis();
+  const lastDay = await redis.get<string>(RANK_LASTDAY_KEY);
+  if (lastDay != null && String(lastDay) >= completedDay) return;
   const excluded = new Set(await readExcludedUserIds().catch(() => [] as string[]));
   const current = boardRanking(records, excluded);
   if (current.size === 0) return;
@@ -314,6 +324,9 @@ export async function recordRankSnapshot(records: PredictionRecord[]): Promise<v
   await redis.hset(RANK_MOVE_KEY, moves);
   await redis.del(RANK_PREV_KEY);
   await redis.hset(RANK_PREV_KEY, newPrev);
+  // Tag als gesnappt markieren (auch im Baseline-Fall unten), damit er nicht
+  // beim naechsten resolve-all-Lauf erneut feuert.
+  await redis.set(RANK_LASTDAY_KEY, completedDay);
 
   // Kuratierte Liveticker-Events: nur die zwei Schwellen-Momente mit Erzaehlwert
   // (Fuehrungswechsel + Podiums-Neuzugang), gebuendelt pro Aufloesung. Der neue

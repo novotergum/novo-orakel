@@ -76,6 +76,9 @@ export async function GET(req: NextRequest) {
       jokerResults = await jokerPipeline.exec();
     }
 
+    // "Zuletzt aktiv" aus dem Presence-Heartbeat (Hash presence:seen, userId -> ms)
+    const seen = (await redis.hgetall<Record<string, number>>("presence:seen")) ?? {};
+
     // Aus der Wertung genommene userIds
     const excluded = new Set(await readExcludedUserIds());
 
@@ -84,6 +87,7 @@ export async function GET(req: NextRequest) {
       tips: tipCounts.get(u.userId) ?? 0,
       points: pointsMap.get(u.userId) ?? 0,
       jokersUsed: (jokerResults[i] as number) ?? 0,
+      lastActiveAt: seen[u.userId] != null ? new Date(Number(seen[u.userId])).toISOString() : null,
       excluded: excluded.has(u.userId),
     }));
 
@@ -225,6 +229,9 @@ export async function DELETE(req: NextRequest) {
           pipeline.del(`joker:${uid}`);
         }
         pipeline.del(USERS_KEY);
+        // Presence-Daten (online + zuletzt aktiv) komplett mit weg
+        pipeline.del("presence:seen");
+        pipeline.del("presence:zset");
         await pipeline.exec();
       }
       return NextResponse.json({ ok: true, action: "flushAll", message: `Alles geloescht (${userKeys.length} User)` });
@@ -241,8 +248,9 @@ export async function DELETE(req: NextRequest) {
     await redis.del(key);
     await redis.srem(USERS_KEY, key);
 
-    // Delete joker count
+    // Delete joker count + "zuletzt aktiv"-Eintrag
     await redis.del(`joker:${userId}`);
+    await redis.hdel("presence:seen", userId);
 
     // Optionally delete their tips
     let tipsDeleted = 0;

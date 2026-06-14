@@ -13,6 +13,9 @@ import { getSession, userIdFromEmail } from "@/lib/auth";
  */
 
 const KEY = "presence:zset";
+// Dauerhafter "zuletzt aktiv"-Zeitstempel pro User (wird NICHT weggeraeumt wie
+// das Online-ZSet) — Quelle fuer die Admin-Spalte "Zuletzt aktiv".
+const SEEN_KEY = "presence:seen";
 const ONLINE_WINDOW_MS = 75_000;
 
 let _redis: Redis | null = null;
@@ -33,7 +36,10 @@ export async function POST() {
   try {
     const redis = getRedis();
     const userId = userIdFromEmail(session.email);
-    await redis.zadd(KEY, { score: Date.now(), member: userId });
+    const now = Date.now();
+    await redis.zadd(KEY, { score: now, member: userId });
+    // Dauerhaftes "zuletzt aktiv" (ueberlebt das Aufraeumen des Online-ZSets).
+    await redis.hset(SEEN_KEY, { [userId]: now });
     return NextResponse.json({ ok: true });
   } catch {
     return NextResponse.json({ ok: false }, { status: 500 });
