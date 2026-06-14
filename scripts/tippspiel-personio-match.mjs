@@ -18,7 +18,12 @@ const readKey = (file, key) => {
   return m ? m[1].replace(/['"]/g, "").trim() : null;
 };
 
-const norm = (s) => (s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+// Umlaute ZUERST zu Digraphen expandieren (ä→ae …), DANN restliche Akzente
+// strippen. So matchen beide Schreibweisen symmetrisch: registriertes
+// "Baerecke" == Personio "Bärecke". NFC vorab, falls Quelle in NFD vorliegt.
+const norm = (s) => (s || "").normalize("NFC").toLowerCase()
+  .replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/ß/g, "ss")
+  .normalize("NFD").replace(/[̀-ͯ]/g, "");
 const normName = (s) => norm(s).replace(/[^a-z0-9]+/g, " ").trim().split(" ").filter(Boolean).sort().join(" ");
 const localOf = (email) => (email || "").toLowerCase().split("@")[0];
 
