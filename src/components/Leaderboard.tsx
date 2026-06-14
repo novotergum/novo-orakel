@@ -205,11 +205,9 @@ export default function Leaderboard({
                     {entry.points}
                   </div>
                   <div style={{ fontSize: isFirst ? 12 : 11, color: "#999" }}>Punkte</div>
-                  {isFirst && (
-                    <div style={{ fontSize: 11, color: "#bbb", marginTop: 4 }}>
-                      {entry.exact} exakt &middot; {entry.tips} gewertet
-                    </div>
-                  )}
+                  <div style={{ fontSize: 11, color: "#bbb", marginTop: 4 }}>
+                    {entry.exact} exakt &middot; {entry.tips} gewertet
+                  </div>
                 </div>
               );
             })}
@@ -240,7 +238,21 @@ export default function Leaderboard({
               <span>Leaderboard ab Platz 4</span>
               <span style={{ fontSize: 12, color: "#bbb" }}>anzeigen ▾</span>
             </summary>
-            <div style={{ overflowX: "auto", borderTop: "1px solid #f0f0f0" }}>
+            <div
+              style={{
+                padding: "12px 24px",
+                borderTop: "1px solid #f0f0f0",
+                fontSize: 12.5,
+                color: "#777",
+                lineHeight: 1.5,
+              }}
+            >
+              <strong style={{ color: "#555" }}>So entstehen die Punkte:</strong> je
+              Spiel 4 (exakt) &middot; 3 (Tordifferenz) &middot; 2 (Tendenz) &middot; 0
+              (daneben). Die Spalten zeigen, <em>wie oft</em> &mdash; die Punkte sind die
+              Summe (z.&nbsp;B. 2&times;4 + 1&times;3 + 2&times;2 = 15).
+            </div>
+            <div style={{ overflowX: "auto" }}>
               <table
                 style={{
                   width: "100%",
@@ -261,11 +273,11 @@ export default function Leaderboard({
                   >
                     <th style={{ padding: "14px 16px", width: 40, textAlign: "center" }}>#</th>
                     <th style={{ padding: "14px 16px", textAlign: "left" }}>Spieler</th>
-                    <th style={{ padding: "14px 16px", textAlign: "right" }} title="Ausgewertete Spiele (bereits gespielt)">Gewertet</th>
-                    <th style={{ padding: "14px 16px", textAlign: "right" }} title="4P">Exakt</th>
-                    <th style={{ padding: "14px 16px", textAlign: "right" }} title="3P">Diff</th>
-                    <th style={{ padding: "14px 16px", textAlign: "right" }} title="2P">Tendenz</th>
                     <th style={{ padding: "14px 16px", textAlign: "right" }}>Punkte</th>
+                    <th style={{ padding: "14px 16px", textAlign: "right" }} title="Ausgewertete Spiele (bereits gespielt)">Gewertet</th>
+                    <th style={{ padding: "14px 16px", textAlign: "right" }} title="Exaktes Ergebnis = 4 Punkte">Exakt &times;4</th>
+                    <th style={{ padding: "14px 16px", textAlign: "right" }} title="Richtige Tordifferenz = 3 Punkte">Diff &times;3</th>
+                    <th style={{ padding: "14px 16px", textAlign: "right" }} title="Richtige Tendenz = 2 Punkte">Tendenz &times;2</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -309,6 +321,21 @@ export default function Leaderboard({
                             </span>
                           )}
                         </td>
+                        <td
+                          style={{
+                            padding: "14px 16px",
+                            textAlign: "right",
+                            fontWeight: 800,
+                            fontSize: 17,
+                            color: "#2a2a2a",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {entry.points}
+                          <span style={{ fontSize: 11, fontWeight: 600, color: "#999", marginLeft: 3 }}>
+                            Pkt
+                          </span>
+                        </td>
                         <td style={{ padding: "14px 16px", textAlign: "right", color: "#999" }}>
                           {entry.tips}
                         </td>
@@ -320,17 +347,6 @@ export default function Leaderboard({
                         </td>
                         <td style={{ padding: "14px 16px", textAlign: "right", color: "#F39200" }}>
                           {entry.tendencyCorrect}
-                        </td>
-                        <td
-                          style={{
-                            padding: "14px 16px",
-                            textAlign: "right",
-                            fontWeight: 700,
-                            fontSize: 17,
-                            color: "#2a2a2a",
-                          }}
-                        >
-                          {entry.points}
                         </td>
                       </tr>
                     );
