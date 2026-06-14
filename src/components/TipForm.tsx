@@ -176,6 +176,8 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
   // Match + tip state
   const [matches, setMatches] = useState<Match[]>([]);
   const [finishedMatches, setFinishedMatches] = useState<Match[]>([]);
+  // Orakel-Tipps, aufgedeckt nur für Spiele nach Anpfiff (server-seitig gegated).
+  const [oracleTips, setOracleTips] = useState<Record<number, { scoreTip: string; winnerPick: string; confidence: number | null }>>({});
   const [showTbd, setShowTbd] = useState(false);
   const [loading, setLoading] = useState(true);
   const [myTips, setMyTips] = useState<Record<number, MyTip>>({});
@@ -209,6 +211,12 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
     fetch("/api/matches?status=FINISHED")
       .then((r) => r.json())
       .then((d) => setFinishedMatches(d.matches ?? []))
+      .catch(() => {});
+
+    // Orakel-Tipps (nur Spiele nach Anpfiff — kommt server-seitig gegated)
+    fetch("/api/oracle-tips")
+      .then((r) => r.json())
+      .then((d) => setOracleTips(d.tips ?? {}))
       .catch(() => {});
 
     // Only fall back to localStorage if no server-side profile was passed in.
@@ -1367,6 +1375,25 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
                       >
                         {fmtDate(m.kickoff)}
                       </div>
+                      {oracleTips[m.id] && (() => {
+                        const ot = oracleTips[m.id];
+                        const sh = m.score?.home;
+                        const sa = m.score?.away;
+                        let hit: "exact" | "tend" | "miss" | null = null;
+                        if (sh != null && sa != null) {
+                          const actualPick = sh > sa ? "1" : sh < sa ? "2" : "X";
+                          hit = ot.scoreTip === `${sh}:${sa}` ? "exact" : ot.winnerPick === actualPick ? "tend" : "miss";
+                        }
+                        return (
+                          <div style={{ fontSize: 11, color: "#7A7A7A", marginTop: 2 }}>
+                            🔮 Orakel: <b style={{ color: "#5b3a8e" }}>{ot.scoreTip}</b>
+                            {ot.confidence != null ? ` · ${ot.confidence}%` : ""}
+                            {hit === "exact" && <span style={{ color: "#2e7d32", fontWeight: 700 }}> ✓ exakt</span>}
+                            {hit === "tend" && <span style={{ color: "#E76C0A", fontWeight: 700 }}> ✓ Tendenz</span>}
+                            {hit === "miss" && <span style={{ color: "#b0b0b0", fontWeight: 700 }}> ✗</span>}
+                          </div>
+                        );
+                      })()}
                     </div>
                     <div
                       style={{
