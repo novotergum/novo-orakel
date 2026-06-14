@@ -31,7 +31,7 @@ interface PersonioDup {
   sharedMatches: number;
   recommendRemoveId: string | null;
   recommendNote: string;
-  members: { userId: string; userName: string; email?: string; excluded: boolean }[];
+  members: { userId: string; userName: string; email?: string; excluded: boolean; registeredAt: string }[];
 }
 
 interface AnMember { userId: string; userName: string; excluded: boolean }
@@ -644,6 +644,7 @@ export default function AdminPage() {
                         <div key={m.userId} style={anStyles.row}>
                           <span style={{ flex: 1 }}>
                             <b>{m.userName}</b> <span style={{ color: "#999" }}>· {m.email || m.userId}</span>
+                            <span style={{ color: "#bbb", fontSize: 11 }}> · angelegt {new Date(m.registeredAt).toLocaleString("de-DE", { dateStyle: "short", timeStyle: "short" })}</span>
                             {exNow(m.userId) && <span style={anStyles.exBadge}>raus</span>}
                             {d.recommendRemoveId === m.userId && !exNow(m.userId) && (
                               <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 700, color: "#fff", background: "#b26a00", borderRadius: 4, padding: "1px 6px" }}>
@@ -654,6 +655,17 @@ export default function AdminPage() {
                           <ExBtn id={m.userId} name={m.userName} />
                         </div>
                       ))}
+                      {(() => {
+                        const ts = d.members.map((m) => new Date(m.registeredAt).getTime()).filter((n) => !isNaN(n));
+                        if (ts.length < 2) return null;
+                        const gapMin = Math.round((Math.max(...ts) - Math.min(...ts)) / 60000);
+                        if (gapMin > 60) return null;
+                        return (
+                          <div style={{ marginTop: 6, fontSize: 12, fontWeight: 600, color: "#b26a00" }}>
+                            ⏱ beide Accounts {gapMin <= 1 ? "praktisch zeitgleich" : `~${gapMin} Min auseinander`} angelegt — Indiz für bewusste Zweit-Anlage
+                          </div>
+                        );
+                      })()}
                       <div style={{ marginTop: 8, fontSize: 12, fontWeight: 600, color: d.recommendRemoveId ? "#5b3a8e" : "#2e7d32" }}>
                         💡 Empfehlung: {d.recommendNote}
                       </div>
@@ -717,15 +729,14 @@ export default function AdminPage() {
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
 
-            {/* Weitere Doppel-Signale (Tipps / Name) — E-Mail-Basis steckt schon
-                in den Personio-Doppel-Accounts oben, daher hier ausgelassen. */}
+            {/* Tipp-Zwillinge — Absprache zwischen VERSCHIEDENEN Personen.
+                Same-Person-Dubletten stecken in den Personio-Doppel-Accounts oben. */}
             <div>
               <h4 style={{ margin: "0 0 8px", fontSize: 13, color: "#3A3A3A" }}>
-                Weitere Doppel-Signale (gleiche Tipps / gleicher Name)
+                Tipp-Zwillinge (sehr ähnliche Tipps verschiedener Personen)
               </h4>
 
-              {anomalies.duplicates.tipTwins.length === 0 &&
-               anomalies.duplicates.sameName.length === 0 && (
+              {anomalies.duplicates.tipTwins.length === 0 && (
                 <p style={{ fontSize: 13, color: "#2e7d32", margin: 0 }}>Keine.</p>
               )}
 
@@ -747,24 +758,6 @@ export default function AdminPage() {
                       >
                         {m.ex ? "Reaktivieren" : "Aus Wertung"}
                       </button>
-                    </div>
-                  ))}
-                </div>
-              ))}
-
-              {anomalies.duplicates.sameName.map((c, idx) => (
-                <div key={`nm-${idx}`} style={anStyles.box}>
-                  <div style={anStyles.tag("#9e9e9e")}>
-                    Gleicher Anzeigename (schwaches Signal)
-                    {c.sharedIp && <span style={anStyles.ipBadge}>🔗 gleiche IP</span>}
-                    {triageLine(c.sharedMatches)}
-                  </div>
-                  {c.members.map((m) => (
-                    <div key={m.userId} style={anStyles.row}>
-                      <span style={{ flex: 1 }}>
-                        <b>{m.userName}</b> <span style={{ color: "#999" }}>· {m.userId}</span>
-                        {m.excluded && <span style={anStyles.exBadge}>raus</span>}
-                      </span>
                     </div>
                   ))}
                 </div>
@@ -799,56 +792,6 @@ export default function AdminPage() {
               )}
             </div>
 
-            {/* Last-Minute */}
-            <div>
-              <h4 style={{ margin: "0 0 8px", fontSize: 13, color: "#3A3A3A" }}>
-                Last-Minute-Tipper <span style={{ color: "#999", fontWeight: 400 }}>(≤ 5 Min vor Anpfiff, ab 2 Tipps)</span>
-              </h4>
-              {anomalies.lastMinute.length === 0 ? (
-                <p style={{ fontSize: 13, color: "#2e7d32", margin: 0 }}>Keine.</p>
-              ) : (
-                anomalies.lastMinute.map((u) => (
-                  <div key={u.userId} style={anStyles.row}>
-                    <span style={{ flex: 1 }}>
-                      <b>{u.userName}</b>
-                      {u.excluded && <span style={anStyles.exBadge}>raus</span>}
-                    </span>
-                    <span style={{ color: "#c62828", fontWeight: 700, marginRight: 10 }}>
-                      {u.lastMinuteTips}× last-minute
-                    </span>
-                    <span style={{ color: "#999", fontSize: 12 }}>
-                      {u.share}% · knappste {u.knappsteMinuten} Min
-                    </span>
-                  </div>
-                ))
-              )}
-            </div>
-
-            {/* Häufige Änderungen */}
-            <div>
-              <h4 style={{ margin: "0 0 8px", fontSize: 13, color: "#3A3A3A" }}>
-                Häufige Tipp-Änderungen
-              </h4>
-              {anomalies.frequentChanges.length === 0 ? (
-                <p style={{ fontSize: 13, color: "#7A7A7A", margin: 0 }}>Keine (oder noch keine Daten).</p>
-              ) : (
-                anomalies.frequentChanges.map((u) => (
-                  <div key={u.userId} style={anStyles.row}>
-                    <span style={{ flex: 1 }}>
-                      <b>{u.userName}</b>
-                      {u.excluded && <span style={anStyles.exBadge}>raus</span>}
-                    </span>
-                    <span style={{ color: "#c62828", fontWeight: 700, marginRight: 10 }}>
-                      {u.changes} Änderungen
-                    </span>
-                    <span style={{ color: "#999", fontSize: 12 }}>
-                      {u.submits} Abgaben / {u.distinctTips} Spiele
-                    </span>
-                  </div>
-                ))
-              )}
-              <p style={{ margin: "8px 0 0", fontSize: 11, color: "#bbb" }}>{anomalies.note}</p>
-            </div>
           </div>
         )}
       </div>

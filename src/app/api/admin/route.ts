@@ -193,7 +193,7 @@ export async function GET(req: NextRequest) {
         sharedMatches: shared,
         recommendRemoveId: rec.removeId,
         recommendNote: rec.note,
-        members: g.map((u) => ({ userId: u.userId, userName: u.userName, excluded: u.excluded })),
+        members: g.map((u) => ({ userId: u.userId, userName: u.userName, excluded: u.excluded, registeredAt: u.registeredAt })),
       });
     }
 
