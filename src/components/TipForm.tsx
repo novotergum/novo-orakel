@@ -107,7 +107,7 @@ const FIFA_TO_ISO: Record<string, string> = {
   BRA: "br", HAI: "ht", MAR: "ma", SCO: "gb-sct", USA: "us", PAR: "py",
   AUS: "au", GER: "de", CUW: "cw", NED: "nl", JPN: "jp", CIV: "ci",
   TUN: "tn", ESP: "es", CPV: "cv", BEL: "be", EGY: "eg", KSA: "sa",
-  URU: "uy", IRN: "ir", NZL: "nz", FRA: "fr", SEN: "sn", NOR: "no",
+  URU: "uy", URY: "uy", IRN: "ir", NZL: "nz", FRA: "fr", SEN: "sn", NOR: "no",
   ARG: "ar", ALG: "dz", AUT: "at", JOR: "jo", POR: "pt", UZB: "uz",
   COL: "co", ENG: "gb-eng", CRO: "hr", GHA: "gh", PAN: "pa",
   IDN: "id", BHR: "bh",
