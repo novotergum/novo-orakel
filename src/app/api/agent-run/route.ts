@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getMatches } from "../../../lib/football-data";
-import { getTeamRecentMatches, buildTeamElo, predictFromElo } from "../../../lib/elo";
+import { predictMatch } from "../../../lib/prediction-engine";
+import {
+  buildAdaptiveStats,
+  resolveStats,
+} from "../../../lib/adaptive-elo";
+import type { TeamStats } from "../../../lib/types";
 import { buildTipFromPrediction, type TipStyle } from "../../../lib/tip-engine";
 import { upsertPrediction, readPredictions, pushFeedEvent, type PredictionRecord } from "../../../lib/store";
 
@@ -113,24 +118,18 @@ function buildTeamsPost(results: MatchResult[], rank: number, style: TipStyle): 
 async function tipMatch(
   match: { id: number; homeTeam: { id: number; name: string }; awayTeam: { id: number; name: string } },
   style: TipStyle,
+  adaptive: Map<string, TeamStats>,
 ): Promise<MatchResult> {
-  const [homeMatches, awayMatches] = await Promise.all([
-    getTeamRecentMatches(match.homeTeam.id),
-    getTeamRecentMatches(match.awayTeam.id),
-  ]);
-
-  const homeElo = buildTeamElo(homeMatches, match.homeTeam.id, match.homeTeam.name);
-  const awayElo = buildTeamElo(awayMatches, match.awayTeam.id, match.awayTeam.name);
-
-  const prediction = predictFromElo(
-    { ...homeElo.stats, name: match.homeTeam.name },
-    { ...awayElo.stats, name: match.awayTeam.name },
+  const prediction = predictMatch(
+    resolveStats(match.homeTeam.name, adaptive),
+    resolveStats(match.awayTeam.name, adaptive),
   );
 
   const probs = prediction.probabilities;
   const tip = buildTipFromPrediction(
     {
       prediction: prediction.prediction,
+      modeScore: prediction.modeScore,
       confidence: prediction.confidence,
       probabilities: {
         homeWin: probs.home_win,
@@ -200,6 +199,22 @@ export async function POST(req: NextRequest) {
 
     const allMatches = await getMatches({ status: "SCHEDULED,TIMED" });
 
+    // #5 Adaptive Ratings aus den bereits ausgetragenen Turnierspielen. Da hier
+    // nur FINISHED-Spiele eingehen und das Orakel ausschliesslich anstehende
+    // Partien tippt, ist das per Konstruktion look-ahead-frei.
+    const finishedMatches = await getMatches({ status: "FINISHED" });
+    const adaptive = buildAdaptiveStats(
+      finishedMatches
+        .filter((m) => m.score?.home != null && m.score?.away != null)
+        .map((m) => ({
+          kickoff: m.kickoff,
+          homeName: m.homeTeam.name,
+          awayName: m.awayTeam.name,
+          homeGoals: m.score.home as number,
+          awayGoals: m.score.away as number,
+        })),
+    );
+
     // Tip every upcoming match within the look-ahead window that has not
     // kicked off yet. Run nightly (e.g. 20:00) → this batches the next day's
     // games while keeping the Elo model fresh with all results so far.
@@ -248,6 +263,7 @@ export async function POST(req: NextRequest) {
             awayTeam: { id: m.awayTeam.id, name: m.awayTeam.name },
           },
           style,
+          adaptive,
         );
         results.push(result);
       } catch (e: unknown) {

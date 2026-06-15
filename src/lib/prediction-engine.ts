@@ -1,37 +1,56 @@
 import type { TeamStats } from "./types";
 
-// Deterministic, interpretable MVP model
-// Weights: Elo (highest), Form (mid), Attack/Defense (mid), Missing impact reduces strength, small home advantage
+// Deterministic, interpretable model.
+//
+// Verbesserungen ggü. V1 (2026-06-16, nach Walk-forward-Backtest über die
+// bereits ausgewerteten Turnierspiele):
+//  #2 Dixon-Coles-Korrektur (rho<0) hebt die Tiefscore-Remis (0:0/1:1) an, die
+//     ein UNABHÄNGIGES Doppel-Poisson systematisch unterschätzt.
+//  #3 Team-spezifische xG aus Angriff×Abwehr (statt fixer 2,7-Gesamtsumme) →
+//     bildet Kantersiege UND Hänger ab. Angriff/Abwehr werden auf ihren
+//     jeweiligen Tabellen-Schnitt normiert (sonst werden die xG gedrückt).
+//  Ergebnis-Tipp = wahrscheinlichster exakter Score (Mode-Picker). Ein zuvor
+//     getesteter EV-Picker (max. erwartete Punkte) schnitt im Backtest klar
+//     schlechter ab (verschenkt die 4-Punkte-Exakttreffer) und wurde verworfen.
+//  #4 Konfidenz = Wahrscheinlichkeit der getippten Tendenz, ehrlich kalibriert.
+
+const AVG_GOALS = 1.35; // Tore pro Team & Spiel (WM-Schnitt ~2,7 gesamt)
+// Mittelwerte der statischen FIFA-Basistabelle (STATIC_TEAM_DATA in elo.ts).
+// Hart kodiert, um eine zirkuläre Import-Abhängigkeit zu elo.ts zu vermeiden.
+const MEAN_GS = 1.28; // Durchschnitt goals_scored
+const MEAN_GC = 0.78; // Durchschnitt goals_conceded
+const ELO_TILT_DIV = 600; // wie stark die Elo-Differenz die xG kippt
+const HOST_HOME_ADV = 1.1; // Heimvorteil-Multiplikator (nur Gastgeber)
+const DC_RHO = -0.08; // Dixon-Coles-Korrelation (<0 → mehr Remis); Backtest-Optimum
+const MAX_GOALS = 8; // Gitter-Obergrenze (deckt 7:1 etc.)
 
 function clamp(x: number, min = 0, max = 1) {
   return Math.max(min, Math.min(max, x));
 }
 
-function teamStrength(t: TeamStats) {
-  const eloNorm = (t.elo - 1500) / 600; // ~ -0.5..+1.2 typical
-  const form = clamp(t.form); // 0..1
-  const attack = Math.max(0, t.goals_scored - 0.8) / 2.2; // normalize ~0..1
-  const defense = 1 - Math.max(0, t.goals_conceded - 0.6) / 2.0; // lower conceded => higher
-  const base = 0.5 * eloNorm + 0.2 * form + 0.15 * attack + 0.15 * defense;
-  const penalty = clamp(t.missing_impact); // 0..1
-  return base * (1 - 0.6 * penalty);
-}
-
 // WC 2026 host nations — only these get a real home advantage
 const HOST_NATIONS = new Set(["United States", "USA", "Mexico", "Canada"]);
 
-function relativeStrength(home: TeamStats, away: TeamStats) {
-  const homeAdv = home.name && HOST_NATIONS.has(home.name) ? 0.2 : 0;
-  return teamStrength(home) - teamStrength(away) + homeAdv;
-}
+// ---------------------------------------------------------------------------
+// #3 Team-spezifische erwartete Tore (Angriff × gegnerische Abwehr, Elo-Tilt).
+// Angriff relativ zum Tor-Schnitt, Abwehr relativ zum Gegentor-Schnitt — so
+// ergibt eine Durchschnittspaarung genau den Liga-Schnitt, statt zu niedrig.
+// ---------------------------------------------------------------------------
+function expectedGoals(home: TeamStats, away: TeamStats) {
+  const homeAttack = Math.max(0.2, home.goals_scored) / MEAN_GS;
+  const homeDefense = Math.max(0.2, home.goals_conceded) / MEAN_GC;
+  const awayAttack = Math.max(0.2, away.goals_scored) / MEAN_GS;
+  const awayDefense = Math.max(0.2, away.goals_conceded) / MEAN_GC;
 
-function expectedGoals(rel: number) {
-  // Map relative strength to expected goals around a ~2.7 total goals baseline
-  // (WC average is ~2.5-2.7 goals/game)
-  const total = 2.7;
-  const homeShare = 1 / (1 + Math.exp(-3.0 * rel)); // sigmoid: 0..1
-  const homeXg = Math.min(Math.max(total * homeShare, 0.3), 3.5);
-  const awayXg = Math.min(Math.max(total - homeXg, 0.2), 3.0);
+  const baseHome = AVG_GOALS * homeAttack * awayDefense;
+  const baseAway = AVG_GOALS * awayAttack * homeDefense;
+
+  // Elo-Differenz kippt die xG multiplikativ (Favorit trifft mehr, kassiert weniger)
+  const tilt = Math.exp((home.elo - away.elo) / ELO_TILT_DIV);
+  const hostMult = home.name && HOST_NATIONS.has(home.name) ? HOST_HOME_ADV : 1;
+
+  const homeXg = clamp(baseHome * tilt * hostMult, 0.2, 4.8);
+  const awayXg = clamp(baseAway / tilt, 0.15, 4.2);
   return { homeXg, awayXg };
 }
 
@@ -41,15 +60,33 @@ function poisson(lambda: number, k: number) {
   return p;
 }
 
-function grid(homeXg: number, awayXg: number, maxGoals = 6) {
+// ---------------------------------------------------------------------------
+// #2 Score-Gitter mit Dixon-Coles-Tiefscore-Korrektur
+// ---------------------------------------------------------------------------
+function dcTau(h: number, a: number, lambda: number, mu: number, rho: number) {
+  if (h === 0 && a === 0) return 1 - lambda * mu * rho;
+  if (h === 0 && a === 1) return 1 + lambda * rho;
+  if (h === 1 && a === 0) return 1 + mu * rho;
+  if (h === 1 && a === 1) return 1 - rho;
+  return 1;
+}
+
+function grid(homeXg: number, awayXg: number, maxGoals = MAX_GOALS) {
   const g: number[][] = [];
+  let sum = 0;
   for (let h = 0; h <= maxGoals; h++) {
     const row: number[] = [];
     for (let a = 0; a <= maxGoals; a++) {
-      row.push(poisson(homeXg, h) * poisson(awayXg, a));
+      const p =
+        poisson(homeXg, h) *
+        poisson(awayXg, a) *
+        Math.max(0, dcTau(h, a, homeXg, awayXg, DC_RHO));
+      row.push(p);
+      sum += p;
     }
     g.push(row);
   }
+  if (sum > 0) for (const row of g) for (let a = 0; a < row.length; a++) row[a] /= sum;
   return g;
 }
 
@@ -69,18 +106,18 @@ function aggregate(g: number[][]) {
   return { home_win: home / sum, draw: draw / sum, away_win: away / sum };
 }
 
+// Wahrscheinlichster exakter Score (Mode-Picker)
 function bestScore(g: number[][]) {
   let best = { h: 0, a: 0, p: -1 };
   for (let h = 0; h < g.length; h++) {
     for (let a = 0; a < g[h].length; a++) {
-      const p = g[h][a];
-      if (p > best.p) best = { h, a, p };
+      if (g[h][a] > best.p) best = { h, a, p: g[h][a] };
     }
   }
   return { home: best.h, away: best.a, prob: best.p };
 }
 
-function topScores(g: number[][], n = 5) {
+function topScores(g: number[][], n = 10) {
   const all: { home: number; away: number; prob: number }[] = [];
   for (let h = 0; h < g.length; h++) {
     for (let a = 0; a < g[h].length; a++) {
@@ -91,32 +128,30 @@ function topScores(g: number[][], n = 5) {
 }
 
 export function predictMatch(home: TeamStats, away: TeamStats) {
-  const rel = relativeStrength(home, away);
-  const { homeXg, awayXg } = expectedGoals(rel);
+  const { homeXg, awayXg } = expectedGoals(home, away);
   const g = grid(homeXg, awayXg);
   const probs = aggregate(g);
-  const top = bestScore(g);
+  const mode = bestScore(g); // Tipp = wahrscheinlichster exakter Score
 
-  const spread = Math.max(probs.home_win, probs.away_win) - 0.5;
-  const confidence = Math.max(
-    0,
-    Math.min(
-      1,
-      0.4 * spread +
-        0.3 * (1 - probs.draw) +
-        (0.3 * Math.min(0.35, top.prob)) / 0.35,
-    ),
-  );
+  // #4 Konfidenz = Wahrscheinlichkeit der getippten Tendenz, ehrlich kalibriert
+  const tendency =
+    mode.home > mode.away ? "home_win" : mode.home < mode.away ? "away_win" : "draw";
+  const confidence =
+    tendency === "home_win"
+      ? probs.home_win
+      : tendency === "away_win"
+        ? probs.away_win
+        : probs.draw;
 
-  const reasoning = `RelStrength=${rel.toFixed(3)}, xG(H/A)=${homeXg.toFixed(2)}/${awayXg.toFixed(2)}, top=${top.home}:${top.away} p=${top.prob.toFixed(2)}, probs(H/D/A)=${probs.home_win.toFixed(2)}/${probs.draw.toFixed(2)}/${probs.away_win.toFixed(2)}`;
-
-  const topN = topScores(g, 10);
+  const reasoning = `xG(H/A)=${homeXg.toFixed(2)}/${awayXg.toFixed(2)}, Tipp(Mode)=${mode.home}:${mode.away} p=${mode.prob.toFixed(2)}, probs(H/D/A)=${probs.home_win.toFixed(2)}/${probs.draw.toFixed(2)}/${probs.away_win.toFixed(2)}`;
 
   return {
-    prediction: `${top.home}:${top.away}`,
+    prediction: `${mode.home}:${mode.away}`,
+    modeScore: `${mode.home}:${mode.away}`,
     probabilities: probs,
-    confidence: Number(confidence.toFixed(2)),
+    confidence: Number(clamp(confidence).toFixed(2)),
     reasoning,
-    topScores: topN,
+    topScores: topScores(g, 10),
+    expected: { homeXg, awayXg },
   } as const;
 }

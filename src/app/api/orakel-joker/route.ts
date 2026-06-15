@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Redis } from "@upstash/redis";
-import { getTeamRecentMatches, buildTeamElo, predictFromElo } from "../../../lib/elo";
-import { buildTipFromPrediction, type TipStyle } from "../../../lib/tip-engine";
+import { predictMatch } from "../../../lib/prediction-engine";
+import { buildAdaptiveStats, resolveStats } from "../../../lib/adaptive-elo";
+import { getMatches } from "../../../lib/football-data";
+import { buildTipFromPrediction } from "../../../lib/tip-engine";
 import { getSession, userIdFromEmail } from "@/lib/auth";
 
 const MAX_JOKERS = 10;
@@ -69,24 +71,30 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Fetch Elo data and predict
-    const [homeMatches, awayMatches] = await Promise.all([
-      getTeamRecentMatches(homeTeamId),
-      getTeamRecentMatches(awayTeamId),
-    ]);
+    // #5 Adaptive Ratings aus den bereits ausgetragenen Turnierspielen.
+    const finishedMatches = await getMatches({ status: "FINISHED" });
+    const adaptive = buildAdaptiveStats(
+      finishedMatches
+        .filter((m) => m.score?.home != null && m.score?.away != null)
+        .map((m) => ({
+          kickoff: m.kickoff,
+          homeName: m.homeTeam.name,
+          awayName: m.awayTeam.name,
+          homeGoals: m.score.home as number,
+          awayGoals: m.score.away as number,
+        })),
+    );
 
-    const homeElo = buildTeamElo(homeMatches, homeTeamId, homeTeam);
-    const awayElo = buildTeamElo(awayMatches, awayTeamId, awayTeam);
-
-    const prediction = predictFromElo(
-      { ...homeElo.stats, name: homeTeam },
-      { ...awayElo.stats, name: awayTeam },
+    const prediction = predictMatch(
+      resolveStats(homeTeam, adaptive),
+      resolveStats(awayTeam, adaptive),
     );
 
     const probs = prediction.probabilities;
     const tip = buildTipFromPrediction(
       {
         prediction: prediction.prediction,
+        modeScore: prediction.modeScore,
         confidence: prediction.confidence,
         probabilities: {
           homeWin: probs.home_win,

@@ -122,7 +122,7 @@ function matchOutcome(
 
 // FIFA Ranking points (March 2026) — source: football-ranking.com
 // form & goals derived from ranking tier + recent tournament performance
-const STATIC_TEAM_DATA: Record<string, TeamStats> = {
+export const STATIC_TEAM_DATA: Record<string, TeamStats> = {
   // Tier 1 — Top 5
   "Spain":         { elo: 1877, form: 0.80, goals_scored: 2.1, goals_conceded: 0.6, missing_impact: 0 },
   "Argentina":     { elo: 1873, form: 0.78, goals_scored: 2.0, goals_conceded: 0.6, missing_impact: 0 },
@@ -201,7 +201,7 @@ const STATIC_TEAM_DATA: Record<string, TeamStats> = {
 };
 
 // Lookup by team name (case-insensitive, partial match)
-function getStaticFallbackByName(name: string): TeamStats {
+export function getStaticFallbackByName(name: string): TeamStats {
   // Exact match first
   if (STATIC_TEAM_DATA[name]) return STATIC_TEAM_DATA[name];
   // Case-insensitive

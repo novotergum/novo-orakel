@@ -8,7 +8,21 @@ interface ResolveBody {
   actualAway: number;
 }
 
+// Gleicher Schutz wie /api/admin: ohne korrektes ADMIN_SECRET kein Zugriff.
+// Diese Route nimmt das Ergebnis aus dem Body (frei wählbar) und schreibt die
+// Punkte ALLER Tipps des Spiels – ungeschützt könnte jeder Scores frisieren.
+// Der automatische Pfad (resolve-all) zieht die echten football-data-Scores
+// und ist davon unberührt.
+function checkAuth(req: NextRequest): boolean {
+  const secret = process.env.ADMIN_SECRET;
+  if (!secret) return false;
+  return req.nextUrl.searchParams.get("secret") === secret;
+}
+
 export async function POST(req: NextRequest) {
+  if (!checkAuth(req)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   try {
     const body = (await req.json()) as ResolveBody;
 
