@@ -37,6 +37,7 @@ interface PersonioDup {
 interface AnMember { userId: string; userName: string; excluded: boolean }
 interface Anomalies {
   counts: { humans: number; matchesWithKickoff: number; fieldExactPct: number };
+  tippers: { userId: string; userName: string; tips: number; lastTipAt: string | null; excluded: boolean }[];
   duplicates: {
     sameLocalPart: { localPart: string; members: AnMember[]; sharedIp: boolean; sharedMatches: number }[];
     sameName: { name: string; members: AnMember[]; sharedIp: boolean; sharedMatches: number }[];
@@ -729,6 +730,36 @@ export default function AdminPage() {
           <p style={{ fontSize: 13, color: "#7A7A7A", margin: 0 }}>{anLoading ? "Lädt…" : "—"}</p>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+
+            {/* Wer hat bisher überhaupt getippt? — rein informativ */}
+            <details>
+              <summary style={{ cursor: "pointer", margin: "0 0 8px", fontSize: 13, fontWeight: 600, color: "#3A3A3A" }}>
+                ✅ Bisher getippt: {anomalies.tippers.length} Accounts
+                <span style={{ color: "#999", fontWeight: 400 }}>
+                  {" "}· {anomalies.tippers.filter((t) => !t.excluded).length} in Wertung
+                  {anomalies.tippers.some((t) => t.excluded) && ` · ${anomalies.tippers.filter((t) => t.excluded).length} raus`}
+                </span>
+              </summary>
+              {anomalies.tippers.length === 0 ? (
+                <p style={{ fontSize: 13, color: "#7A7A7A", margin: 0 }}>Noch niemand.</p>
+              ) : (
+                <div style={anStyles.box}>
+                  {anomalies.tippers.map((t, i) => (
+                    <div key={`tp-${t.userId}`} style={anStyles.row}>
+                      <span style={{ color: "#bbb", width: 26, textAlign: "right", marginRight: 4 }}>{i + 1}.</span>
+                      <span style={{ flex: 1, opacity: t.excluded ? 0.5 : 1 }}>
+                        <b>{t.userName}</b> <span style={{ color: "#999" }}>· {t.userId}</span>
+                        {t.excluded && <span style={anStyles.exBadge}>raus</span>}
+                      </span>
+                      <span style={{ color: "#999", fontSize: 12 }}>
+                        {t.lastTipAt ? `zuletzt ${new Date(t.lastTipAt).toLocaleString("de-DE", { dateStyle: "short", timeStyle: "short" })}` : ""}
+                      </span>
+                      <span style={{ color: "#3A3A3A", fontSize: 12, fontWeight: 600, width: 64, textAlign: "right" }}>{t.tips} Tipps</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </details>
 
             {/* Tipp-Zwillinge — Absprache zwischen VERSCHIEDENEN Personen.
                 Same-Person-Dubletten stecken in den Personio-Doppel-Accounts oben. */}

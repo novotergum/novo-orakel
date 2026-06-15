@@ -61,6 +61,7 @@ export async function GET(req: NextRequest) {
       lastMinute: number;
       tipsWithKickoff: number;
       minMinutes: number; // knappster Abstand zum Anpfiff
+      lastTipAt: number; // jüngster Tipp-Zeitpunkt (ms)
     }
     const users = new Map<string, U>();
     const humanRecords: PredictionRecord[] = [];
@@ -76,10 +77,15 @@ export async function GET(req: NextRequest) {
           lastMinute: 0,
           tipsWithKickoff: 0,
           minMinutes: Infinity,
+          lastTipAt: 0,
         };
         users.set(r.userId, u);
       }
       u.tips.set(r.matchId, r.scoreTip);
+      if (r.createdAt) {
+        const t = new Date(r.createdAt).getTime();
+        if (t > u.lastTipAt) u.lastTipAt = t;
+      }
       const ko = kickoff.get(r.matchId);
       if (ko && r.createdAt) {
         const mins = (ko - new Date(r.createdAt).getTime()) / 60000;
@@ -283,8 +289,22 @@ export async function GET(req: NextRequest) {
       .filter((x) => x.changes >= 2)
       .sort((a, b) => b.changes - a.changes);
 
+    // 0) Wer hat bisher überhaupt getippt? --------------------------------
+    // Jeder Account mit mindestens einem menschlichen Tipp, sortiert nach
+    // Tipp-Anzahl (dann jüngster Tipp). Rein informativ, kein Verdacht.
+    const tippers = list
+      .map((u) => ({
+        userId: u.userId,
+        userName: u.userName,
+        tips: u.tips.size,
+        lastTipAt: u.lastTipAt ? new Date(u.lastTipAt).toISOString() : null,
+        excluded: excluded.has(u.userId),
+      }))
+      .sort((a, b) => b.tips - a.tips || (b.lastTipAt ?? "").localeCompare(a.lastTipAt ?? ""));
+
     return NextResponse.json({
       counts: { humans: list.length, matchesWithKickoff: kickoff.size, fieldExactPct: Math.round(fieldRate * 100) },
+      tippers,
       duplicates: {
         sameLocalPart: sameLocalPart.map((c) => ({
           ...c,
