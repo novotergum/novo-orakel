@@ -1075,7 +1075,7 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
           marginBottom: 20,
         }}
       >
-        <div>
+        <div style={{ minWidth: 0 }}>
           <h2 style={{ margin: 0, fontSize: 20, color: "#3A3A3A" }}>
             Spiele & Tipps
           </h2>
@@ -1083,7 +1083,7 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
             {currentUser.userName} &middot; {currentUser.location}
           </p>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
           {/* Joker counter */}
           <div
             style={{
@@ -1097,6 +1097,7 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
               fontSize: 12,
               color: "#4293D0",
               fontWeight: 600,
+              whiteSpace: "nowrap",
             }}
           >
             Joker: {jokersRemaining}/10

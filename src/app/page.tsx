@@ -226,51 +226,54 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
           >
             WM 2026 &ndash; Mensch gegen Maschine
           </p>
-          {/* CTA Anchor — primaer tippen, sekundaer Kollegen einladen */}
-          <div
-            style={{
-              marginTop: 24,
-              display: "flex",
-              gap: 12,
-              justifyContent: "center",
-              flexWrap: "wrap",
-            }}
-          >
-            <a
-              href="#tipform"
-              style={{
-                display: "inline-block",
-                padding: "12px 36px",
-                background: "#F39200",
-                color: "#fff",
-                fontSize: 15,
-                fontWeight: 700,
-                borderRadius: 10,
-                textDecoration: "none",
-                letterSpacing: "0.02em",
-                boxShadow: "0 4px 16px rgba(243,146,0,0.35)",
-                transition: "transform 0.15s",
-              }}
-            >
+          {/* CTA Anchor — primaer tippen, sekundaer Kollegen einladen.
+              Style-Block statt Inline, damit Hover + responsives Stapeln gehen. */}
+          <style>{`
+            .hero-ctas {
+              margin-top: 24px;
+              display: flex;
+              gap: 12px;
+              justify-content: center;
+              flex-wrap: wrap;
+            }
+            .hero-cta {
+              display: inline-flex;
+              align-items: center;
+              justify-content: center;
+              gap: 8px;
+              padding: 13px 30px;
+              font-size: 15px;
+              font-weight: 700;
+              border-radius: 10px;
+              text-decoration: none;
+              letter-spacing: 0.02em;
+              cursor: pointer;
+              transition: transform .15s ease, filter .15s ease, background .15s ease;
+            }
+            .hero-cta:hover { transform: translateY(-1px); }
+            .hero-cta:active { transform: translateY(0); }
+            .hero-cta-primary {
+              background: #F39200;
+              color: #fff;
+              box-shadow: 0 4px 16px rgba(243,146,0,0.35);
+            }
+            .hero-cta-primary:hover { filter: brightness(1.06); }
+            .hero-cta-secondary {
+              background: rgba(66,147,208,0.18);
+              color: #fff;
+              border: 1.5px solid #4293D0;
+            }
+            .hero-cta-secondary:hover { background: rgba(66,147,208,0.32); }
+            @media (max-width: 520px) {
+              .hero-ctas { flex-direction: column; align-items: stretch; }
+              .hero-cta { width: 100%; }
+            }
+          `}</style>
+          <div className="hero-ctas">
+            <a href="#tipform" className="hero-cta hero-cta-primary">
               Jetzt tippen
             </a>
-            <a
-              href={inviteMailto}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 8,
-                padding: "12px 28px",
-                background: "rgba(66,147,208,0.18)",
-                color: "#ffffff",
-                fontSize: 15,
-                fontWeight: 700,
-                borderRadius: 10,
-                textDecoration: "none",
-                letterSpacing: "0.02em",
-                border: "1.5px solid #4293D0",
-              }}
-            >
+            <a href={inviteMailto} className="hero-cta hero-cta-secondary">
               <span>✉️</span> Kollegen einladen
             </a>
           </div>
@@ -446,21 +449,27 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
         {/* ── Teams-Kanal Beitritt (nur wenn Link konfiguriert) ── */}
         {teamsJoinUrl && (
           <section style={{ marginBottom: 36 }}>
+            <style>{`
+              .teams-card { display: flex; align-items: center; gap: 14px; }
+              .teams-join-btn { flex-shrink: 0; display: inline-block; }
+              @media (max-width: 520px) {
+                .teams-card { flex-direction: column; align-items: flex-start; }
+                .teams-join-btn { width: 100%; text-align: center; }
+              }
+            `}</style>
             <a
               href={teamsJoinUrl}
               target="_blank"
               rel="noopener noreferrer"
+              className="teams-card"
               style={{
                 ...card,
-                display: "flex",
-                alignItems: "center",
-                gap: 14,
                 textDecoration: "none",
                 borderLeft: "4px solid #4293D0",
               }}
             >
               <span style={{ fontSize: 26, lineHeight: 1 }}>💬</span>
-              <div style={{ flex: 1 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 15, fontWeight: 700, color: "#2a2a2a" }}>
                   Tritt dem WM-Teams-Kanal bei
                 </div>
@@ -469,8 +478,8 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
                 </div>
               </div>
               <span
+                className="teams-join-btn"
                 style={{
-                  flexShrink: 0,
                   padding: "9px 20px",
                   background: "#4293D0",
                   color: "#fff",
