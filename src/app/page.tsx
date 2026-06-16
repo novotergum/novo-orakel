@@ -10,6 +10,7 @@ import Leaderboard from "../components/Leaderboard";
 import LocationRanking from "../components/LocationRanking";
 import RankUpBanner from "../components/RankUpBanner";
 import { aggregateLocations, type LocationStat } from "@/lib/stats";
+import { buildInviteMailto } from "@/lib/invite";
 import { getAllowedDomains, getSession, userIdFromEmail } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -167,6 +168,9 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
   // Optionaler Beitrittslink zum WM-Teams-Kanal (nur gerendert, wenn gesetzt)
   const teamsJoinUrl = process.env.TEAMS_JOIN_URL;
 
+  // Vorausgefuellte Einladungs-Mail (Absender aus Login) — Hero-CTA + Standort-Modul.
+  const inviteMailto = buildInviteMailto(session.email);
+
   return (
     <div
       style={{
@@ -222,26 +226,54 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
           >
             WM 2026 &ndash; Mensch gegen Maschine
           </p>
-          {/* CTA Anchor */}
-          <a
-            href="#tipform"
+          {/* CTA Anchor — primaer tippen, sekundaer Kollegen einladen */}
+          <div
             style={{
-              display: "inline-block",
               marginTop: 24,
-              padding: "12px 36px",
-              background: "#F39200",
-              color: "#fff",
-              fontSize: 15,
-              fontWeight: 700,
-              borderRadius: 10,
-              textDecoration: "none",
-              letterSpacing: "0.02em",
-              boxShadow: "0 4px 16px rgba(243,146,0,0.35)",
-              transition: "transform 0.15s",
+              display: "flex",
+              gap: 12,
+              justifyContent: "center",
+              flexWrap: "wrap",
             }}
           >
-            Jetzt tippen
-          </a>
+            <a
+              href="#tipform"
+              style={{
+                display: "inline-block",
+                padding: "12px 36px",
+                background: "#F39200",
+                color: "#fff",
+                fontSize: 15,
+                fontWeight: 700,
+                borderRadius: 10,
+                textDecoration: "none",
+                letterSpacing: "0.02em",
+                boxShadow: "0 4px 16px rgba(243,146,0,0.35)",
+                transition: "transform 0.15s",
+              }}
+            >
+              Jetzt tippen
+            </a>
+            <a
+              href={inviteMailto}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "12px 28px",
+                background: "rgba(255,255,255,0.08)",
+                color: "#fff",
+                fontSize: 15,
+                fontWeight: 700,
+                borderRadius: 10,
+                textDecoration: "none",
+                letterSpacing: "0.02em",
+                border: "1px solid rgba(255,255,255,0.25)",
+              }}
+            >
+              <span>✉️</span> Kollegen einladen
+            </a>
+          </div>
         </header>
 
         {/* ── Motivationsspruch bei verbesserter Position (1× pro Spieltag) ── */}
