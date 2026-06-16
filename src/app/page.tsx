@@ -288,7 +288,7 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "1fr auto 1fr",
+                gridTemplateColumns: "minmax(0,1fr) auto minmax(0,1fr)",
                 gap: 12,
                 alignItems: "stretch",
               }}
@@ -297,6 +297,7 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
               <div
                 style={{
                   ...card,
+                  padding: "20px 14px",
                   textAlign: "center",
                   borderTop: `3px solid #E5172D`,
                   transform: leaderSide === "human" ? "scale(1.03)" : "none",
@@ -323,7 +324,7 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
                 >
                   Mensch
                 </div>
-                <div style={{ fontSize: 44, fontWeight: 800, color: "#E5172D", marginTop: 8, lineHeight: 1 }}>
+                <div style={{ fontSize: "clamp(30px, 11vw, 44px)", fontWeight: 800, color: "#E5172D", marginTop: 8, lineHeight: 1 }}>
                   {humanAvg.toFixed(1)}
                 </div>
                 <div style={{ fontSize: 12, color: "#999", marginTop: 8 }}>
@@ -357,6 +358,7 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
               <div
                 style={{
                   ...card,
+                  padding: "20px 14px",
                   textAlign: "center",
                   borderTop: `3px solid #4293D0`,
                   transform: leaderSide === "agent" ? "scale(1.03)" : "none",
@@ -383,7 +385,7 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
                 >
                   Maschine
                 </div>
-                <div style={{ fontSize: 44, fontWeight: 800, color: "#4293D0", marginTop: 8, lineHeight: 1 }}>
+                <div style={{ fontSize: "clamp(30px, 11vw, 44px)", fontWeight: 800, color: "#4293D0", marginTop: 8, lineHeight: 1 }}>
                   {agentAvg.toFixed(1)}
                 </div>
                 <div style={{ fontSize: 12, color: "#999", marginTop: 8 }}>

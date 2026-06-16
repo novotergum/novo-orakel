@@ -96,10 +96,13 @@ export default function Leaderboard({
                   style={{
                     ...card,
                     flex: isFirst ? 1.3 : 1,
+                    minWidth: 0,
                     textAlign: "center",
                     position: "relative",
                     paddingTop: isFirst ? 44 : 36,
                     paddingBottom: isFirst ? 28 : 24,
+                    paddingLeft: 12,
+                    paddingRight: 12,
                     borderTop: `${isFirst ? 4 : 3}px solid ${color}`,
                     outline: isMe ? "2px solid #4293D0" : undefined,
                     outlineOffset: isMe ? "1px" : undefined,
@@ -170,7 +173,7 @@ export default function Leaderboard({
                   )}
                   <div
                     style={{
-                      fontSize: isFirst ? 56 : 40,
+                      fontSize: isFirst ? "clamp(34px, 13vw, 56px)" : "clamp(26px, 10vw, 40px)",
                       fontWeight: 800,
                       color: color,
                       lineHeight: 1,
