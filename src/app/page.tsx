@@ -10,7 +10,6 @@ import Leaderboard from "../components/Leaderboard";
 import LocationRanking from "../components/LocationRanking";
 import RankUpBanner from "../components/RankUpBanner";
 import { aggregateLocations, type LocationStat } from "@/lib/stats";
-import { buildInviteMailto } from "@/lib/invite";
 import { getAllowedDomains, getSession, userIdFromEmail } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -168,9 +167,6 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
   // Optionaler Beitrittslink zum WM-Teams-Kanal (nur gerendert, wenn gesetzt)
   const teamsJoinUrl = process.env.TEAMS_JOIN_URL;
 
-  // Vorausgefuellte Einladungs-Mail (Absender aus Login) — Hero-CTA + Standort-Modul.
-  const inviteMailto = buildInviteMailto(session.email);
-
   return (
     <div
       style={{
@@ -226,15 +222,13 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
           >
             WM 2026 &ndash; Mensch gegen Maschine
           </p>
-          {/* CTA Anchor — primaer tippen, sekundaer Kollegen einladen.
-              Style-Block statt Inline, damit Hover + responsives Stapeln gehen. */}
+          {/* CTA Anchor — primaer tippen. Einladen sitzt kontextstark unter
+              der Standort-Wertung, daher hier bewusst nur ein Button. */}
           <style>{`
             .hero-ctas {
               margin-top: 24px;
               display: flex;
-              gap: 12px;
               justify-content: center;
-              flex-wrap: wrap;
             }
             .hero-cta {
               box-sizing: border-box;
@@ -242,14 +236,14 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
               align-items: center;
               justify-content: center;
               gap: 8px;
-              padding: 13px 30px;
+              padding: 13px 36px;
               font-size: 15px;
               font-weight: 700;
               border-radius: 10px;
               text-decoration: none;
               letter-spacing: 0.02em;
               cursor: pointer;
-              transition: transform .15s ease, filter .15s ease, background .15s ease;
+              transition: transform .15s ease, filter .15s ease;
             }
             .hero-cta:hover { transform: translateY(-1px); }
             .hero-cta:active { transform: translateY(0); }
@@ -259,23 +253,13 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
               box-shadow: 0 4px 16px rgba(243,146,0,0.35);
             }
             .hero-cta-primary:hover { filter: brightness(1.06); }
-            .hero-cta-secondary {
-              background: rgba(66,147,208,0.18);
-              color: #fff;
-              border: 1.5px solid #4293D0;
-            }
-            .hero-cta-secondary:hover { background: rgba(66,147,208,0.32); }
             @media (max-width: 520px) {
-              .hero-ctas { flex-direction: column; align-items: stretch; }
               .hero-cta { width: 100%; }
             }
           `}</style>
           <div className="hero-ctas">
             <a href="#tipform" className="hero-cta hero-cta-primary">
               Jetzt tippen
-            </a>
-            <a href={inviteMailto} className="hero-cta hero-cta-secondary">
-              <span>✉️</span> Kollegen einladen
             </a>
           </div>
         </header>
