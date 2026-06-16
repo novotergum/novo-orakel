@@ -8,7 +8,7 @@ const APP_URL = "https://wm-tippspiel.vercel.app";
 // Vorausgefuellte Einladungs-Mail. Empfaenger traegt der Nutzer selbst ein;
 // Absender/Signatur kommen aus dem Login (mailto kann das From-Feld nicht
 // erzwingen, daher Best-Effort via from= + Signatur im Text).
-const INVITE_SUBJECT = "Mach mit beim NOVOTERGUM WM-Tippspiel! 🏆";
+const INVITE_SUBJECT = "Mach mit beim United Therapy WM-Tippspiel! 🏆";
 function buildInviteMailto(senderName?: string, senderEmail?: string): string {
   const name = (senderName || "").trim();
   const body = [
@@ -17,7 +17,7 @@ function buildInviteMailto(senderName?: string, senderEmail?: string): string {
     "wir tippen die Spiele der WM 2026 — durch ganz United Therapy, Standort gegen Standort.",
     "Dein Zentrum ist noch nicht in der Standort-Wertung? Dann hol es rein!",
     "",
-    "Einfach mit deiner NOVOTERGUM-Mailadresse anmelden:",
+    "Einfach mit deiner Firmen-Mailadresse anmelden:",
     APP_URL,
     "",
     "Dauert 2 Minuten — viel Erfolg beim Tippen!",
