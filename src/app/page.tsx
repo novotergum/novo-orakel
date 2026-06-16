@@ -391,7 +391,6 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
         <LocationRanking
           locations={locations}
           currentLocation={profile.location}
-          senderName={profile.userName}
           senderEmail={session.email}
         />
 

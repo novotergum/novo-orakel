@@ -5,12 +5,11 @@ const BLUE = "#4293D0";
 
 const APP_URL = "https://wm-tippspiel.vercel.app";
 
-// Vorausgefuellte Einladungs-Mail. Empfaenger traegt der Nutzer selbst ein;
-// Absender/Signatur kommen aus dem Login (mailto kann das From-Feld nicht
-// erzwingen, daher Best-Effort via from= + Signatur im Text).
+// Vorausgefuellte Einladungs-Mail. Empfaenger traegt der Nutzer selbst ein.
+// Keine Gruss-Signatur im Body — die haengt der Mail-Client selbst an. from=
+// kommt best-effort aus dem Login (mailto kann das From-Feld nicht erzwingen).
 const INVITE_SUBJECT = "Mach mit beim United Therapy WM-Tippspiel! 🏆";
-function buildInviteMailto(senderName?: string, senderEmail?: string): string {
-  const name = (senderName || "").trim();
+function buildInviteMailto(senderEmail?: string): string {
   const body = [
     "Hi,",
     "",
@@ -21,7 +20,6 @@ function buildInviteMailto(senderName?: string, senderEmail?: string): string {
     APP_URL,
     "",
     "Dauert 2 Minuten — viel Erfolg beim Tippen!",
-    ...(name ? ["", `Viele Grüße`, name] : []),
   ].join("\n");
   const params = [
     `subject=${encodeURIComponent(INVITE_SUBJECT)}`,
@@ -43,12 +41,10 @@ const card: React.CSSProperties = {
 export default function LocationRanking({
   locations,
   currentLocation,
-  senderName,
   senderEmail,
 }: {
   locations: LocationStat[];
   currentLocation?: string;
-  senderName?: string;
   senderEmail?: string;
 }) {
   if (locations.length < 2) return null; // unter 2 Standorten kein Ranking
@@ -56,7 +52,7 @@ export default function LocationRanking({
   const max = locations[0].avg || 1;
   const norm = (s: string) => s.trim().toLowerCase();
   const mine = currentLocation ? norm(currentLocation) : null;
-  const inviteMailto = buildInviteMailto(senderName, senderEmail);
+  const inviteMailto = buildInviteMailto(senderEmail);
 
   return (
     <section style={{ marginBottom: 36 }}>
@@ -180,10 +176,6 @@ export default function LocationRanking({
           Standort nicht dabei? Jetzt Kollegen zum Tippspiel einladen
         </span>
       </a>
-      <div style={{ fontSize: 12, color: "#aaa", marginTop: 8, textAlign: "center" }}>
-        Öffnet eine vorausgefüllte E-Mail mit Anmelde-Link &middot; Standort aus
-        Personio (Selbstangabe als Fallback), nur Standorte mit ≥ 2 Tippern gewertet.
-      </div>
     </section>
   );
 }
