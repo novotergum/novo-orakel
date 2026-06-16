@@ -7,7 +7,9 @@ import LoginScreen from "../components/LoginScreen";
 import WarmupGame from "../components/WarmupGame";
 import LiveTicker from "../components/LiveTicker";
 import Leaderboard from "../components/Leaderboard";
+import LocationRanking from "../components/LocationRanking";
 import RankUpBanner from "../components/RankUpBanner";
+import { aggregateLocations, type LocationStat } from "@/lib/stats";
 import { getAllowedDomains, getSession, userIdFromEmail } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -75,6 +77,7 @@ async function getData() {
 
   // Standort auflösen: offizielle Personio-Map (Source of Truth) schlaegt die
   // Selbstangabe aus dem Tipp-Record. Agenten haben keinen Standort.
+  const locInput: { location: string; points: number; fromPersonio: boolean }[] = [];
   for (const e of board) {
     if (e.source === "agent") {
       e.location = "";
@@ -82,7 +85,14 @@ async function getData() {
     }
     const official = standortByEmail[e.userId.toLowerCase().trim()];
     e.location = (official || e.location || "").trim();
+    if (e.location) {
+      locInput.push({ location: e.location, points: e.points, fromPersonio: Boolean(official) });
+    }
   }
+
+  // Standort-Wertung (Ø Punkte je Tipper) — gleiche Aggregation/Normalisierung
+  // wie /statistik, aber gespeist aus der Standort-Map (kein Personio-Live-Call).
+  const locations: LocationStat[] = aggregateLocations(locInput);
 
   // Competition-Ranking (1-2-2-4): Punktgleiche teilen sich den Rang. Verhindert,
   // dass die Reihenfolge innerhalb eines Punkte-Clusters (per Tiebreaker/Alphabet)
@@ -117,7 +127,7 @@ async function getData() {
   const leaderSide: "human" | "agent" | "tie" =
     Math.abs(delta) < 0.05 ? "tie" : delta > 0 ? "human" : "agent";
 
-  return { board, humanAvg, agentAvg, humanCount: humans.length, agentCount: agents.length, leaderText, leaderSide };
+  return { board, locations, humanAvg, agentAvg, humanCount: humans.length, agentCount: agents.length, leaderText, leaderSide };
 }
 
 const card: React.CSSProperties = {
@@ -146,7 +156,7 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
   if (!profileRaw) redirect("/onboarding");
   const profile = profileRaw as { userId: string; userName: string; location: string };
 
-  const { board, humanAvg, agentAvg, humanCount, agentCount, leaderText, leaderSide } = await getData();
+  const { board, locations, humanAvg, agentAvg, humanCount, agentCount, leaderText, leaderSide } = await getData();
   const top3 = board.slice(0, 3);
   const rest = board.slice(3);
 
@@ -377,6 +387,8 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
         </section>
 
         <Leaderboard top3={top3} rest={rest} currentUserId={profile.userId} />
+
+        <LocationRanking locations={locations} currentLocation={profile.location} />
 
         {/* ── Empty state ── */}
         {board.length === 0 && (

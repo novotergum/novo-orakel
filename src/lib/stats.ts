@@ -177,6 +177,42 @@ function mean(arr: number[]): number {
   return arr.reduce((s, n) => s + n, 0) / arr.length;
 }
 
+// Standort-Wertung (nur Menschen, mind. MIN_PLAYERS_PER_LOCATION). Freitext-
+// Eingaben werden normalisiert + bekannte Varianten gemerged, damit z. B.
+// "Herten Westerholt"/"Herten-Westerholt"/"Westerholt" EIN Standort sind.
+// Geteilt von computeStats (Personio-Matcher) und dem Dashboard (Standort-Map).
+export function aggregateLocations(
+  players: { location: string; points: number; fromPersonio: boolean }[],
+): LocationStat[] {
+  const locGroups = new Map<
+    string,
+    { pts: number[]; personioLabels: Map<string, number>; selfLabels: Map<string, number> }
+  >();
+  for (const h of players) {
+    if (!h.location || h.location === "Unbekannt") continue;
+    const key = canonicalLocationKey(h.location);
+    let g = locGroups.get(key);
+    if (!g) {
+      g = { pts: [], personioLabels: new Map(), selfLabels: new Map() };
+      locGroups.set(key, g);
+    }
+    g.pts.push(h.points);
+    const disp = h.location.trim().replace(/\s+/g, " ");
+    const bucket = h.fromPersonio ? g.personioLabels : g.selfLabels;
+    bucket.set(disp, (bucket.get(disp) ?? 0) + 1);
+  }
+  return [...locGroups.entries()]
+    .filter(([, g]) => g.pts.length >= MIN_PLAYERS_PER_LOCATION)
+    .map(([key, g]) => ({
+      location: locationDisplayLabel(key, g.personioLabels, g.selfLabels),
+      avg: mean(g.pts),
+      median: median(g.pts),
+      players: g.pts.length,
+      points: g.pts.reduce((s, n) => s + n, 0),
+    }))
+    .sort((a, b) => b.avg - a.avg || b.players - a.players);
+}
+
 function median(arr: number[]): number {
   if (!arr.length) return 0;
   const s = [...arr].sort((a, b) => a - b);
@@ -378,35 +414,7 @@ export async function computeStats(): Promise<StatsResult> {
   }
 
   // Standort-Wertung (nur Menschen, mind. MIN_PLAYERS_PER_LOCATION).
-  // Freitext-Eingaben werden normalisiert + bekannte Varianten gemerged, damit
-  // z. B. "Herten Westerholt"/"Herten-Westerholt"/"Westerholt" EIN Standort sind.
-  const locGroups = new Map<
-    string,
-    { pts: number[]; personioLabels: Map<string, number>; selfLabels: Map<string, number> }
-  >();
-  for (const h of humans) {
-    if (h.location === "Unbekannt") continue;
-    const key = canonicalLocationKey(h.location);
-    let g = locGroups.get(key);
-    if (!g) {
-      g = { pts: [], personioLabels: new Map(), selfLabels: new Map() };
-      locGroups.set(key, g);
-    }
-    g.pts.push(h.points);
-    const disp = h.location.trim().replace(/\s+/g, " ");
-    const bucket = h.fromPersonio ? g.personioLabels : g.selfLabels;
-    bucket.set(disp, (bucket.get(disp) ?? 0) + 1);
-  }
-  const locations: LocationStat[] = [...locGroups.entries()]
-    .filter(([, g]) => g.pts.length >= MIN_PLAYERS_PER_LOCATION)
-    .map(([key, g]) => ({
-      location: locationDisplayLabel(key, g.personioLabels, g.selfLabels),
-      avg: mean(g.pts),
-      median: median(g.pts),
-      players: g.pts.length,
-      points: g.pts.reduce((s, n) => s + n, 0),
-    }))
-    .sort((a, b) => b.avg - a.avg || b.players - a.players);
+  const locations = aggregateLocations(humans);
 
   // --- Orakel-Anspruchnahme: Treue, Mensch-vs-Maschine, Sog pro Partie ---
   const ORACLE_MIN_TIPS = 5;
