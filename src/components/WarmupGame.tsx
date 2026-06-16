@@ -48,7 +48,7 @@ export default function WarmupGame() {
               </span>
             </div>
             <p style={{ fontSize: 14, color: "#555", lineHeight: 1.6, margin: "0 0 18px" }}>
-              Elfmeterschie&szlig;en: F&uuml;hr <b style={{ color: "#00a99d" }}>United Therapy</b>{" "}
+              Elfmeterschie&szlig;en: F&uuml;hr <b style={{ color: "#4293D0" }}>United Therapy</b>{" "}
               im Penalty-Duell gegen APELOS. Wischen zum Schie&szlig;en, Zone tippen zum Halten &ndash;
               geht auch am Handy.
             </p>
@@ -62,11 +62,11 @@ export default function WarmupGame() {
                 letterSpacing: "0.04em",
                 textTransform: "uppercase",
                 fontSize: 14,
-                color: "#04302c",
-                background: "linear-gradient(135deg,#3fe0c9,#00a99d)",
+                color: "#fff",
+                background: "linear-gradient(135deg,#F8A82B,#F39200)",
                 padding: "12px 30px",
                 borderRadius: 40,
-                boxShadow: "0 8px 22px rgba(0,169,157,0.35)",
+                boxShadow: "0 8px 22px rgba(243,146,0,0.35)",
               }}
             >
               Anpfiff &rarr;
@@ -97,8 +97,8 @@ export default function WarmupGame() {
               }}
             >
               <span style={{ fontSize: 11, color: "#888" }}>
-                <b style={{ color: "#00a99d" }}>Wischen</b> zum Schie&szlig;en &middot;{" "}
-                <b style={{ color: "#00a99d" }}>Zone tippen</b> zum Halten
+                <b style={{ color: "#4293D0" }}>Wischen</b> zum Schie&szlig;en &middot;{" "}
+                <b style={{ color: "#4293D0" }}>Zone tippen</b> zum Halten
               </span>
               <button
                 onClick={() => setPlay(false)}

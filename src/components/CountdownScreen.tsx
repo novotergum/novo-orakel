@@ -262,16 +262,16 @@ export default function CountdownScreen() {
                 </span>
               </div>
               <p style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", lineHeight: 1.6, margin: "0 0 16px" }}>
-                Noch kein Anpfiff? F&uuml;hr <b style={{ color: "#00a99d" }}>United Therapy</b> im
+                Noch kein Anpfiff? F&uuml;hr <b style={{ color: "#4293D0" }}>United Therapy</b> im
                 Mini-Match gegen APELOS &mdash; und schlag schon mal warm, bis das Tippen losgeht.
               </p>
               <button
                 onClick={() => setPlayGame(true)}
                 style={{
                   cursor: "pointer", border: "none", fontFamily: "inherit", fontWeight: 700,
-                  letterSpacing: "0.04em", textTransform: "uppercase", fontSize: 14, color: "#04302c",
-                  background: "linear-gradient(135deg,#3fe0c9,#00a99d)", padding: "12px 30px",
-                  borderRadius: 40, boxShadow: "0 8px 22px rgba(0,169,157,0.35)",
+                  letterSpacing: "0.04em", textTransform: "uppercase", fontSize: 14, color: "#fff",
+                  background: "linear-gradient(135deg,#F8A82B,#F39200)", padding: "12px 30px",
+                  borderRadius: 40, boxShadow: "0 8px 22px rgba(243,146,0,0.35)",
                 }}
               >
                 Anpfiff &rarr;
@@ -293,7 +293,7 @@ export default function CountdownScreen() {
               />
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 16px", background: "rgba(0,0,0,0.25)" }}>
                 <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>
-                  Klick ins Spielfeld, dann <b style={{ color: "#00a99d" }}>WASD</b> + <b style={{ color: "#00a99d" }}>Leertaste</b>
+                  Klick ins Spielfeld, dann <b style={{ color: "#4293D0" }}>WASD</b> + <b style={{ color: "#4293D0" }}>Leertaste</b>
                 </span>
                 <button
                   onClick={() => setPlayGame(false)}
@@ -315,7 +315,7 @@ export default function CountdownScreen() {
           <span style={{ fontSize: 20, flexShrink: 0 }}>{"⚽"}</span>
           <p style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", lineHeight: 1.55, margin: 0 }}>
             <b style={{ color: "rgba(255,255,255,0.7)" }}>Warm-up:</b> Das Mini-Match{" "}
-            <b style={{ color: "#00a99d" }}>United Therapy</b> vs. APELOS l&auml;uft mit
+            <b style={{ color: "#4293D0" }}>United Therapy</b> vs. APELOS l&auml;uft mit
             Tastatursteuerung &ndash; spiel es am Rechner, w&auml;hrend du auf den Anpfiff wartest.
           </p>
         </div>

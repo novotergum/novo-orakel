@@ -261,14 +261,14 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
                 alignItems: "center",
                 gap: 8,
                 padding: "12px 28px",
-                background: "rgba(255,255,255,0.14)",
+                background: "rgba(66,147,208,0.18)",
                 color: "#ffffff",
                 fontSize: 15,
                 fontWeight: 700,
                 borderRadius: 10,
                 textDecoration: "none",
                 letterSpacing: "0.02em",
-                border: "1.5px solid rgba(255,255,255,0.55)",
+                border: "1.5px solid #4293D0",
               }}
             >
               <span>✉️</span> Kollegen einladen
@@ -454,7 +454,7 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
                 alignItems: "center",
                 gap: 14,
                 textDecoration: "none",
-                borderLeft: "4px solid #5b5fc7",
+                borderLeft: "4px solid #4293D0",
               }}
             >
               <span style={{ fontSize: 26, lineHeight: 1 }}>💬</span>
@@ -470,7 +470,7 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
                 style={{
                   flexShrink: 0,
                   padding: "9px 20px",
-                  background: "#5b5fc7",
+                  background: "#4293D0",
                   color: "#fff",
                   fontSize: 14,
                   fontWeight: 700,

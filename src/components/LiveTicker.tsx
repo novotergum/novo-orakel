@@ -149,11 +149,11 @@ export default function LiveTicker() {
       >
         <div
           style={{
-            fontSize: 11,
-            fontWeight: 700,
-            letterSpacing: "0.1em",
+            fontSize: 13,
+            fontWeight: 600,
+            letterSpacing: "0.08em",
             textTransform: "uppercase",
-            color: "#8a8a92",
+            color: "#999",
             marginBottom: 12,
             display: "flex",
             alignItems: "center",
