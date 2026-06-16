@@ -270,18 +270,6 @@ export default function Leaderboard({
                           <span style={{ color: "#2a2a2a", fontWeight: isMe ? 800 : 600 }}>
                             {entry.userName}
                           </span>
-                          {entry.location && (
-                            <span
-                              style={{
-                                marginLeft: 8,
-                                fontSize: 12,
-                                color: "#999",
-                                whiteSpace: "nowrap",
-                              }}
-                            >
-                              📍 {entry.location}
-                            </span>
-                          )}
                           {isMe && (
                             <span
                               style={{
