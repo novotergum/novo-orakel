@@ -43,6 +43,8 @@ interface Anomalies {
     sameName: { name: string; members: AnMember[]; sharedIp: boolean; sharedMatches: number }[];
     tipTwins: { a: string; aName: string; b: string; bName: string; shared: number; agree: number; pct: number; aExcluded: boolean; bExcluded: boolean; sharedIp: boolean }[];
   };
+  copycats: { leader: string; leaderName: string; follower: string; followerName: string; shared: number; agree: number; pct: number; dirPct: number; medianLagMin: number; leaderExcluded: boolean; followerExcluded: boolean; sharedIp: boolean }[];
+  hedges: { a: string; aName: string; b: string; bName: string; shared: number; diverge: number; divergePct: number; outcomesCovered: number; aExcluded: boolean; bExcluded: boolean; bothScored: boolean; sharedIp: boolean }[];
   suspiciousAccuracy: { userId: string; userName: string; resolved: number; exact: number; ratePct: number; chancePct: number; excluded: boolean }[];
   lastMinute: { userId: string; userName: string; lastMinuteTips: number; totalTips: number; share: number; knappsteMinuten: number | null; excluded: boolean }[];
   frequentChanges: { userId: string; userName: string; submits: number; distinctTips: number; changes: number; excluded: boolean }[];
@@ -794,6 +796,91 @@ export default function AdminPage() {
                   ))}
                 </div>
               ))}
+            </div>
+
+            {/* Abschreiber-Accounts (gerichtete Kopie) */}
+            <div>
+              <h4 style={{ margin: "0 0 8px", fontSize: 13, color: "#3A3A3A" }}>
+                Abschreiber-Accounts{" "}
+                <span style={{ color: "#999", fontWeight: 400 }}>
+                  (≥80% gleiche Tipps · ein Konto tippt konsistent später)
+                </span>
+              </h4>
+
+              {anomalies.copycats.length === 0 ? (
+                <p style={{ fontSize: 13, color: "#2e7d32", margin: 0 }}>Keine.</p>
+              ) : (
+                anomalies.copycats.map((c) => (
+                  <div key={`cc-${c.leader}-${c.follower}`} style={anStyles.box}>
+                    <div style={anStyles.tag("#c62828")}>
+                      Abschreiber · {c.pct}% gleich · {c.dirPct}% später · ⌀ {c.medianLagMin} Min Nachlauf
+                      {c.sharedIp && <span style={anStyles.ipBadge}>🔗 gleiche IP</span>}
+                    </div>
+                    <div style={{ fontSize: 12, color: "#7A7A7A", marginBottom: 4 }}>
+                      <b>{c.leaderName}</b> (Vorlage) → <b>{c.followerName}</b> (schreibt ab)
+                    </div>
+                    {[
+                      { id: c.leader, name: c.leaderName, ex: c.leaderExcluded, role: "Vorlage" },
+                      { id: c.follower, name: c.followerName, ex: c.followerExcluded, role: "Abschreiber" },
+                    ].map((m) => (
+                      <div key={m.id} style={anStyles.row}>
+                        <span style={{ flex: 1 }}>
+                          <span style={{ color: "#999", fontSize: 11 }}>{m.role}: </span>
+                          <b>{m.name}</b> <span style={{ color: "#999" }}>· {m.id}</span>
+                          {m.ex && <span style={anStyles.exBadge}>raus</span>}
+                        </span>
+                        <button
+                          style={m.ex ? s.btn("#2e7d32") : s.btnOutline}
+                          onClick={() => toggleExcluded(m.id, m.name, !m.ex).then(() => loadAnomalies(secret))}
+                        >
+                          {m.ex ? "Reaktivieren" : "Aus Wertung"}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Vermutliche Hedge-Accounts */}
+            <div>
+              <h4 style={{ margin: "0 0 8px", fontSize: 13, color: "#3A3A3A" }}>
+                Vermutliche Hedge-Accounts{" "}
+                <span style={{ color: "#999", fontWeight: 400 }}>
+                  (verbundene Identität · bewusst gegensätzliche Tipps)
+                </span>
+              </h4>
+
+              {anomalies.hedges.length === 0 ? (
+                <p style={{ fontSize: 13, color: "#2e7d32", margin: 0 }}>Keine.</p>
+              ) : (
+                anomalies.hedges.map((h) => (
+                  <div key={`hg-${h.a}-${h.b}`} style={anStyles.box}>
+                    <div style={anStyles.tag("#c62828")}>
+                      Hedge · {h.divergePct}% gegensätzlich ({h.diverge}/{h.shared}) · {h.outcomesCovered}/3 Ausgänge abgedeckt
+                      {h.bothScored && <span style={{ ...anStyles.ipBadge, background: "#c62828" }}>⚠ beide gewertet</span>}
+                      {h.sharedIp && <span style={anStyles.ipBadge}>🔗 gleiche IP</span>}
+                    </div>
+                    {[
+                      { id: h.a, name: h.aName, ex: h.aExcluded },
+                      { id: h.b, name: h.bName, ex: h.bExcluded },
+                    ].map((m) => (
+                      <div key={m.id} style={anStyles.row}>
+                        <span style={{ flex: 1 }}>
+                          <b>{m.name}</b> <span style={{ color: "#999" }}>· {m.id}</span>
+                          {m.ex && <span style={anStyles.exBadge}>raus</span>}
+                        </span>
+                        <button
+                          style={m.ex ? s.btn("#2e7d32") : s.btnOutline}
+                          onClick={() => toggleExcluded(m.id, m.name, !m.ex).then(() => loadAnomalies(secret))}
+                        >
+                          {m.ex ? "Reaktivieren" : "Aus Wertung"}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ))
+              )}
             </div>
 
             {/* Verdächtig hohe Trefferquote */}

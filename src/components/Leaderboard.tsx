@@ -6,6 +6,7 @@ interface Entry {
   userId: string;
   userName: string;
   source: "human" | "agent";
+  location: string; // NOVOTERGUM-Standort, "" wenn unbekannt/Agent
   points: number;
   tips: number;
   exact: number;
@@ -148,9 +149,23 @@ export default function Leaderboard({
                     {entry.rank}
                   </div>
 
-                  <div style={{ fontSize: isFirst ? 18 : 15, fontWeight: 700, color: "#2a2a2a", marginBottom: 4 }}>
+                  <div style={{ fontSize: isFirst ? 18 : 15, fontWeight: 700, color: "#2a2a2a", marginBottom: entry.location ? 2 : 4 }}>
                     {entry.userName}
                   </div>
+                  {entry.location && (
+                    <div
+                      style={{
+                        fontSize: isFirst ? 12 : 11,
+                        color: "#999",
+                        marginBottom: 4,
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }}
+                    >
+                      📍 {entry.location}
+                    </div>
+                  )}
                   {entry.source === "agent" && (
                     <span
                       style={{
@@ -255,6 +270,18 @@ export default function Leaderboard({
                           <span style={{ color: "#2a2a2a", fontWeight: isMe ? 800 : 600 }}>
                             {entry.userName}
                           </span>
+                          {entry.location && (
+                            <span
+                              style={{
+                                marginLeft: 8,
+                                fontSize: 12,
+                                color: "#999",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              📍 {entry.location}
+                            </span>
+                          )}
                           {isMe && (
                             <span
                               style={{

@@ -36,6 +36,32 @@ const LAST_MIN_WINDOW = 5; // Minuten vor Anpfiff = "Last Minute"
 const TWIN_MIN_SHARED = 8; // Mindest-Anzahl gemeinsam getippter Spiele
 const TWIN_MIN_PCT = 0.85; // Mindest-Uebereinstimmung exakter Ergebnistipps
 
+// Abschreiber (gerichtete Kopie): hohe Uebereinstimmung UND ein Account tippt
+// konsistent SPAETER als der andere -> der Spaetere schreibt ab.
+const COPY_MIN_SHARED = 8; // gemeinsam getippte Spiele
+const COPY_MIN_PCT = 0.8; // mind. 80 % gleiche Ergebnistipps
+const COPY_DIR_PCT = 0.8; // in >=80 % der Spiele tippt derselbe Account spaeter
+const COPY_MIN_LAG_MIN = 1; // Median-Nachlauf >= 1 Min (sonst Gleichzeitigkeit)
+
+// Hedge: VERBUNDENE Identitaet (gleiche Mail-Basis / voller Name / IP), aber
+// bewusst GEGENSAETZLICHE Tipps, um mehrere Ausgaenge gleichzeitig abzudecken.
+const HEDGE_MIN_SHARED = 8; // gemeinsam getippte Spiele
+const HEDGE_MIN_DIVERGE = 0.5; // >=50 % der Spiele unterschiedliche 1/X/2-Tendenz
+
+// 1/X/2-Tendenz aus einem "h:a"-Ergebnistipp.
+function outcome(scoreTip: string): "1" | "X" | "2" | null {
+  const [h, a] = scoreTip.split(":").map(Number);
+  if (!Number.isFinite(h) || !Number.isFinite(a)) return null;
+  return h > a ? "1" : h < a ? "2" : "X";
+}
+
+function median(xs: number[]): number {
+  if (!xs.length) return 0;
+  const s = [...xs].sort((a, b) => a - b);
+  const m = s.length >> 1;
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+}
+
 export async function GET(req: NextRequest) {
   if (!checkAuth(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -58,6 +84,7 @@ export async function GET(req: NextRequest) {
       userId: string;
       userName: string;
       tips: Map<number, string>;
+      tipAt: Map<number, number>; // matchId -> createdAt (ms), fuer Abschreiber-Richtung
       lastMinute: number;
       tipsWithKickoff: number;
       minMinutes: number; // knappster Abstand zum Anpfiff
@@ -74,6 +101,7 @@ export async function GET(req: NextRequest) {
           userId: r.userId,
           userName: r.userName,
           tips: new Map(),
+          tipAt: new Map(),
           lastMinute: 0,
           tipsWithKickoff: 0,
           minMinutes: Infinity,
@@ -84,6 +112,7 @@ export async function GET(req: NextRequest) {
       u.tips.set(r.matchId, r.scoreTip);
       if (r.createdAt) {
         const t = new Date(r.createdAt).getTime();
+        u.tipAt.set(r.matchId, t);
         if (t > u.lastTipAt) u.lastTipAt = t;
       }
       const ko = kickoff.get(r.matchId);
@@ -157,6 +186,105 @@ export async function GET(req: NextRequest) {
     }
     tipTwins.sort((x, y) => y.pct - x.pct || y.shared - x.shared);
 
+    // 1e) Abschreiber-Verdacht (gerichtete Kopie) ------------------------
+    // Wie die Tipp-Zwillinge hohe Uebereinstimmung, ABER mit Richtung: auf den
+    // gemeinsamen, gleichen Tipps tippt ein Account konsistent SPAETER -> der
+    // Spaetere schreibt beim Frueheren ab. Liefert Leader -> Abschreiber + Lag.
+    const copycats: {
+      leader: string; leaderName: string; follower: string; followerName: string;
+      shared: number; agree: number; pct: number; dirPct: number; medianLagMin: number;
+      leaderExcluded: boolean; followerExcluded: boolean; sharedIp: boolean;
+    }[] = [];
+    for (let i = 0; i < list.length; i++) {
+      for (let j = i + 1; j < list.length; j++) {
+        const A = list[i], B = list[j];
+        if (A.tips.size < COPY_MIN_SHARED || B.tips.size < COPY_MIN_SHARED) continue;
+        let shared = 0, agree = 0, timed = 0, aLater = 0, bLater = 0;
+        const lags: number[] = []; // Betrag des Nachlaufs (Min) auf gleichen Tipps
+        for (const [mid, tip] of A.tips) {
+          const other = B.tips.get(mid);
+          if (other === undefined) continue;
+          shared++;
+          if (other !== tip) continue;
+          agree++;
+          const ta = A.tipAt.get(mid), tb = B.tipAt.get(mid);
+          if (ta != null && tb != null && ta !== tb) {
+            timed++;
+            if (tb > ta) { aLater++; lags.push((tb - ta) / 60000); } // B nach A
+            else { bLater++; lags.push((ta - tb) / 60000); } // A nach B
+          }
+        }
+        if (shared < COPY_MIN_SHARED || agree / shared < COPY_MIN_PCT) continue;
+        if (timed < COPY_MIN_SHARED) continue; // zu wenige zeitlich vergleichbar
+        const followerIsB = aLater >= bLater;
+        const dir = followerIsB ? aLater : bLater;
+        if (dir / timed < COPY_DIR_PCT) continue; // keine klare Richtung -> Zwilling
+        const lag = median(lags);
+        if (lag < COPY_MIN_LAG_MIN) continue; // praktisch gleichzeitig
+        const leader = followerIsB ? A : B;
+        const follower = followerIsB ? B : A;
+        copycats.push({
+          leader: leader.userId, leaderName: leader.userName,
+          follower: follower.userId, followerName: follower.userName,
+          shared, agree, pct: Math.round((agree / shared) * 100),
+          dirPct: Math.round((dir / timed) * 100), medianLagMin: Math.round(lag),
+          leaderExcluded: excluded.has(leader.userId),
+          followerExcluded: excluded.has(follower.userId),
+          sharedIp: false, // unten nach IP-Load gesetzt
+        });
+      }
+    }
+    copycats.sort((x, y) => y.pct - x.pct || y.dirPct - x.dirPct);
+
+    // 1f) Hedge-Verdacht --------------------------------------------------
+    // VERBUNDENE Identitaet (gleiche Mail-Basis ODER voller Name), die auf den
+    // gemeinsamen Spielen bewusst GEGENSAETZLICH tippt -> deckt mehrere Ausgaenge
+    // gleichzeitig ab, sodass immer ein Konto punktet. Brisant, wenn BEIDE
+    // gewertet sind. Identitaet ist der Ausloeser, IP nur Korroboration.
+    const linkKey = new Map<string, string[]>(); // Identitaets-Schluessel -> userIds
+    for (const u of list) {
+      const keys = [`mail:${emailLocal(u.userId)}`];
+      if (u.userName.trim().split(/\s+/).length >= 2) keys.push(`name:${normName(u.userName)}`);
+      for (const k of keys) (linkKey.get(k) ?? linkKey.set(k, []).get(k)!).push(u.userId);
+    }
+    const linkedPairs = new Set<string>(); // "idA|idB" (sortiert)
+    for (const ids of linkKey.values()) {
+      for (let i = 0; i < ids.length; i++)
+        for (let j = i + 1; j < ids.length; j++)
+          linkedPairs.add([ids[i], ids[j]].sort().join("|"));
+    }
+    const hedges: {
+      a: string; aName: string; b: string; bName: string;
+      shared: number; diverge: number; divergePct: number; outcomesCovered: number;
+      aExcluded: boolean; bExcluded: boolean; bothScored: boolean; sharedIp: boolean;
+    }[] = [];
+    for (const key of linkedPairs) {
+      const [ida, idb] = key.split("|");
+      const A = users.get(ida), B = users.get(idb);
+      if (!A || !B) continue;
+      let shared = 0, diverge = 0;
+      const covered = new Set<string>();
+      for (const [mid, tip] of A.tips) {
+        const other = B.tips.get(mid);
+        if (other === undefined) continue;
+        shared++;
+        const oa = outcome(tip), ob = outcome(other);
+        if (oa) covered.add(oa);
+        if (ob) covered.add(ob);
+        if (oa && ob && oa !== ob) diverge++;
+      }
+      if (shared < HEDGE_MIN_SHARED || diverge / shared < HEDGE_MIN_DIVERGE) continue;
+      hedges.push({
+        a: ida, aName: A.userName, b: idb, bName: B.userName,
+        shared, diverge, divergePct: Math.round((diverge / shared) * 100),
+        outcomesCovered: covered.size,
+        aExcluded: excluded.has(ida), bExcluded: excluded.has(idb),
+        bothScored: !excluded.has(ida) && !excluded.has(idb),
+        sharedIp: false, // unten nach IP-Load gesetzt
+      });
+    }
+    hedges.sort((x, y) => Number(y.bothScored) - Number(x.bothScored) || y.divergePct - x.divergePct);
+
     // IP-Korroboration: markiere Dubletten, die ZUSAETZLICH eine IP teilen.
     // Reines Bestaetigungssignal auf bereits geflaggten Treffern, KEIN Detektor
     // (Office-/Heim-NAT teilen IPs legitim). Nur fuer verwickelte User geladen.
@@ -164,6 +292,8 @@ export async function GET(req: NextRequest) {
     for (const c of sameLocalPart) for (const m of c.members) involvedIds.add(m.userId);
     for (const c of sameName) for (const m of c.members) involvedIds.add(m.userId);
     for (const t of tipTwins) { involvedIds.add(t.a); involvedIds.add(t.b); }
+    for (const c of copycats) { involvedIds.add(c.leader); involvedIds.add(c.follower); }
+    for (const h of hedges) { involvedIds.add(h.a); involvedIds.add(h.b); }
     const ipSets = await readIpHashSets([...involvedIds]).catch(
       () => new Map<string, Set<string>>(),
     );
@@ -183,6 +313,8 @@ export async function GET(req: NextRequest) {
       for (const h of A) if (B.has(h)) return true;
       return false;
     };
+    for (const c of copycats) c.sharedIp = pairSharesIp(c.leader, c.follower);
+    for (const h of hedges) h.sharedIp = pairSharesIp(h.a, h.b);
 
     // Triage-Signal: auf WIE VIELEN Spielen haben die Mitglieder GEMEINSAM
     // getippt? 0 = reiner Account-Wechsel (kein Wertungsvorteil); viele = beide
@@ -318,6 +450,8 @@ export async function GET(req: NextRequest) {
         })),
         tipTwins: tipTwins.map((t) => ({ ...t, sharedIp: pairSharesIp(t.a, t.b) })),
       },
+      copycats,
+      hedges,
       suspiciousAccuracy,
       lastMinute,
       frequentChanges,

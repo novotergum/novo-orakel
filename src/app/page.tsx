@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { Redis } from "@upstash/redis";
-import { readRankedPredictions } from "../lib/store";
+import { readRankedPredictions, readStandortByEmail } from "../lib/store";
 import TipForm from "../components/TipForm";
 import CountdownScreen from "../components/CountdownScreen";
 import LoginScreen from "../components/LoginScreen";
@@ -19,6 +19,7 @@ interface LeaderboardEntry {
   userId: string;
   userName: string;
   source: "human" | "agent";
+  location: string; // NOVOTERGUM-Standort (Personio-Map > Selbstangabe), "" wenn unbekannt
   points: number;
   tips: number;
   exact: number;
@@ -28,7 +29,10 @@ interface LeaderboardEntry {
 }
 
 async function getData() {
-  const records = await readRankedPredictions();
+  const [records, standortByEmail] = await Promise.all([
+    readRankedPredictions(),
+    readStandortByEmail(),
+  ]);
 
   const playerMap = new Map<string, LeaderboardEntry>();
   for (const r of records) {
@@ -41,6 +45,7 @@ async function getData() {
     if (existing) {
       existing.points += pts;
       existing.tips += 1;
+      if (!existing.location && r.location) existing.location = r.location.trim();
       if (base === 4) existing.exact += 1;
       else if (base === 3) existing.diffCorrect += 1;
       else if (base === 2) existing.tendencyCorrect += 1;
@@ -49,6 +54,7 @@ async function getData() {
         userId: r.userId,
         userName: r.userName,
         source: r.source,
+        location: (r.location ?? "").trim(),
         points: pts,
         tips: 1,
         exact: base === 4 ? 1 : 0,
@@ -66,6 +72,17 @@ async function getData() {
     b.tendencyCorrect - a.tendencyCorrect ||
     a.userName.localeCompare(b.userName)
   );
+
+  // Standort auflösen: offizielle Personio-Map (Source of Truth) schlaegt die
+  // Selbstangabe aus dem Tipp-Record. Agenten haben keinen Standort.
+  for (const e of board) {
+    if (e.source === "agent") {
+      e.location = "";
+      continue;
+    }
+    const official = standortByEmail[e.userId.toLowerCase().trim()];
+    e.location = (official || e.location || "").trim();
+  }
 
   // Competition-Ranking (1-2-2-4): Punktgleiche teilen sich den Rang. Verhindert,
   // dass die Reihenfolge innerhalb eines Punkte-Clusters (per Tiebreaker/Alphabet)
