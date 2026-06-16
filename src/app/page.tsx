@@ -261,14 +261,14 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
                 alignItems: "center",
                 gap: 8,
                 padding: "12px 28px",
-                background: "rgba(255,255,255,0.08)",
-                color: "#fff",
+                background: "rgba(255,255,255,0.14)",
+                color: "#ffffff",
                 fontSize: 15,
                 fontWeight: 700,
                 borderRadius: 10,
                 textDecoration: "none",
                 letterSpacing: "0.02em",
-                border: "1px solid rgba(255,255,255,0.25)",
+                border: "1.5px solid rgba(255,255,255,0.55)",
               }}
             >
               <span>✉️</span> Kollegen einladen
