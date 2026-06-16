@@ -237,6 +237,7 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
               flex-wrap: wrap;
             }
             .hero-cta {
+              box-sizing: border-box;
               display: inline-flex;
               align-items: center;
               justify-content: center;
@@ -451,7 +452,7 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
           <section style={{ marginBottom: 36 }}>
             <style>{`
               .teams-card { display: flex; align-items: center; gap: 14px; }
-              .teams-join-btn { flex-shrink: 0; display: inline-block; }
+              .teams-join-btn { box-sizing: border-box; flex-shrink: 0; display: inline-block; }
               @media (max-width: 520px) {
                 .teams-card { flex-direction: column; align-items: flex-start; }
                 .teams-join-btn { width: 100%; text-align: center; }
