@@ -3,8 +3,33 @@ import type { LocationStat } from "@/lib/stats";
 const ORANGE = "#F39200";
 const BLUE = "#4293D0";
 
-// 67 Standorte + Zentrale. Fixe Bezugsgroesse fuer die Teilnahmequote.
-const TOTAL_LOCATIONS = 68;
+const APP_URL = "https://wm-tippspiel.vercel.app";
+
+// Vorausgefuellte Einladungs-Mail. Empfaenger traegt der Nutzer selbst ein;
+// Absender/Signatur kommen aus dem Login (mailto kann das From-Feld nicht
+// erzwingen, daher Best-Effort via from= + Signatur im Text).
+const INVITE_SUBJECT = "Mach mit beim NOVOTERGUM WM-Tippspiel! 🏆";
+function buildInviteMailto(senderName?: string, senderEmail?: string): string {
+  const name = (senderName || "").trim();
+  const body = [
+    "Hi,",
+    "",
+    "wir tippen die Spiele der WM 2026 — durch ganz United Therapy, Standort gegen Standort.",
+    "Dein Zentrum ist noch nicht in der Standort-Wertung? Dann hol es rein!",
+    "",
+    "Einfach mit deiner NOVOTERGUM-Mailadresse anmelden:",
+    APP_URL,
+    "",
+    "Dauert 2 Minuten — viel Erfolg beim Tippen!",
+    ...(name ? ["", `Viele Grüße`, name] : []),
+  ].join("\n");
+  const params = [
+    `subject=${encodeURIComponent(INVITE_SUBJECT)}`,
+    `body=${encodeURIComponent(body)}`,
+    ...(senderEmail ? [`from=${encodeURIComponent(senderEmail)}`] : []),
+  ];
+  return `mailto:?${params.join("&")}`;
+}
 
 const card: React.CSSProperties = {
   background: "#ffffff",
@@ -17,21 +42,21 @@ const card: React.CSSProperties = {
 // Reines Anzeige-Modul — Aggregation passiert serverseitig (aggregateLocations).
 export default function LocationRanking({
   locations,
-  representedLocations,
   currentLocation,
+  senderName,
+  senderEmail,
 }: {
   locations: LocationStat[];
-  representedLocations: number;
   currentLocation?: string;
+  senderName?: string;
+  senderEmail?: string;
 }) {
   if (locations.length < 2) return null; // unter 2 Standorten kein Ranking
 
   const max = locations[0].avg || 1;
   const norm = (s: string) => s.trim().toLowerCase();
   const mine = currentLocation ? norm(currentLocation) : null;
-  // Quote: wie viele der 68 Standorte tippen mit. Geclampt, falls Freitext-
-  // Standorte (z. B. "Homeoffice") die vertretene Zahl ueber 68 treiben.
-  const represented = Math.min(representedLocations, TOTAL_LOCATIONS);
+  const inviteMailto = buildInviteMailto(senderName, senderEmail);
 
   return (
     <section style={{ marginBottom: 36 }}>
@@ -46,9 +71,6 @@ export default function LocationRanking({
         }}
       >
         Standort-Wertung &middot; Ø Punkte je Tipper
-        <span style={{ color: "#bbb", fontWeight: 600, textTransform: "none", letterSpacing: 0 }}>
-          {"  "}— {represented} von {TOTAL_LOCATIONS} Standorten nehmen teil
-        </span>
       </h2>
       <div style={{ ...card, padding: "10px 12px" }}>
         {locations.map((loc, i) => {
@@ -132,9 +154,35 @@ export default function LocationRanking({
           );
         })}
       </div>
+      {/* ── CTA: Kollegen einladen ── */}
+      <a
+        href={inviteMailto}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 10,
+          marginTop: 14,
+          padding: "16px 20px",
+          borderRadius: 14,
+          background: `linear-gradient(135deg, ${ORANGE} 0%, #e07d00 100%)`,
+          color: "#fff",
+          textDecoration: "none",
+          fontWeight: 800,
+          fontSize: 15,
+          boxShadow: `0 4px 16px ${ORANGE}40`,
+          textAlign: "center",
+          lineHeight: 1.3,
+        }}
+      >
+        <span style={{ fontSize: 20 }}>✉️</span>
+        <span>
+          Standort nicht dabei? Jetzt Kollegen zum Tippspiel einladen
+        </span>
+      </a>
       <div style={{ fontSize: 12, color: "#aaa", marginTop: 8, textAlign: "center" }}>
-        Standort aus Personio (Selbstangabe als Fallback) &middot; nur Standorte mit
-        mindestens 2 Tippern.
+        Öffnet eine vorausgefüllte E-Mail mit Anmelde-Link &middot; Standort aus
+        Personio (Selbstangabe als Fallback), nur Standorte mit ≥ 2 Tippern gewertet.
       </div>
     </section>
   );

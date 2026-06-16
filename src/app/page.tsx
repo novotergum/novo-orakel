@@ -9,7 +9,7 @@ import LiveTicker from "../components/LiveTicker";
 import Leaderboard from "../components/Leaderboard";
 import LocationRanking from "../components/LocationRanking";
 import RankUpBanner from "../components/RankUpBanner";
-import { aggregateLocations, representedLocationCount, type LocationStat } from "@/lib/stats";
+import { aggregateLocations, type LocationStat } from "@/lib/stats";
 import { getAllowedDomains, getSession, userIdFromEmail } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -93,8 +93,6 @@ async function getData() {
   // Standort-Wertung (Ø Punkte je Tipper) — gleiche Aggregation/Normalisierung
   // wie /statistik, aber gespeist aus der Standort-Map (kein Personio-Live-Call).
   const locations: LocationStat[] = aggregateLocations(locInput);
-  // Wie viele der 68 Standorte (67 + Zentrale) tippen ueberhaupt mit?
-  const representedLocations = representedLocationCount(locInput.map((x) => x.location));
 
   // Competition-Ranking (1-2-2-4): Punktgleiche teilen sich den Rang. Verhindert,
   // dass die Reihenfolge innerhalb eines Punkte-Clusters (per Tiebreaker/Alphabet)
@@ -129,7 +127,7 @@ async function getData() {
   const leaderSide: "human" | "agent" | "tie" =
     Math.abs(delta) < 0.05 ? "tie" : delta > 0 ? "human" : "agent";
 
-  return { board, locations, representedLocations, humanAvg, agentAvg, humanCount: humans.length, agentCount: agents.length, leaderText, leaderSide };
+  return { board, locations, humanAvg, agentAvg, humanCount: humans.length, agentCount: agents.length, leaderText, leaderSide };
 }
 
 const card: React.CSSProperties = {
@@ -158,7 +156,7 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
   if (!profileRaw) redirect("/onboarding");
   const profile = profileRaw as { userId: string; userName: string; location: string };
 
-  const { board, locations, representedLocations, humanAvg, agentAvg, humanCount, agentCount, leaderText, leaderSide } = await getData();
+  const { board, locations, humanAvg, agentAvg, humanCount, agentCount, leaderText, leaderSide } = await getData();
   const top3 = board.slice(0, 3);
   const rest = board.slice(3);
 
@@ -392,8 +390,9 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
 
         <LocationRanking
           locations={locations}
-          representedLocations={representedLocations}
           currentLocation={profile.location}
+          senderName={profile.userName}
+          senderEmail={session.email}
         />
 
         {/* ── Empty state ── */}
