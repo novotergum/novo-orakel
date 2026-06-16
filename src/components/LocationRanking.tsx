@@ -32,7 +32,6 @@ export default function LocationRanking({
   // Quote: wie viele der 68 Standorte tippen mit. Geclampt, falls Freitext-
   // Standorte (z. B. "Homeoffice") die vertretene Zahl ueber 68 treiben.
   const represented = Math.min(representedLocations, TOTAL_LOCATIONS);
-  const missing = Math.max(0, TOTAL_LOCATIONS - represented);
 
   return (
     <section style={{ marginBottom: 36 }}>
@@ -48,7 +47,7 @@ export default function LocationRanking({
       >
         Standort-Wertung &middot; Ø Punkte je Tipper
         <span style={{ color: "#bbb", fontWeight: 600, textTransform: "none", letterSpacing: 0 }}>
-          {"  "}— {represented}/{TOTAL_LOCATIONS} Standorte dabei ({missing} noch ohne Tipp)
+          {"  "}— {represented} von {TOTAL_LOCATIONS} Standorten nehmen teil
         </span>
       </h2>
       <div style={{ ...card, padding: "10px 12px" }}>
