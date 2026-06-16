@@ -177,6 +177,18 @@ function mean(arr: number[]): number {
   return arr.reduce((s, n) => s + n, 0) / arr.length;
 }
 
+// Wie viele DISTINKTE Standorte sind vertreten (mind. 1 Tipper)? Nutzt dieselbe
+// Kanonisierung wie die Wertung, damit Schreibvarianten nicht doppelt zaehlen.
+export function representedLocationCount(locations: string[]): number {
+  const keys = new Set<string>();
+  for (const l of locations) {
+    const t = (l || "").trim();
+    if (!t || t === "Unbekannt") continue;
+    keys.add(canonicalLocationKey(t));
+  }
+  return keys.size;
+}
+
 // Standort-Wertung (nur Menschen, mind. MIN_PLAYERS_PER_LOCATION). Freitext-
 // Eingaben werden normalisiert + bekannte Varianten gemerged, damit z. B.
 // "Herten Westerholt"/"Herten-Westerholt"/"Westerholt" EIN Standort sind.
