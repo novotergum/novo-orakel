@@ -7,7 +7,8 @@
  *   (Upset-Bonus 2026-06-14 entfernt — siehe upsetBonus() unten)
  *
  * K.O.-Runden-Multiplikator:
- *   Gruppenphase:  1x
+ *   Gruppenphase:     1x
+ *   Sechzehntelfinale: 1.25x
  *   Achtelfinale:  1.5x
  *   Viertelfinale: 2x
  *   Halbfinale:    2.5x
@@ -56,6 +57,8 @@ export function scoreTip(
  */
 export function stageMultiplier(stage: string | null | undefined): number {
   switch (stage) {
+    case "LAST_32":
+      return 1.25;
     case "LAST_16":
       return 1.5;
     case "QUARTER_FINALS":
@@ -73,6 +76,7 @@ export function stageMultiplier(stage: string | null | undefined): number {
 
 export const STAGE_LABELS: Record<string, string> = {
   GROUP_STAGE: "Gruppenphase",
+  LAST_32: "Sechzehntelfinale",
   LAST_16: "Achtelfinale",
   QUARTER_FINALS: "Viertelfinale",
   SEMI_FINALS: "Halbfinale",

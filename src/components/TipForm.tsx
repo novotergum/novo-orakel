@@ -34,6 +34,7 @@ interface OrakelResult {
 
 const STAGE_LABELS: Record<string, string> = {
   GROUP_STAGE: "Gruppenphase",
+  LAST_32: "Sechzehntelfinale",
   LAST_16: "Achtelfinale",
   QUARTER_FINALS: "Viertelfinale",
   SEMI_FINALS: "Halbfinale",
@@ -42,6 +43,7 @@ const STAGE_LABELS: Record<string, string> = {
 };
 
 const STAGE_MULTIPLIERS: Record<string, string> = {
+  LAST_32: "1.25x",
   LAST_16: "1.5x",
   QUARTER_FINALS: "2x",
   SEMI_FINALS: "2.5x",
@@ -51,6 +53,7 @@ const STAGE_MULTIPLIERS: Record<string, string> = {
 
 const STAGE_ORDER = [
   "GROUP_STAGE",
+  "LAST_32",
   "LAST_16",
   "QUARTER_FINALS",
   "SEMI_FINALS",
@@ -60,6 +63,7 @@ const STAGE_ORDER = [
 
 const STAGE_COLORS: Record<string, { bg: string; border: string; text: string }> = {
   GROUP_STAGE: { bg: "#eef6fb", border: "#4293D044", text: "#4293D0" },
+  LAST_32: { bg: "#eef7ef", border: "#3AAA3544", text: "#3AAA35" },
   LAST_16: { bg: "#fef6e8", border: "#F3920044", text: "#F39200" },
   QUARTER_FINALS: { bg: "#f3f0f7", border: "#65597F44", text: "#65597F" },
   SEMI_FINALS: { bg: "#eef6fb", border: "#4293D044", text: "#4293D0" },
