@@ -445,7 +445,9 @@ export async function GET(req: NextRequest) {
     // Mensch vs. Maschine
     const humans = board.filter((p) => p.source === "human");
     const agents = board.filter((p) => p.source === "agent");
-    const humanAvg = humans.length ? humans.reduce((s, p) => s + p.points, 0) / humans.length : 0;
+    // 0-Punkte-Tipper raus aus dem fairen Schnitt (sonst Maschine künstlich vorn).
+    const scoringHumans = humans.filter((p) => p.points > 0);
+    const humanAvg = scoringHumans.length ? scoringHumans.reduce((s, p) => s + p.points, 0) / scoringHumans.length : 0;
     const agentAvg = agents.length ? agents.reduce((s, p) => s + p.points, 0) / agents.length : 0;
     const leader = humanAvg > agentAvg ? "mensch" : agentAvg > humanAvg ? "maschine" : "gleichstand";
 

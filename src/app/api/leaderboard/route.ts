@@ -124,9 +124,11 @@ export async function GET() {
     // --- Mensch vs. Maschine ---
     const humans = leaderboard.filter((e) => e.source === "human");
     const agents = leaderboard.filter((e) => e.source === "agent");
+    // 0-Punkte-Tipper raus aus dem fairen Schnitt (sonst Maschine künstlich vorn).
+    const scoringHumans = humans.filter((e) => e.points > 0);
     const avgHuman =
-      humans.length > 0
-        ? humans.reduce((s, e) => s + e.points, 0) / humans.length
+      scoringHumans.length > 0
+        ? scoringHumans.reduce((s, e) => s + e.points, 0) / scoringHumans.length
         : 0;
     const avgAgent =
       agents.length > 0
@@ -134,7 +136,7 @@ export async function GET() {
         : 0;
 
     const menschVsMaschine = {
-      humanPlayers: humans.length,
+      humanPlayers: scoringHumans.length,
       humanAvgPoints: Number(avgHuman.toFixed(1)),
       humanTotalPoints: humans.reduce((s, e) => s + e.points, 0),
       agentPlayers: agents.length,

@@ -190,6 +190,19 @@ export async function readStandortByEmail(): Promise<Record<string, string>> {
   return all || {};
 }
 
+// Upsert in die Standort-Map (Email -> offizieller Standort). NUR additiv/ändernd,
+// löscht NIE bestehende Einträge — damit manuell gepflegte Spezialfälle (z.B.
+// Standort-Postfächer ohne Personio-Match) erhalten bleiben. Genutzt vom
+// täglichen Personio-Sync (/api/sync-standorte).
+export async function writeStandortByEmail(
+  updates: Record<string, string>,
+): Promise<void> {
+  if (!process.env.UPSTASH_REDIS_REST_URL) return;
+  if (Object.keys(updates).length === 0) return;
+  const redis = getRedis();
+  await redis.hset(STANDORT_KEY, updates);
+}
+
 // --- Tipp-Aktivitaet (Änderungs-Zähler) ----------------------------------
 // Zaehlt JEDE Tippabgabe/Änderung pro Spieler dauerhaft hoch (ab Einbau). Aus
 // "Gesamt-Abgaben minus eindeutig getippte Spiele" leitet das Admin-Panel die

@@ -9,7 +9,7 @@ import LiveTicker from "../components/LiveTicker";
 import Leaderboard from "../components/Leaderboard";
 import LocationRanking from "../components/LocationRanking";
 import RankUpBanner from "../components/RankUpBanner";
-import { aggregateLocations, type LocationStat } from "@/lib/stats";
+import { aggregateLocations, isStandortMailbox, type LocationStat } from "@/lib/stats";
 import { getAllowedDomains, getSession, userIdFromEmail } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -77,7 +77,7 @@ async function getData() {
 
   // Standort auflösen: offizielle Personio-Map (Source of Truth) schlaegt die
   // Selbstangabe aus dem Tipp-Record. Agenten haben keinen Standort.
-  const locInput: { location: string; points: number; fromPersonio: boolean }[] = [];
+  const locInput: { location: string; points: number; fromPersonio: boolean; isMailbox: boolean }[] = [];
   for (const e of board) {
     if (e.source === "agent") {
       e.location = "";
@@ -86,7 +86,12 @@ async function getData() {
     const official = standortByEmail[e.userId.toLowerCase().trim()];
     e.location = (official || e.location || "").trim();
     if (e.location) {
-      locInput.push({ location: e.location, points: e.points, fromPersonio: Boolean(official) });
+      locInput.push({
+        location: e.location,
+        points: e.points,
+        fromPersonio: Boolean(official),
+        isMailbox: isStandortMailbox(e.userId),
+      });
     }
   }
 
@@ -109,25 +114,37 @@ async function getData() {
 
   const humans = board.filter((e) => e.source === "human");
   const agents = board.filter((e) => e.source === "agent");
-  const humanPts = humans.reduce((s, e) => s + e.points, 0);
+  // 0-Punkte-Tipper (angemeldet, aber faktisch nicht dabei) zogen den Mensch-
+  // Schnitt nach unten und ließen die Maschine künstlich besser dastehen -> raus
+  // aus Schnitt & Spieler-Count des fairen Vergleichs.
+  const scoringHumans = humans.filter((e) => e.points > 0);
   const agentPts = agents.reduce((s, e) => s + e.points, 0);
-  const humanAvg = humans.length ? humanPts / humans.length : 0;
+  // Mensch-Wert = MEDIAN der punktenden Tipper (statt Durchschnitt). Robuster
+  // gegen Ausrei\u00DFer: einzelne Top-L\u00E4ufer oder Tief-Tipper ziehen den Schnitt
+  // weg, der Median bleibt der typische Spieler \u2014 der faire Vergleich.
+  const sortedPts = scoringHumans.map((e) => e.points).sort((a, b) => a - b);
+  const mid = Math.floor(sortedPts.length / 2);
+  const humanMedian = sortedPts.length
+    ? sortedPts.length % 2
+      ? sortedPts[mid]
+      : (sortedPts[mid - 1] + sortedPts[mid]) / 2
+    : 0;
   const agentAvg = agents.length ? agentPts / agents.length : 0;
 
-  const delta = humanAvg - agentAvg;
+  const delta = humanMedian - agentAvg;
   const leaderText =
     humans.length === 0 && agents.length === 0
       ? ""
       : Math.abs(delta) < 0.05
       ? "Aktuell nahezu Gleichstand"
       : delta > 0
-      ? `Menschen f\u00FChren mit ${delta.toFixed(1)} Punkten im Schnitt`
-      : `Maschinen f\u00FChren mit ${Math.abs(delta).toFixed(1)} Punkten im Schnitt`;
+      ? `Menschen f\u00FChren mit ${delta.toFixed(1)} Punkten (Median)`
+      : `Maschinen f\u00FChren mit ${Math.abs(delta).toFixed(1)} Punkten (Median)`;
 
   const leaderSide: "human" | "agent" | "tie" =
     Math.abs(delta) < 0.05 ? "tie" : delta > 0 ? "human" : "agent";
 
-  return { board, locations, humanAvg, agentAvg, humanCount: humans.length, agentCount: agents.length, leaderText, leaderSide };
+  return { board, locations, humanMedian, agentAvg, humanCount: scoringHumans.length, agentCount: agents.length, leaderText, leaderSide };
 }
 
 const card: React.CSSProperties = {
@@ -156,7 +173,7 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
   if (!profileRaw) redirect("/onboarding");
   const profile = profileRaw as { userId: string; userName: string; location: string };
 
-  const { board, locations, humanAvg, agentAvg, humanCount, agentCount, leaderText, leaderSide } = await getData();
+  const { board, locations, humanMedian, agentAvg, humanCount, agentCount, leaderText, leaderSide } = await getData();
   const top3 = board.slice(0, 3);
   const rest = board.slice(3);
 
@@ -313,10 +330,10 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
                   Mensch
                 </div>
                 <div style={{ fontSize: "clamp(30px, 11vw, 44px)", fontWeight: 800, color: "#E5172D", marginTop: 8, lineHeight: 1 }}>
-                  {humanAvg.toFixed(1)}
+                  {humanMedian.toFixed(0)}
                 </div>
                 <div style={{ fontSize: 12, color: "#999", marginTop: 8 }}>
-                  {"\u00D8"} Punkte &middot; {humanCount} Spieler
+                  Median &middot; {humanCount} Spieler
                 </div>
               </div>
 
@@ -400,6 +417,20 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
                 {leaderText}
               </div>
             )}
+            {/* Transparenz-Note: faire Schnitt-Berechnung (für Chef/Leser) */}
+            <div
+              style={{
+                textAlign: "center",
+                marginTop: 10,
+                fontSize: 11.5,
+                color: "#9a9a9a",
+                lineHeight: 1.5,
+              }}
+            >
+              22.06: Mensch-Wert ist der <strong>Median</strong> der punktenden
+              Tipper (nicht der Durchschnitt) — der typische Spieler, robust gegen
+              einzelne Ausreißer. Tipper mit 0&nbsp;Punkten zählen nicht mit.
+            </div>
           </section>
         )}
 
@@ -565,6 +596,17 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
                   ({"Ergebnis | Heim/X/Ausw."}) und die erzielten
                   <strong> Punkte</strong>. So siehst du, ob du richtig lagst und
                   mit welcher Torangabe.
+                </li>
+                <li style={{ marginBottom: 10 }}>
+                  <strong>Standort-Wertung:</strong> Jedes Zentrum wird nach den
+                  <strong> durchschnittlichen Punkten je Tipper</strong> gewertet –
+                  nicht nach der Gesamtsumme, damit große und kleine Zentren faire
+                  Chancen haben. Damit ein einzelner Glückstreffer ein kleines
+                  Zentrum nicht unfair an die Spitze hebt, werden Zentren mit
+                  wenigen Tippern stärker zum Gesamtschnitt gezogen: Je mehr
+                  Kolleg:innen aus einem Zentrum mittippen, desto stärker zählt ihr
+                  eigener Schnitt. In Klammern siehst du den <strong>rohen
+                  Schnitt</strong> und die <strong>Zahl der Tipper</strong>.
                 </li>
                 <li>
                   <strong>Das UT&nbsp;Orakel</strong> (unsere KI) tippt jeden Abend

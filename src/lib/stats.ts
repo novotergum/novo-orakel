@@ -18,7 +18,11 @@ import { getMatches, type NormalizedMatch } from "./football-data";
 import { parseScoreTip, scoreTip, upsetBonus, stageMultiplier } from "./scoring";
 
 const MIN_TIPS_FOR_RATE = 8; // Mindesttipps fuer "Treffsicherster" (sonst 1/1 = 100 %)
-const MIN_PLAYERS_PER_LOCATION = 2; // Mindestspieler, damit ein Standort gewertet wird
+// Jeder Standort mit mind. 1 Tipper wird gewertet. Einzeltipper verzerren die
+// Spitze NICHT, weil die Shrinkage-Gewichtung (s. aggregateLocations) kleine
+// Stichproben stark Richtung Gesamtschnitt zieht. Dadurch entfällt eine separate
+// "noch nicht in der Wertung"-Liste — pendingLocations() liefert konsequent [].
+const MIN_PLAYERS_PER_LOCATION = 1;
 
 // Der Standort ist ein Freitextfeld -> Schreibvarianten zersplittern denselben
 // Ort. Wir normalisieren (lowercase, ohne Diakritika, Bindestrich=Leerzeichen)
@@ -30,13 +34,16 @@ const LOCATION_ALIASES: Record<string, string> = {
   budingen: "budingen rehamed", // "Büdingen" = "Büdingen Rehamed" (ein Standort)
   essen: "uthiii.hq", // NOVOTERGUM-Zentrale sitzt in Essen -> "Essen" = Zentrale
   "essen zentrale": "uthiii.hq",
+  "essen verwaltung": "uthiii.hq", // "Essen - Verwaltung" = Zentrale Essen
+  zentrale: "uthiii.hq", // es gibt nur EINE Zentrale, die sitzt in Essen
+  "uth.hq": "uthiii.hq", // Schreibvariante der Zentrale
+  "uthiii.hq bayern": "uthiii.hq", // KEINE eigene Zentrale Bayern -> Essen
   koln: "koln rodenkirchen", // "Köln" = Standort Köln Rodenkirchen
   rechnungswesen: "uthiii.hq", // Abteilung Rechnungswesen sitzt in der Zentrale
 };
 // Bevorzugte Anzeige je kanonischem Schluessel (sonst Personio-/haeufigste Eingabe).
 const LOCATION_DISPLAY: Record<string, string> = {
   "uthiii.hq": "Zentrale",
-  "uthiii.hq bayern": "Zentrale Bayern",
   "koln rodenkirchen": "Köln Rodenkirchen",
 };
 
@@ -112,11 +119,19 @@ export interface RecordFact {
 
 export interface LocationStat {
   location: string;
-  avg: number;
+  avg: number; // roher Ø Punkte je Tipper (zur Transparenz)
+  score: number; // gewichteter Ø (Shrinkage) — DANACH wird gerankt
   median: number;
   players: number;
   points: number;
 }
+
+// Bayesian-Shrinkage: kleine Standorte werden Richtung Gesamtschnitt gezogen,
+// damit ein einzelner Glückslauf (z.B. ein Zentrum mit nur 1 Tipper) die Spitze
+// nicht kapert. K = Pseudo-Tipper Richtung Prior; je größer ein echter Standort,
+// desto weniger zieht der Prior. K=10 nötig, weil ALLE Standorte (auch 1-Tipper)
+// gewertet werden — ein Einzeltipper soll nie allein an die Spitze kommen.
+const LOCATION_SHRINKAGE_K = 10;
 
 export interface OrakelStat {
   userName: string;
@@ -181,37 +196,82 @@ function mean(arr: number[]): number {
 // Eingaben werden normalisiert + bekannte Varianten gemerged, damit z. B.
 // "Herten Westerholt"/"Herten-Westerholt"/"Westerholt" EIN Standort sind.
 // Geteilt von computeStats (Personio-Matcher) und dem Dashboard (Standort-Map).
-export function aggregateLocations(
-  players: { location: string; points: number; fromPersonio: boolean }[],
-): LocationStat[] {
-  const locGroups = new Map<
-    string,
-    { pts: number[]; personioLabels: Map<string, number>; selfLabels: Map<string, number> }
-  >();
+// Standort-Sammelpostfach (z.B. hh-rahlstedt@novotergum.de): kein vorname.nachname-
+// Muster auf der Firmen-Domain. Dahinter tippt das Zentrum stellvertretend — das
+// ist KEINE Einzelperson, sondern der Standort selbst. Solche Postfächer zählen
+// daher sofort als gewerteter Standort (überspringen die ≥2-Tipper-Schwelle).
+export function isStandortMailbox(email: string): boolean {
+  const [local, dom = ""] = (email || "").toLowerCase().split("@");
+  return dom === "novotergum.de" && !!local && !local.includes(".");
+}
+
+interface LocGroup {
+  pts: number[];
+  personioLabels: Map<string, number>;
+  selfLabels: Map<string, number>;
+  hasMailbox: boolean; // Standort-Postfach vertritt das Zentrum -> immer gewertet
+}
+
+type LocInput = {
+  location: string;
+  points: number;
+  fromPersonio: boolean;
+  isMailbox?: boolean;
+};
+
+// Gemeinsame Gruppierung (Normalisierung + Alias-Merge). Geteilt von der
+// gewerteten Standort-Liste und der "noch zu wenig Tipper"-Liste, damit beide
+// dieselbe Kanonisierung/Beschriftung nutzen.
+function groupByLocation(players: LocInput[]): Map<string, LocGroup> {
+  const locGroups = new Map<string, LocGroup>();
   for (const h of players) {
     if (!h.location || h.location === "Unbekannt") continue;
     const key = canonicalLocationKey(h.location);
     let g = locGroups.get(key);
     if (!g) {
-      g = { pts: [], personioLabels: new Map(), selfLabels: new Map() };
+      g = { pts: [], personioLabels: new Map(), selfLabels: new Map(), hasMailbox: false };
       locGroups.set(key, g);
     }
     g.pts.push(h.points);
+    if (h.isMailbox) g.hasMailbox = true;
     const disp = h.location.trim().replace(/\s+/g, " ");
     const bucket = h.fromPersonio ? g.personioLabels : g.selfLabels;
     bucket.set(disp, (bucket.get(disp) ?? 0) + 1);
   }
-  return [...locGroups.entries()]
-    .filter(([, g]) => g.pts.length >= MIN_PLAYERS_PER_LOCATION)
-    .map(([key, g]) => ({
-      location: locationDisplayLabel(key, g.personioLabels, g.selfLabels),
-      avg: mean(g.pts),
-      median: median(g.pts),
-      players: g.pts.length,
-      points: g.pts.reduce((s, n) => s + n, 0),
-    }))
-    .sort((a, b) => b.avg - a.avg || b.players - a.players);
+  return locGroups;
 }
+
+// Gewerteter Standort, wenn genug Tipper ODER ein Standort-Postfach das Zentrum
+// vertritt.
+function isRanked(g: LocGroup): boolean {
+  return g.pts.length >= MIN_PLAYERS_PER_LOCATION || g.hasMailbox;
+}
+
+export function aggregateLocations(players: LocInput[]): LocationStat[] {
+  // Prior fürs Shrinkage = globaler Ø je Tipper über alle Spieler mit Standort.
+  const pop = players
+    .filter((p) => p.location && p.location !== "Unbekannt")
+    .map((p) => p.points);
+  const globalMean = mean(pop);
+  const K = LOCATION_SHRINKAGE_K;
+
+  return [...groupByLocation(players).entries()]
+    .filter(([, g]) => isRanked(g))
+    .map(([key, g]) => {
+      const sum = g.pts.reduce((s, n) => s + n, 0);
+      const n = g.pts.length;
+      return {
+        location: locationDisplayLabel(key, g.personioLabels, g.selfLabels),
+        avg: mean(g.pts),
+        score: (sum + K * globalMean) / (n + K),
+        median: median(g.pts),
+        players: n,
+        points: sum,
+      };
+    })
+    .sort((a, b) => b.score - a.score || b.players - a.players);
+}
+
 
 function median(arr: number[]): number {
   if (!arr.length) return 0;
@@ -353,7 +413,14 @@ export async function computeStats(): Promise<StatsResult> {
 
   const humans = board.filter((e) => e.source === "human");
   const machines = board.filter((e) => e.source === "agent");
-  const humanPoints = humans.map((h) => h.points);
+
+  // Fairer Mensch-vs-Maschine-Vergleich: Tipper mit 0 Punkten (angemeldet, aber
+  // de facto nicht im Rennen) zogen den Schnitt nach unten und ließen die
+  // Maschine dadurch künstlich besser dastehen. Sie fließen daher NICHT in
+  // Schnitt/Median/Perzentil ein. Board, Champion, Bestwert & Standorte bleiben
+  // unberührt (dort verzerren 0-Punkte-Tipper ohnehin nichts).
+  const scoringHumans = humans.filter((h) => h.points > 0);
+  const humanPoints = scoringHumans.map((h) => h.points);
 
   const humanAvg = mean(humanPoints);
   const humanMedian = median(humanPoints);
@@ -365,7 +432,7 @@ export async function computeStats(): Promise<StatsResult> {
   if (machines.length) {
     const top = machines[0];
     const rank = board.findIndex((e) => e.userId === top.userId) + 1;
-    const beatsHumans = humans.filter((h) => h.points < top.points).length;
+    const beatsHumans = scoringHumans.filter((h) => h.points < top.points).length;
     orakel = {
       userName: top.userName,
       points: top.points,
@@ -373,7 +440,7 @@ export async function computeStats(): Promise<StatsResult> {
       rank,
       totalPlayers: board.length,
       beatsHumans,
-      percentile: humans.length ? (beatsHumans / humans.length) * 100 : 0,
+      percentile: scoringHumans.length ? (beatsHumans / scoringHumans.length) * 100 : 0,
     };
   }
 
@@ -413,8 +480,16 @@ export async function computeStats(): Promise<StatsResult> {
     }
   }
 
-  // Standort-Wertung (nur Menschen, mind. MIN_PLAYERS_PER_LOCATION).
-  const locations = aggregateLocations(humans);
+  // Standort-Wertung (nur Menschen, mind. MIN_PLAYERS_PER_LOCATION; Postfächer
+  // ranken sofort). Postfach-Erkennung über die userId (= Login-Email).
+  const locations = aggregateLocations(
+    humans.map((h) => ({
+      location: h.location,
+      points: h.points,
+      fromPersonio: h.fromPersonio,
+      isMailbox: isStandortMailbox(h.userId),
+    })),
+  );
 
   // --- Orakel-Anspruchnahme: Treue, Mensch-vs-Maschine, Sog pro Partie ---
   const ORACLE_MIN_TIPS = 5;
@@ -467,7 +542,7 @@ export async function computeStats(): Promise<StatsResult> {
     totalTips: resolvedTips,
     humanAvg,
     humanMedian,
-    humanCount: humans.length,
+    humanCount: scoringHumans.length,
     humanBest,
     orakel,
     machineAvg,

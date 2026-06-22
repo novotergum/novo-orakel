@@ -386,6 +386,10 @@ export default async function StatistikPage({
               Fairer Maßstab ist der <strong>typische</strong> Mensch (Ø / Median),
               nicht der beste aus {s.humanCount} — denn mit so vielen Tippern hat
               fast immer jemand einen Lauf. Das Orakel ist nur ein Tipper.
+              {" "}21.06: Tipper mit <strong>0&nbsp;Punkten</strong> (angemeldet,
+              aber nicht wirklich dabei) sind aus Ø / Median herausgerechnet —
+              sonst würde reine Anmeldung den Menschen-Schnitt drücken und die
+              Maschine besser aussehen lassen.
             </div>
           </>
         ) : (
@@ -529,11 +533,14 @@ export default async function StatistikPage({
       {/* ── Standort-Wertung ── */}
       {s.locations.length > 0 && (
         <section style={{ marginBottom: 40 }}>
-          <SectionTitle>Standort-Wertung (Ø Punkte je Tipper)</SectionTitle>
+          <SectionTitle>Standort-Wertung (gewichtete Punkte je Tipper)</SectionTitle>
           <div style={{ ...card, padding: "10px 12px" }}>
             {s.locations.map((loc, i) => {
-              const max = s.locations[0].avg || 1;
-              const pct = Math.max(4, (loc.avg / max) * 100);
+              // Balken auf echte Spannweite skalieren (Min–Max), Sockel 8 %.
+              const max = s.locations[0].score;
+              const min = s.locations[s.locations.length - 1].score;
+              const range = max - min;
+              const pct = range > 0 ? 8 + ((loc.score - min) / range) * 92 : 100;
               const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : "";
               return (
                 <div
@@ -584,17 +591,21 @@ export default async function StatistikPage({
                   </div>
                   <div style={{ textAlign: "right", flexShrink: 0 }}>
                     <div style={{ fontSize: 16, fontWeight: 800, color: "#2a2a2a" }}>
-                      {loc.avg.toFixed(1)}
+                      {loc.score.toFixed(1)}
                     </div>
-                    <div style={{ fontSize: 11, color: "#aaa" }}>{loc.players} Sp.</div>
+                    <div style={{ fontSize: 11, color: "#aaa" }}>
+                      Ø {loc.avg.toFixed(1)} &middot; {loc.players} Sp.
+                    </div>
                   </div>
                 </div>
               );
             })}
           </div>
           <div style={{ fontSize: 12, color: "#aaa", marginTop: 8, textAlign: "center" }}>
-            Standort aus Personio (Selbstangabe als Fallback) · nur Standorte mit
-            mindestens 2 Tippern.
+            Standort aus Personio (Selbstangabe als Fallback). Gewichteter Ø: je
+            weniger Tipper ein Zentrum hat, desto stärker zählt der Gesamtschnitt
+            mit, damit Einzeltipps die Spitze nicht verzerren (in Klammern roher Ø
+            &amp; Tipper).
           </div>
         </section>
       )}

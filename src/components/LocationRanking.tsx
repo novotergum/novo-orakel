@@ -22,9 +22,17 @@ export default function LocationRanking({
   currentLocation?: string;
   senderEmail?: string;
 }) {
-  if (locations.length < 2) return null; // unter 2 Standorten kein Ranking
+  const hasRanking = locations.length >= 2; // unter 2 Standorten kein Ranking
+  if (!hasRanking) return null;
 
-  const max = locations[0].avg || 1;
+  // Balken auf die echte Spannweite skalieren (nicht 0..max), sonst wirken bei
+  // eng beieinanderliegenden Scores alle Balken fast voll. Der Schlechteste
+  // bekommt einen kleinen Sockel (8 %), damit er sichtbar bleibt.
+  const max = hasRanking ? locations[0].score : 0;
+  const minScore = hasRanking ? locations[locations.length - 1].score : 0;
+  const scoreRange = max - minScore;
+  const barPct = (score: number) =>
+    scoreRange > 0 ? 8 + ((score - minScore) / scoreRange) * 92 : 100;
   const norm = (s: string) => s.trim().toLowerCase();
   const mine = currentLocation ? norm(currentLocation) : null;
   const inviteMailto = buildInviteMailto(senderEmail);
@@ -35,7 +43,7 @@ export default function LocationRanking({
   // Eine Zeile der Wertung. rank ist 1-basiert; lastInGroup unterdrueckt den
   // Trenner unter dem letzten Eintrag einer Gruppe.
   const renderRow = (loc: LocationStat, rank: number, lastInGroup: boolean) => {
-    const pct = Math.max(4, (loc.avg / max) * 100);
+    const pct = barPct(loc.score);
     const medal = rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : "";
     const isMine = mine !== null && norm(loc.location) === mine;
     return (
@@ -106,9 +114,11 @@ export default function LocationRanking({
         </div>
         <div style={{ textAlign: "right", flexShrink: 0 }}>
           <div style={{ fontSize: 16, fontWeight: 800, color: "#2a2a2a" }}>
-            {loc.avg.toFixed(1)}
+            {loc.score.toFixed(1)}
           </div>
-          <div style={{ fontSize: 11, color: "#aaa" }}>{loc.players} Sp.</div>
+          <div style={{ fontSize: 11, color: "#aaa" }}>
+            Ø {loc.avg.toFixed(1)} &middot; {loc.players} Sp.
+          </div>
         </div>
       </div>
     );
@@ -116,48 +126,58 @@ export default function LocationRanking({
 
   return (
     <section style={{ marginBottom: 36 }}>
-      <h2
-        style={{
-          fontSize: 13,
-          color: "#999",
-          textTransform: "uppercase",
-          letterSpacing: "0.08em",
-          marginBottom: 20,
-          fontWeight: 600,
-        }}
-      >
-        Standort-Wertung &middot; Ø Punkte je Tipper
-      </h2>
-      <div style={{ ...card, padding: "10px 12px" }}>
-        {top3.map((loc, i) =>
-          renderRow(loc, i + 1, i === top3.length - 1 && restLocs.length === 0),
-        )}
-        {restLocs.length > 0 && (
-          <details style={{ marginTop: 2 }}>
-            <summary
-              style={{
-                listStyle: "none",
-                cursor: "pointer",
-                textAlign: "center",
-                padding: "10px 12px",
-                fontSize: 12,
-                color: "#999",
-                fontWeight: 600,
-                textTransform: "uppercase",
-                letterSpacing: "0.06em",
-                userSelect: "none",
-              }}
-            >
-              Weitere {restLocs.length} Standorte anzeigen ▾
-            </summary>
-            <div style={{ borderTop: "1px solid #f0f0f0" }}>
-              {restLocs.map((loc, j) =>
-                renderRow(loc, j + 4, j === restLocs.length - 1),
-              )}
-            </div>
-          </details>
-        )}
-      </div>
+      {hasRanking && (
+        <>
+          <h2
+            style={{
+              fontSize: 13,
+              color: "#999",
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+              marginBottom: 6,
+              fontWeight: 600,
+            }}
+          >
+            Standort-Wertung &middot; gewichtete Punkte je Tipper
+          </h2>
+          <p style={{ fontSize: 12, color: "#aaa", margin: "0 0 16px", lineHeight: 1.5 }}>
+            Je weniger Tipper ein Zentrum hat, desto stärker zählt der
+            Gesamtschnitt mit – so verzerrt ein einzelner Glückslauf die Spitze
+            nicht. In Klammern der rohe Ø &amp; die Zahl der Tipper.
+          </p>
+          <div style={{ ...card, padding: "10px 12px" }}>
+            {top3.map((loc, i) =>
+              renderRow(loc, i + 1, i === top3.length - 1 && restLocs.length === 0),
+            )}
+            {restLocs.length > 0 && (
+              <details style={{ marginTop: 2 }}>
+                <summary
+                  style={{
+                    listStyle: "none",
+                    cursor: "pointer",
+                    textAlign: "center",
+                    padding: "10px 12px",
+                    fontSize: 12,
+                    color: "#999",
+                    fontWeight: 600,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.06em",
+                    userSelect: "none",
+                  }}
+                >
+                  Weitere Standorte anzeigen ▾
+                </summary>
+                <div style={{ borderTop: "1px solid #f0f0f0" }}>
+                  {restLocs.map((loc, j) =>
+                    renderRow(loc, j + 4, j === restLocs.length - 1),
+                  )}
+                </div>
+              </details>
+            )}
+          </div>
+        </>
+      )}
+
       {/* ── CTA: Kollegen einladen ── */}
       <a
         href={inviteMailto}
