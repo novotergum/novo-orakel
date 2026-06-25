@@ -187,6 +187,9 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
   // Aktuell laufende Spiele (IN_PLAY) — prominent mit aufgedecktem Orakel-Tipp.
   const [liveMatches, setLiveMatches] = useState<Match[]>([]);
   const [showTbd, setShowTbd] = useState(false);
+  // Manuelle Auf-/Zuklapp-Overrides pro Stage (key = stage). Default: aktive
+  // Runden offen, fertige Runden zu – siehe isStageOpen().
+  const [stageOverrides, setStageOverrides] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
   const [myTips, setMyTips] = useState<Record<number, MyTip>>({});
   const [expandedMatch, setExpandedMatch] = useState<number | null>(null);
@@ -1244,7 +1247,19 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
               (n, sg) => n + stageMatches(sg).length,
               0,
             );
+            // Eine Runde gilt als „fertig", wenn alle ihre Spiele beendet sind.
+            // Fertige Runden rutschen nach unten und werden eingeklappt; die
+            // aktuelle (noch laufende/anstehende) Runde bleibt oben & offen.
+            const stageFinished = (sg: StageGroup) =>
+              stageMatches(sg).length > 0 &&
+              stageMatches(sg).every((m) => m.status === "FINISHED");
+            const isStageOpen = (sg: StageGroup) =>
+              stageOverrides[sg.stage] ?? !stageFinished(sg);
+            const activeGroups = visibleGroups.filter((sg) => !stageFinished(sg));
+            const finishedGroups = visibleGroups.filter(stageFinished);
             const renderStage = (sg: StageGroup) => {
+            const open = isStageOpen(sg);
+            const finished = stageFinished(sg);
             const colors = STAGE_COLORS[sg.stage] ?? STAGE_COLORS.GROUP_STAGE;
             return (
               <div
@@ -1257,17 +1272,31 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
                   padding: "14px 16px",
                 }}
               >
-                {/* Stage header */}
-                <div
+                {/* Stage header – klickbar zum Auf-/Zuklappen */}
+                <button
+                  onClick={() =>
+                    setStageOverrides((prev) => ({
+                      ...prev,
+                      [sg.stage]: !open,
+                    }))
+                  }
                   style={{
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "space-between",
-                    marginBottom: 10,
+                    width: "100%",
+                    marginBottom: open ? 10 : 0,
+                    background: "none",
+                    border: "none",
+                    padding: 0,
+                    cursor: "pointer",
                   }}
                 >
                   <span
                     style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
                       fontSize: 13,
                       fontWeight: 800,
                       color: colors.text,
@@ -1275,7 +1304,30 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
                       letterSpacing: "0.06em",
                     }}
                   >
+                    <span
+                      style={{
+                        fontSize: 11,
+                        transform: open ? "rotate(90deg)" : "rotate(0deg)",
+                        transition: "transform 0.15s",
+                        display: "inline-block",
+                      }}
+                    >
+                      ▸
+                    </span>
                     {STAGE_LABELS[sg.stage] ?? sg.stage}
+                    {finished && (
+                      <span
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 700,
+                          color: "#7A7A7A",
+                          textTransform: "none",
+                          letterSpacing: 0,
+                        }}
+                      >
+                        ✓ beendet
+                      </span>
+                    )}
                   </span>
                   {STAGE_MULTIPLIERS[sg.stage] && (
                     <span
@@ -1292,10 +1344,10 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
                       {STAGE_MULTIPLIERS[sg.stage]} Punkte
                     </span>
                   )}
-                </div>
+                </button>
 
                 {/* GROUP_STAGE: sub-groups */}
-                {sg.subGroups && (
+                {open && sg.subGroups && (
                   <div
                     style={{
                       display: "grid",
@@ -1335,7 +1387,7 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
                 )}
 
                 {/* KO rounds */}
-                {sg.matches && (
+                {open && sg.matches && (
                   <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                     {sg.matches.map((m) => renderMatchCard(m, colors.text))}
                   </div>
@@ -1345,7 +1397,7 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
             };
             return (
               <>
-                {visibleGroups.map(renderStage)}
+                {activeGroups.map(renderStage)}
                 {tbdGroups.length > 0 && (
                   <>
                     <button
@@ -1371,6 +1423,8 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
                     {showTbd && tbdGroups.map(renderStage)}
                   </>
                 )}
+                {/* Fertige Runden – nach unten gerutscht, eingeklappt */}
+                {finishedGroups.map(renderStage)}
               </>
             );
           })()}
