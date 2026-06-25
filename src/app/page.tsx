@@ -249,14 +249,21 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
               <div
                 style={{
                   maxWidth: 560,
-                  background: "rgba(255,255,255,0.08)",
-                  border: "1px solid rgba(255,255,255,0.16)",
+                  // Eigener dunkler Hintergrund: lesbar egal ob auf dunklem Header
+                  // oder hellem Content-Bereich (Banner sitzt auf der Kante).
+                  background: "#1b1b34",
+                  borderLeft: "3px solid #F39200",
+                  border: "1px solid rgba(255,255,255,0.10)",
+                  borderLeftWidth: 3,
+                  borderLeftColor: "#F39200",
                   borderRadius: 12,
                   padding: "12px 18px",
                   color: "#fff",
                   fontSize: 15,
                   fontWeight: 600,
                   lineHeight: 1.45,
+                  boxShadow: "0 8px 24px rgba(0,0,0,0.28)",
+                  textAlign: "center",
                 }}
               >
                 {headline.text}
