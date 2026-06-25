@@ -79,6 +79,7 @@ export async function POST() {
     let totalResolved = 0;
     let totalUpsets = 0;
     let newlyResolved = 0;
+    let totalCorrected = 0;
 
     for (const m of matches) {
       if (m.score.home == null || m.score.away == null) continue;
@@ -87,16 +88,17 @@ export async function POST() {
       const actualAway = m.score.away;
       let matchResolved = 0;
       let matchNew = 0;
+      let matchCorrected = 0;
       let matchUpsets = 0;
 
       for (const r of records) {
         if (r.matchId !== m.id) continue;
-        // Skip already resolved tips (0 points is a valid, resolved result)
-        if (r.points != null) {
-          matchResolved++;
-          continue;
-        }
 
+        // Punkte IMMER aus dem aktuellen Feed-Score berechnen — auch fuer bereits
+        // gewertete Tipps. So heilt ein nachtraeglich korrigiertes Ergebnis (VAR /
+        // Datenfix der Quelle) sich selbst, statt mit den alten Punkten kleben zu
+        // bleiben (Bug 2026-06-23: Spain–Saudi kurz 5:0 gemeldet, final 4:0).
+        const wasUnresolved = r.points == null;
         try {
           const parsed = parseScoreTip(r.scoreTip);
           const basePoints = scoreTip(parsed.home, parsed.away, actualHome, actualAway);
@@ -104,13 +106,19 @@ export async function POST() {
           // K.O.-Multiplikator: stage aus Prediction oder aus Match-Daten
           const stage = r.stage || m.stage;
           const multiplier = stageMultiplier(stage);
+          const points = Math.round(basePoints * multiplier);
+
+          const changed = r.points !== points || r.basePoints !== basePoints;
           r.basePoints = basePoints;
-          r.points = Math.round(basePoints * multiplier);
+          r.points = points;
           matchResolved++;
-          matchNew++;
+          if (wasUnresolved) matchNew++;
+          else if (changed) matchCorrected++;
         } catch {
+          if (r.points !== 0 || r.basePoints !== 0) matchCorrected++;
           r.basePoints = 0;
           r.points = 0;
+          matchResolved++;
         }
       }
 
@@ -127,10 +135,11 @@ export async function POST() {
         totalResolved += matchResolved;
         totalUpsets += matchUpsets;
         newlyResolved += matchNew;
+        totalCorrected += matchCorrected;
       }
     }
 
-    if (newlyResolved > 0) {
+    if (newlyResolved > 0 || totalCorrected > 0) {
       await writePredictions(records);
     }
     // Rang-Snapshot/Banner: einmal pro vollständig beendetem Kalendertag (intern
@@ -164,6 +173,7 @@ export async function POST() {
       matchesChecked: matches.length,
       resolved: totalResolved,
       newlyResolved,
+      corrected: totalCorrected,
       upsetBonuses: totalUpsets,
       teamsPosted,
       results,

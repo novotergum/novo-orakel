@@ -9,8 +9,10 @@ import LiveTicker from "../components/LiveTicker";
 import Leaderboard from "../components/Leaderboard";
 import LocationRanking from "../components/LocationRanking";
 import RankUpBanner from "../components/RankUpBanner";
+import NoticeBanner from "../components/NoticeBanner";
 import { aggregateLocations, isStandortMailbox, type LocationStat } from "@/lib/stats";
 import { getAllowedDomains, getSession, userIdFromEmail } from "@/lib/auth";
+import { getDailyHeadline } from "@/lib/headline";
 
 export const dynamic = "force-dynamic";
 
@@ -177,6 +179,9 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
   const top3 = board.slice(0, 3);
   const rest = board.slice(3);
 
+  // Tägliche, catchy Headline (Regeln + Live-Spielplan). Null → kein Banner.
+  const headline = await getDailyHeadline({ leaderName: board[0]?.userName });
+
   // Der aktuell Erstplatzierte sieht sein gesamtes Dashboard in einem Gold-Ton —
   // als kleine Auszeichnung. Greift nur aus SEINER Sicht (eingeloggt + Platz 1).
   const isLeader = board.length > 0 && board[0].userId === profile.userId;
@@ -239,6 +244,25 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
           >
             WM 2026 &ndash; Mensch gegen Maschine
           </p>
+          {headline && (
+            <div style={{ marginTop: 20, display: "flex", justifyContent: "center" }}>
+              <div
+                style={{
+                  maxWidth: 560,
+                  background: "rgba(255,255,255,0.08)",
+                  border: "1px solid rgba(255,255,255,0.16)",
+                  borderRadius: 12,
+                  padding: "12px 18px",
+                  color: "#fff",
+                  fontSize: 15,
+                  fontWeight: 600,
+                  lineHeight: 1.45,
+                }}
+              >
+                {headline.text}
+              </div>
+            </div>
+          )}
           {/* CTA Anchor — primaer tippen. Einladen sitzt kontextstark unter
               der Standort-Wertung, daher hier bewusst nur ein Button. */}
           <style>{`
@@ -280,6 +304,9 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
             </a>
           </div>
         </header>
+
+        {/* ── Einmaliger Korrektur-/Info-Hinweis (1× pro Browser) ── */}
+        <NoticeBanner />
 
         {/* ── Motivationsspruch bei verbesserter Position (1× pro Spieltag) ── */}
         <RankUpBanner />
