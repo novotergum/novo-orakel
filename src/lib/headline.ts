@@ -17,6 +17,7 @@ const isGermany = (n: string) => {
 };
 
 function berlinDate(d = new Date()): string {
+  if (isNaN(d.getTime())) return ""; // ungültiges/fehlendes Datum → nie crashen
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Berlin" }).format(d); // YYYY-MM-DD
 }
 function hashStr(s: string): number {
@@ -72,13 +73,9 @@ const P = {
 };
 
 export async function getDailyHeadline(opts?: { leaderName?: string }): Promise<Headline | null> {
-  let matches;
   try {
-    matches = await getMatches();
-  } catch {
-    return null;
-  }
-  if (!matches || matches.length === 0) return null;
+    const matches = await getMatches();
+    if (!matches || matches.length === 0) return null;
 
   const now = Date.now();
   const today = berlinDate();
@@ -120,4 +117,7 @@ export async function getDailyHeadline(opts?: { leaderName?: string }): Promise<
   if (leader && hashStr(seed) % 2 === 0)
     return { text: fill(pick(P.leader, seed), { leader }), tag: "leader" };
   return { text: pick(P.spielfrei, seed), tag: "spielfrei" };
+  } catch {
+    return null; // jede Laufzeit-Panne → kein Banner statt Seiten-Crash
+  }
 }
