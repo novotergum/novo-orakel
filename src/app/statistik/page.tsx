@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { computeStats, type RecordFact, type PlayerStat } from "@/lib/stats";
 import { STAGE_LABELS } from "@/lib/scoring";
+import { deMatchLabel } from "@/lib/germanize";
 import { getSession } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -133,7 +134,7 @@ function FactCard({
             )}
           </div>
           <div style={{ fontSize: 13, color: "#555", marginTop: 6, lineHeight: 1.5 }}>
-            {fact.matchLabel}
+            {deMatchLabel(fact.matchLabel)}
             {stageLabel(fact.stage) ? ` · ${stageLabel(fact.stage)}` : ""}
             <br />
             Tipp <strong>{fact.scoreTip}</strong> · Endstand{" "}

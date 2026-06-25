@@ -95,3 +95,13 @@ export function deTeam(name?: string | null): string {
   if (!name) return "";
   return MAP[name.trim().toLowerCase()] ?? name.trim();
 }
+
+// Eindeutscht ein Spiel-Label "Home – Away" (Separator: Leerzeichen + Halbgeviert).
+// Beide Seiten via deTeam(); Unbekanntes/abweichendes Format bleibt unverändert.
+export function deMatchLabel(label?: string | null): string {
+  if (!label) return "";
+  const sep = " – ";
+  const parts = label.split(sep);
+  if (parts.length !== 2) return label;
+  return `${deTeam(parts[0])}${sep}${deTeam(parts[1])}`;
+}

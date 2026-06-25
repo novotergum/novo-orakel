@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { deMatchLabel } from "../lib/germanize";
 
 interface FeedEvent {
   id: string;
@@ -74,7 +75,7 @@ function render(ev: FeedEvent): {
     ev.type === "tip_changed" &&
     typeof ev.minutesToKickoff === "number" &&
     ev.minutesToKickoff <= LAST_MINUTE;
-  const where = ev.matchLabel ? ` für ${ev.matchLabel}` : "";
+  const where = ev.matchLabel ? ` für ${deMatchLabel(ev.matchLabel)}` : "";
   if (ev.type === "tip_changed") {
     return {
       icon: hot ? "🔥" : "✏️",
