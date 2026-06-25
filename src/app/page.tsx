@@ -244,32 +244,7 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
           >
             WM 2026 &ndash; Mensch gegen Maschine
           </p>
-          {headline && (
-            <div style={{ marginTop: 20, display: "flex", justifyContent: "center" }}>
-              <div
-                style={{
-                  maxWidth: 560,
-                  // Eigener dunkler Hintergrund: lesbar egal ob auf dunklem Header
-                  // oder hellem Content-Bereich (Banner sitzt auf der Kante).
-                  background: "#1b1b34",
-                  borderLeft: "3px solid #F39200",
-                  border: "1px solid rgba(255,255,255,0.10)",
-                  borderLeftWidth: 3,
-                  borderLeftColor: "#F39200",
-                  borderRadius: 12,
-                  padding: "12px 18px",
-                  color: "#fff",
-                  fontSize: 15,
-                  fontWeight: 600,
-                  lineHeight: 1.45,
-                  boxShadow: "0 8px 24px rgba(0,0,0,0.28)",
-                  textAlign: "center",
-                }}
-              >
-                {headline.text}
-              </div>
-            </div>
-          )}
+          {/* Headline sitzt jetzt im hellen Bereich unter dem Header (weicher). */}
           {/* CTA Anchor — primaer tippen. Einladen sitzt kontextstark unter
               der Standort-Wertung, daher hier bewusst nur ein Button. */}
           <style>{`
@@ -311,6 +286,28 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
             </a>
           </div>
         </header>
+
+        {/* ── Tägliche Headline (weiche, warme Karte im hellen Bereich) ── */}
+        {headline && (
+          <div style={{ display: "flex", justifyContent: "center", margin: "0 0 18px" }}>
+            <div
+              style={{
+                maxWidth: 560,
+                background: "#fff7ed",
+                border: "1px solid #f3dcc0",
+                borderRadius: 14,
+                padding: "13px 20px",
+                color: "#6b4f33",
+                fontSize: 15,
+                fontWeight: 600,
+                lineHeight: 1.45,
+                textAlign: "center",
+              }}
+            >
+              {headline.text}
+            </div>
+          </div>
+        )}
 
         {/* ── Einmaliger Korrektur-/Info-Hinweis (1× pro Browser) ── */}
         <NoticeBanner />
