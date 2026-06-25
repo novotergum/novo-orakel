@@ -11,8 +11,8 @@ export interface Headline {
   tag: string;
 }
 
-const isGermany = (n: string) => {
-  const x = n.trim().toLowerCase();
+const isGermany = (n?: string | null) => {
+  const x = (n ?? "").trim().toLowerCase(); // K.o.-Platzhalter haben name=null
   return x === "germany" || x === "deutschland";
 };
 
