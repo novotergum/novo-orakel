@@ -461,6 +461,7 @@ export interface FeedEvent {
     | "entered_podium"; // neu in die Top 3 geklettert (gebuendelt pro Spieltag)
   userName: string;
   ts: string; // ISO
+  matchId?: number; // Partie-ID -> erlaubt LIVE-Auflösung des Labels im Feed-Endpoint
   matchLabel?: string; // e.g. "Deutschland – Frankreich" (no score)
   minutesToKickoff?: number; // for the "last minute" badge
   count?: number; // Anzahl Spiele (agent_tipped) bzw. Anzahl Personen (entered_podium)

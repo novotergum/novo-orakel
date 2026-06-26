@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { readFeedEvents, type FeedEvent } from "@/lib/store";
+import { getMatches } from "@/lib/football-data";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +32,34 @@ export async function GET() {
     // On Redis error, serve whatever we last had rather than 500-ing the ticker.
     if (cache) return NextResponse.json({ events: cache.events });
   }
+
+  // Labels LIVE auflösen: aktuelle Teamnamen je matchId aus den Spieldaten ziehen.
+  // So zeigt eine zum Tipp-Zeitpunkt noch nicht ausgeloste Partie später ihre
+  // echten Teams. Legacy-Events ohne matchId, deren Label noch ein "?" enthält,
+  // werden bereinigt (kein "? – ?" mehr im Ticker). Fällt der Lookup aus, bleibt
+  // das gespeicherte Label erhalten (best-effort, nie 500).
+  let labelById: Map<number, string> | null = null;
+  try {
+    const ms = await getMatches();
+    labelById = new Map();
+    for (const m of ms) {
+      if (m.homeTeam?.name && m.awayTeam?.name) {
+        labelById.set(m.id, `${m.homeTeam.name} – ${m.awayTeam.name}`);
+      }
+    }
+  } catch {
+    // ohne Live-Daten unten nur die "?"-Bereinigung
+  }
+
+  events = events.map((e) => {
+    const clean = (l?: string) => (l && !l.includes("?") ? l : undefined);
+    if (e.matchId != null && labelById) {
+      const live = labelById.get(e.matchId);
+      return { ...e, matchLabel: live ?? clean(e.matchLabel) };
+    }
+    return clean(e.matchLabel) === e.matchLabel ? e : { ...e, matchLabel: clean(e.matchLabel) };
+  });
+
   cache = { at: now, events };
   return NextResponse.json({ events }, { headers: { "x-feed-cache": "miss" } });
 }

@@ -75,7 +75,9 @@ function render(ev: FeedEvent): {
     ev.type === "tip_changed" &&
     typeof ev.minutesToKickoff === "number" &&
     ev.minutesToKickoff <= LAST_MINUTE;
-  const where = ev.matchLabel ? ` für ${deMatchLabel(ev.matchLabel)}` : "";
+  // Nur ein aufgelöstes Label ausschreiben – nie "? – ?" (Fallback: ohne Partie).
+  const labelOk = ev.matchLabel && !ev.matchLabel.includes("?");
+  const where = labelOk ? ` für ${deMatchLabel(ev.matchLabel!)}` : "";
   if (ev.type === "tip_changed") {
     return {
       icon: hot ? "🔥" : "✏️",

@@ -99,7 +99,11 @@ export async function POST(req: NextRequest) {
       );
     }
     if (match.stage) stage = match.stage;
-    matchLabel = `${match.homeTeam?.name ?? "?"} – ${match.awayTeam?.name ?? "?"}`;
+    // Label nur setzen, wenn beide Teams aufgelöst sind – sonst KEIN "? – ?"
+    // einfrieren. Das Feed liefert über matchId ohnehin eine Live-Auflösung nach.
+    const hn = match.homeTeam?.name;
+    const an = match.awayTeam?.name;
+    matchLabel = hn && an ? `${hn} – ${an}` : undefined;
     minutesToKickoff = Math.max(0, Math.round((kickoff - Date.now()) / 60000));
 
     // Did this user already have a tip for this match? Decides new vs. change.
@@ -135,6 +139,7 @@ export async function POST(req: NextRequest) {
         type: prior ? "tip_changed" : "tip_placed",
         userName: profile.userName,
         ts: record.createdAt,
+        matchId: match.id,
         matchLabel,
         minutesToKickoff,
       });
