@@ -23,6 +23,15 @@ const ELO_TILT_DIV = 600; // wie stark die Elo-Differenz die xG kippt
 const HOST_HOME_ADV = 1.1; // Heimvorteil-Multiplikator (nur Gastgeber)
 const DC_RHO = -0.08; // Dixon-Coles-Korrelation (<0 → mehr Remis); Backtest-Optimum
 const MAX_GOALS = 8; // Gitter-Obergrenze (deckt 7:1 etc.)
+// xG-Deckel (2026-06-26-Kalibrierung). Der alte Deckel (4,8/4,2) ließ den
+// Elo-Tilt die Favoriten-xG so hoch treiben, dass der Mode-Picker reihenweise
+// 4:0/0:4 tippte — Tendenz oft richtig, Exakt-Treffer aber fast nie (real ist
+// 4:0 selten). Walk-forward-Backtest über die 60 Gruppenspiele: Deckel 3,2
+// hebt Ø-Punkte 1,33→1,43 und Exakt-Quote 10%→15% bei gleicher Tendenz-Quote
+// (52%) und besserer Kalibrierung (Brier 0,271→0,260). Tiefer als 3,2 killt die
+// echten Kantersiege (3:0) wieder. Der Tilt-Divisor (600) war NICHT der Treiber.
+const HOME_XG_CAP = 3.2;
+const AWAY_XG_CAP = 3.2;
 
 function clamp(x: number, min = 0, max = 1) {
   return Math.max(min, Math.min(max, x));
@@ -49,8 +58,8 @@ function expectedGoals(home: TeamStats, away: TeamStats) {
   const tilt = Math.exp((home.elo - away.elo) / ELO_TILT_DIV);
   const hostMult = home.name && HOST_NATIONS.has(home.name) ? HOST_HOME_ADV : 1;
 
-  const homeXg = clamp(baseHome * tilt * hostMult, 0.2, 4.8);
-  const awayXg = clamp(baseAway / tilt, 0.15, 4.2);
+  const homeXg = clamp(baseHome * tilt * hostMult, 0.2, HOME_XG_CAP);
+  const awayXg = clamp(baseAway / tilt, 0.15, AWAY_XG_CAP);
   return { homeXg, awayXg };
 }
 
@@ -149,7 +158,13 @@ export function predictMatch(home: TeamStats, away: TeamStats) {
     prediction: `${mode.home}:${mode.away}`,
     modeScore: `${mode.home}:${mode.away}`,
     probabilities: probs,
+    // confidence = Wahrscheinlichkeit der getippten TENDENZ (Sieg/Remis/Niederl.),
+    // NICHT die des exakten Ergebnisses. Ein 3:0-Tipp kann mit 95% Tendenz-Konfidenz
+    // stehen, obwohl exakt 3:0 nur ~10% wahrscheinlich ist. Anzeige entsprechend als
+    // "Tendenz-Sicherheit" labeln und exactProbability separat zeigen (#3-Fix).
     confidence: Number(clamp(confidence).toFixed(2)),
+    tendencyConfidence: Number(clamp(confidence).toFixed(2)),
+    exactProbability: Number(clamp(mode.prob).toFixed(2)),
     reasoning,
     topScores: topScores(g, 10),
     expected: { homeXg, awayXg },

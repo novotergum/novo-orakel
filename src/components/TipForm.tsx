@@ -662,7 +662,7 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
               }
               return (
                 <div style={{ fontSize: 11, color: "#5b3a8e", marginTop: 3, fontWeight: 600 }}>
-                  🔮 Orakel: {ot.scoreTip}{ot.confidence != null ? ` · ${ot.confidence}%` : ""}
+                  🔮 Orakel: {ot.scoreTip}{ot.confidence != null ? ` · ${ot.confidence}% Tendenz` : ""}
                   {hit === "exact" && <span style={{ color: "#2e7d32" }}> ✓ exakt</span>}
                   {hit === "tend" && <span style={{ color: "#E76C0A" }}> ✓ Tendenz</span>}
                   {hit === "miss" && <span style={{ color: "#b0b0b0" }}> ✗</span>}
