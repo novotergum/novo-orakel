@@ -19,7 +19,7 @@ interface FeedEvent {
   count?: number;
 }
 
-const POLL_MS = 20_000;
+const POLL_MS = 40_000;
 const LAST_MINUTE = 15; // minutes-to-kickoff threshold for the "last minute" badge
 
 function relTime(iso: string): string {

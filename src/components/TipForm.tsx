@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 
 interface Match {
   id: number;
@@ -256,15 +256,46 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
     }
   }, [initialUser]);
 
-  // Live-Stand + Orakel-Reveals + frische Endstände alle 60 s nachziehen, damit
-  // der rollende „Heute"-Block aktuell bleibt (angepfiffen → live → beendet).
+  // Live-Stand + Orakel-Reveals + frische Endstände nachziehen, damit der
+  // rollende „Heute"-Block aktuell bleibt (angepfiffen → live → beendet).
+  //
+  // Kosten-Gate: Dieser Tick lief früher alle 60 s rund um die Uhr und war pro
+  // Browser-Tab 3 Requests wert — multipliziert mit allen Online-Nutzern der
+  // Haupttreiber der Vercel-CPU. Jetzt nur noch alle 120 s und nur, wenn
+  // überhaupt ein Spiel laufen *kann* (Anpfiff-Fenster) oder bereits live ist.
+  // Refs, damit das Intervall stets die frischen Match-Listen sieht, ohne sich
+  // bei jedem State-Update neu aufzuhängen (würde den Timer zurücksetzen).
+  const matchesRef = useRef(matches);
+  const liveMatchesRef = useRef(liveMatches);
   useEffect(() => {
+    matchesRef.current = matches;
+  }, [matches]);
+  useEffect(() => {
+    liveMatchesRef.current = liveMatches;
+  }, [liveMatches]);
+
+  useEffect(() => {
+    const anyPlausiblyLive = () => {
+      if (liveMatchesRef.current.length > 0) return true;
+      const now = Date.now();
+      const windowStart = now - 150 * 60_000; // Spiel könnte noch laufen (~2,5h)
+      const windowEnd = now + 60_000; // gleich Anpfiff
+      return matchesRef.current.some((m: Match) => {
+        if (!m.kickoff) return false;
+        const t = new Date(m.kickoff).getTime();
+        return t >= windowStart && t <= windowEnd;
+      });
+    };
+
     const tick = () => {
+      // Verstecktem Tab und Phasen ohne laufendes Spiel keine Requests gönnen.
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+      if (!anyPlausiblyLive()) return;
       fetch("/api/matches?status=IN_PLAY").then((r) => r.json()).then((d) => setLiveMatches(d.matches ?? [])).catch(() => {});
       fetch("/api/oracle-tips").then((r) => r.json()).then((d) => setOracleTips(d.tips ?? {})).catch(() => {});
       fetch("/api/matches?status=FINISHED").then((r) => r.json()).then((d) => setFinishedMatches(d.matches ?? [])).catch(() => {});
     };
-    const id = setInterval(tick, 60_000);
+    const id = setInterval(tick, 120_000);
     return () => clearInterval(id);
   }, []);
 

@@ -85,7 +85,23 @@ function buildNarrative(board: PlayerEntry[]): string {
 // GET handler
 // ---------------------------------------------------------------------------
 
+export const dynamic = "force-dynamic";
+
+// Server-side cache: the full ranking is recomputed from *every* prediction in
+// Redis on each request (O(records)), which is by far the heaviest route in the
+// app. With many tabs open during the tournament this dominated Fluid Active
+// CPU. A short cache on the warm instance decouples the recompute cost from the
+// number of online users — at most a couple of recomputes per minute.
+const CACHE_MS = 30_000;
+let cache: { at: number; payload: unknown } | null = null;
+
 export async function GET() {
+  const cacheNow = Date.now();
+  if (cache && cacheNow - cache.at < CACHE_MS) {
+    return NextResponse.json(cache.payload, {
+      headers: { "x-leaderboard-cache": "hit" },
+    });
+  }
   try {
     const records = await readRankedPredictions();
 
@@ -175,13 +191,23 @@ export async function GET() {
     // --- Narrative for Teams ---
     const teamsPost = buildNarrative(leaderboard);
 
-    return NextResponse.json({
+    const payload = {
       leaderboard,
       menschVsMaschine,
       standorte,
       teamsPost,
+    };
+    cache = { at: Date.now(), payload };
+    return NextResponse.json(payload, {
+      headers: { "x-leaderboard-cache": "miss" },
     });
   } catch (e: unknown) {
+    // On Redis/compute error, serve the last good payload rather than 500-ing.
+    if (cache) {
+      return NextResponse.json(cache.payload, {
+        headers: { "x-leaderboard-cache": "stale" },
+      });
+    }
     const msg = e instanceof Error ? e.message : "Unknown error";
     return NextResponse.json({ error: msg }, { status: 500 });
   }
