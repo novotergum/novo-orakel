@@ -225,6 +225,37 @@ async function getAllMatches(): Promise<NormalizedMatch[]> {
 }
 
 // ---------------------------------------------------------------------------
+// Manuelle KO-Platz-Overrides
+// ---------------------------------------------------------------------------
+// football-data.org trägt offiziell feststehende KO-Paarungen teils mit Stunden
+// Verzug ein. Bis dahin füllen wir bekannte Gegner selbst — aber NUR solange der
+// Slot wirklich leer ist (name == null). Sobald die Quelle das echte Team
+// liefert, greift automatisch wieder die Live-Quelle (self-healing, kein
+// Risiko einer falschen Festschreibung).
+const KO_OVERRIDES: Record<
+  number,
+  {
+    home?: { id: number; name: string; code: string | null };
+    away?: { id: number; name: string; code: string | null };
+  }
+> = {
+  // Sechzehntelfinale Deutschland – Paraguay (29.06., Boston). Offiziell fix,
+  // nachdem Spanien 1:0 gegen Uruguay gewann und Paraguay Gruppe-D-Dritter wurde.
+  537415: { away: { id: 761, name: "Paraguay", code: "PAR" } },
+};
+
+function applyKoOverrides(matches: NormalizedMatch[]): NormalizedMatch[] {
+  return matches.map((m) => {
+    const ov = KO_OVERRIDES[m.id];
+    if (!ov) return m;
+    const next = { ...m };
+    if (ov.home && !next.homeTeam.name) next.homeTeam = ov.home;
+    if (ov.away && !next.awayTeam.name) next.awayTeam = ov.away;
+    return next;
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Public API (unchanged signature)
 // ---------------------------------------------------------------------------
 
@@ -233,7 +264,7 @@ export async function getMatches(params?: {
   dateTo?: string;
   status?: string;
 }): Promise<NormalizedMatch[]> {
-  let matches = await getAllMatches();
+  let matches = applyKoOverrides(await getAllMatches());
 
   const statusFilters = params?.status?.split(",").map((s) => s.trim().toUpperCase()) ?? [];
   if (statusFilters.length > 0) {
