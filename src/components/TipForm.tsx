@@ -1281,9 +1281,19 @@ export default function TipForm({ initialUser }: { initialUser?: UserProfile }) 
             // Eine Runde gilt als „fertig", wenn alle ihre Spiele beendet sind.
             // Fertige Runden rutschen nach unten und werden eingeklappt; die
             // aktuelle (noch laufende/anstehende) Runde bleibt oben & offen.
+            // Wichtig: Heute laufende/anstehende Spiele werden in den „Heute"-
+            // Block ausgelagert und fehlen damit in restMatches → eine Runde
+            // darf NUR „beendet" sein, wenn ihre Stage über ALLE Spiele (inkl.
+            // ausgelagerter) kein offenes Spiel mehr hat.
+            const stagesWithPending = new Set(
+              allMatches
+                .filter((m) => m.status !== "FINISHED")
+                .map((m) => m.stage),
+            );
             const stageFinished = (sg: StageGroup) =>
               stageMatches(sg).length > 0 &&
-              stageMatches(sg).every((m) => m.status === "FINISHED");
+              stageMatches(sg).every((m) => m.status === "FINISHED") &&
+              !stagesWithPending.has(sg.stage);
             const isStageOpen = (sg: StageGroup) =>
               stageOverrides[sg.stage] ?? !stageFinished(sg);
             const activeGroups = visibleGroups.filter((sg) => !stageFinished(sg));
