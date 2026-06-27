@@ -15,12 +15,21 @@ const CACHE_MS = 12_000;
 const MAX_AGE_MS = 24 * 60 * 60 * 1000;
 let cache: { at: number; events: FeedEvent[] } | null = null;
 
+// Edge-Cache: der Feed ist für alle Nutzer identisch und wird vom LiveTicker je
+// offenem Tab gepollt. Vercel-CDN-Cache-Control lässt Vercels CDN diese Polls am
+// Edge bedienen, ohne die Function (Fluid Active CPU) aufzurufen — entkoppelt die
+// Last von der Zahl der Tabs. Der bestehende In-Memory-Cache bleibt als zweite
+// Schicht für Edge-Miss/Cold-Start.
+const EDGE_HEADERS = {
+  "Vercel-CDN-Cache-Control": "public, s-maxage=30, stale-while-revalidate=60",
+} as const;
+
 export async function GET() {
   const now = Date.now();
   if (cache && now - cache.at < CACHE_MS) {
     return NextResponse.json(
       { events: cache.events },
-      { headers: { "x-feed-cache": "hit" } },
+      { headers: { ...EDGE_HEADERS, "x-feed-cache": "hit" } },
     );
   }
 
@@ -30,7 +39,7 @@ export async function GET() {
     events = all.filter((e) => now - new Date(e.ts).getTime() <= MAX_AGE_MS);
   } catch {
     // On Redis error, serve whatever we last had rather than 500-ing the ticker.
-    if (cache) return NextResponse.json({ events: cache.events });
+    if (cache) return NextResponse.json({ events: cache.events }, { headers: EDGE_HEADERS });
   }
 
   // Labels LIVE auflösen: aktuelle Teamnamen je matchId aus den Spieldaten ziehen.
@@ -61,5 +70,5 @@ export async function GET() {
   });
 
   cache = { at: now, events };
-  return NextResponse.json({ events }, { headers: { "x-feed-cache": "miss" } });
+  return NextResponse.json({ events }, { headers: { ...EDGE_HEADERS, "x-feed-cache": "miss" } });
 }
