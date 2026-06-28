@@ -121,32 +121,34 @@ async function getData() {
   // aus Schnitt & Spieler-Count des fairen Vergleichs.
   const scoringHumans = humans.filter((e) => e.points > 0);
   const agentPts = agents.reduce((s, e) => s + e.points, 0);
-  // Mensch-Wert = MEDIAN der punktenden Tipper (statt Durchschnitt). Robuster
-  // gegen Ausrei\u00DFer: einzelne Top-L\u00E4ufer oder Tief-Tipper ziehen den Schnitt
-  // weg, der Median bleibt der typische Spieler \u2014 der faire Vergleich.
-  const sortedPts = scoringHumans.map((e) => e.points).sort((a, b) => a - b);
-  const mid = Math.floor(sortedPts.length / 2);
-  const humanMedian = sortedPts.length
-    ? sortedPts.length % 2
-      ? sortedPts[mid]
-      : (sortedPts[mid - 1] + sortedPts[mid]) / 2
+  // Mensch-Wert = \u00D8 des SPITZENVIERTELS (Top-Quartil der punktenden Tipper).
+  // Das Orakel ist ein Einzeltipper und schl\u00E4gt den typischen Spieler (Median)
+  // l\u00E4ngst \u2014 die spannende Frage ist, ob es mit der echten Konkurrenz, dem
+  // oberen Viertel, mithalten kann. Gemessen wird gegen den Schnitt dieser
+  // Top-Kohorte (nicht den einen Gl\u00FCckstreffer aus ~100). Robuster Bezug, der
+  // sich \u00FCber das Turnier sichtbar verschiebt.
+  const sortedDesc = scoringHumans.map((e) => e.points).sort((a, b) => b - a);
+  const cohortSize = Math.max(1, Math.round(sortedDesc.length * 0.25));
+  const topCohort = sortedDesc.slice(0, cohortSize);
+  const humanCohortAvg = topCohort.length
+    ? topCohort.reduce((s, n) => s + n, 0) / topCohort.length
     : 0;
   const agentAvg = agents.length ? agentPts / agents.length : 0;
 
-  const delta = humanMedian - agentAvg;
+  const delta = humanCohortAvg - agentAvg;
   const leaderText =
     humans.length === 0 && agents.length === 0
       ? ""
       : Math.abs(delta) < 0.05
-      ? "Aktuell nahezu Gleichstand"
+      ? "Gleichauf mit dem Spitzenviertel"
       : delta > 0
-      ? `Menschen f\u00FChren mit ${delta.toFixed(1)} Punkten (Median)`
-      : `Maschinen f\u00FChren mit ${Math.abs(delta).toFixed(1)} Punkten (Median)`;
+      ? `Spitzenviertel f\u00FChrt mit ${delta.toFixed(1)} Punkten`
+      : `Maschine f\u00FChrt mit ${Math.abs(delta).toFixed(1)} Punkten vor dem Spitzenviertel`;
 
   const leaderSide: "human" | "agent" | "tie" =
     Math.abs(delta) < 0.05 ? "tie" : delta > 0 ? "human" : "agent";
 
-  return { board, locations, humanMedian, agentAvg, humanCount: scoringHumans.length, agentCount: agents.length, leaderText, leaderSide };
+  return { board, locations, humanCohortAvg, cohortSize, agentAvg, humanCount: scoringHumans.length, agentCount: agents.length, leaderText, leaderSide };
 }
 
 const card: React.CSSProperties = {
@@ -175,7 +177,7 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
   if (!profileRaw) redirect("/onboarding");
   const profile = profileRaw as { userId: string; userName: string; location: string };
 
-  const { board, locations, humanMedian, agentAvg, humanCount, agentCount, leaderText, leaderSide } = await getData();
+  const { board, locations, humanCohortAvg, cohortSize, agentAvg, humanCount, agentCount, leaderText, leaderSide } = await getData();
   const top3 = board.slice(0, 3);
   const rest = board.slice(3);
 
@@ -361,10 +363,10 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
                   Mensch
                 </div>
                 <div style={{ fontSize: "clamp(30px, 11vw, 44px)", fontWeight: 800, color: "#E5172D", marginTop: 8, lineHeight: 1 }}>
-                  {humanMedian.toFixed(0)}
+                  {humanCohortAvg.toFixed(0)}
                 </div>
                 <div style={{ fontSize: 12, color: "#999", marginTop: 8 }}>
-                  Median &middot; {humanCount} Spieler
+                  Spitzenviertel &middot; Top {cohortSize}
                 </div>
               </div>
 
@@ -458,9 +460,10 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
                 lineHeight: 1.5,
               }}
             >
-              22.06: Mensch-Wert ist der <strong>Median</strong> der punktenden
-              Tipper (nicht der Durchschnitt) — der typische Spieler, robust gegen
-              einzelne Ausreißer. Tipper mit 0&nbsp;Punkten zählen nicht mit.
+              Mensch-Wert ist der <strong>Ø des Spitzenviertels</strong> (oberste
+              25&nbsp;% der punktenden Tipper, aktuell Top&nbsp;{cohortSize}) — das
+              Orakel misst sich an der echten Konkurrenz, nicht am typischen
+              Spieler. Tipper mit 0&nbsp;Punkten zählen nicht mit.
             </div>
           </section>
         )}
