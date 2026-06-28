@@ -187,6 +187,11 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
   const VS_AMP = 8;
   const barPct = (v: number) =>
     Math.max(12, Math.min(100, 100 - ((vsHi - v) / vsHi) * 100 * VS_AMP));
+  // Box-Höhe = Vorsprungs-Indikator: höhere Box = mehr Punkte. Gleiche Lupe wie
+  // barPct (Führender = volle Höhe). Untergrenze, damit der Karteninhalt passt.
+  const VS_BOX_MAX = 190;
+  const VS_BOX_MIN = 132;
+  const boxH = (v: number) => Math.max(VS_BOX_MIN, Math.round((VS_BOX_MAX * barPct(v)) / 100));
   const top3 = board.slice(0, 3);
   const rest = board.slice(3);
 
@@ -337,7 +342,7 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
                 display: "grid",
                 gridTemplateColumns: "minmax(0,1fr) auto minmax(0,1fr)",
                 gap: 12,
-                alignItems: "stretch",
+                alignItems: "end",
               }}
             >
               {/* Mensch */}
@@ -346,6 +351,10 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
                   ...card,
                   padding: "20px 14px",
                   textAlign: "center",
+                  height: boxH(humanCohortAvg),
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "center",
                   borderTop: `3px solid #E5172D`,
                   transform: leaderSide === "human" ? "scale(1.03)" : "none",
                   boxShadow: leaderSide === "human"
@@ -377,21 +386,10 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
                 <div style={{ fontSize: 12, color: "#999", marginTop: 8 }}>
                   Spitzenviertel &middot; Top {cohortSize}
                 </div>
-                <div style={{ marginTop: 12, height: 8, borderRadius: 4, background: "rgba(229,23,45,0.10)" }}>
-                  <div
-                    style={{
-                      height: "100%",
-                      width: `${barPct(humanCohortAvg)}%`,
-                      background: "#E5172D",
-                      borderRadius: 4,
-                      transition: "width 0.4s",
-                    }}
-                  />
-                </div>
               </div>
 
               {/* VS */}
-              <div style={{ display: "flex", alignItems: "center" }}>
+              <div style={{ display: "flex", alignItems: "center", alignSelf: "center" }}>
                 <div
                   style={{
                     width: 44,
@@ -418,6 +416,10 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
                   ...card,
                   padding: "20px 14px",
                   textAlign: "center",
+                  height: boxH(agentAvg),
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "center",
                   borderTop: `3px solid #4293D0`,
                   transform: leaderSide === "agent" ? "scale(1.03)" : "none",
                   boxShadow: leaderSide === "agent"
@@ -448,17 +450,6 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
                 </div>
                 <div style={{ fontSize: 12, color: "#999", marginTop: 8 }}>
                   {"\u00D8"} Punkte &middot; {agentCount} Agent{agentCount !== 1 ? "s" : ""}
-                </div>
-                <div style={{ marginTop: 12, height: 8, borderRadius: 4, background: "rgba(66,147,208,0.12)" }}>
-                  <div
-                    style={{
-                      height: "100%",
-                      width: `${barPct(agentAvg)}%`,
-                      background: "#4293D0",
-                      borderRadius: 4,
-                      transition: "width 0.4s",
-                    }}
-                  />
                 </div>
               </div>
             </div>
