@@ -346,6 +346,7 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
               }}
             >
               {/* Mensch */}
+              <div style={{ height: VS_BOX_MAX, display: "flex", flexDirection: "column", justifyContent: "flex-end", borderRadius: 16, background: "rgba(0,0,0,0.015)", border: "1px dashed rgba(0,0,0,0.10)" }}>
               <div
                 style={{
                   ...card,
@@ -356,7 +357,7 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
                   flexDirection: "column",
                   justifyContent: "center",
                   borderTop: `3px solid #E5172D`,
-                  transform: leaderSide === "human" ? "scale(1.03)" : "none",
+                  transform: "none",
                   boxShadow: leaderSide === "human"
                     ? "0 4px 24px rgba(229,23,45,0.15)"
                     : "0 2px 12px rgba(0,0,0,0.04)",
@@ -387,6 +388,7 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
                   Spitzenviertel &middot; Top {cohortSize}
                 </div>
               </div>
+              </div>
 
               {/* VS */}
               <div style={{ display: "flex", alignItems: "center", alignSelf: "center" }}>
@@ -411,6 +413,7 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
               </div>
 
               {/* Maschine */}
+              <div style={{ height: VS_BOX_MAX, display: "flex", flexDirection: "column", justifyContent: "flex-end", borderRadius: 16, background: "rgba(0,0,0,0.015)", border: "1px dashed rgba(0,0,0,0.10)" }}>
               <div
                 style={{
                   ...card,
@@ -421,7 +424,7 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
                   flexDirection: "column",
                   justifyContent: "center",
                   borderTop: `3px solid #4293D0`,
-                  transform: leaderSide === "agent" ? "scale(1.03)" : "none",
+                  transform: "none",
                   boxShadow: leaderSide === "agent"
                     ? "0 4px 24px rgba(66,147,208,0.15)"
                     : "0 2px 12px rgba(0,0,0,0.04)",
@@ -451,6 +454,7 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
                 <div style={{ fontSize: 12, color: "#999", marginTop: 8 }}>
                   {"\u00D8"} Punkte &middot; {agentCount} Agent{agentCount !== 1 ? "s" : ""}
                 </div>
+              </div>
               </div>
             </div>
 
