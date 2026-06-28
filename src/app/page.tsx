@@ -178,6 +178,10 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
   const profile = profileRaw as { userId: string; userName: string; location: string };
 
   const { board, locations, humanCohortAvg, cohortSize, agentAvg, humanCount, agentCount, leaderText, leaderSide } = await getData();
+  // Gemeinsamer Maßstab für die Vergleichsbalken: beide Karten sind gleich breit,
+  // also ist die Balkenlänge (jeweils Wert/Maximum) direkt vergleichbar. Ehrlich
+  // ab 0 skaliert — bei knappem Stand sind die Balken bewusst fast gleich lang.
+  const vsMax = Math.max(humanCohortAvg, agentAvg, 1);
   const top3 = board.slice(0, 3);
   const rest = board.slice(3);
 
@@ -368,6 +372,17 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
                 <div style={{ fontSize: 12, color: "#999", marginTop: 8 }}>
                   Spitzenviertel &middot; Top {cohortSize}
                 </div>
+                <div style={{ marginTop: 12, height: 8, borderRadius: 4, background: "rgba(229,23,45,0.10)" }}>
+                  <div
+                    style={{
+                      height: "100%",
+                      width: `${(humanCohortAvg / vsMax) * 100}%`,
+                      background: "#E5172D",
+                      borderRadius: 4,
+                      transition: "width 0.4s",
+                    }}
+                  />
+                </div>
               </div>
 
               {/* VS */}
@@ -428,6 +443,17 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
                 </div>
                 <div style={{ fontSize: 12, color: "#999", marginTop: 8 }}>
                   {"\u00D8"} Punkte &middot; {agentCount} Agent{agentCount !== 1 ? "s" : ""}
+                </div>
+                <div style={{ marginTop: 12, height: 8, borderRadius: 4, background: "rgba(66,147,208,0.12)" }}>
+                  <div
+                    style={{
+                      height: "100%",
+                      width: `${(agentAvg / vsMax) * 100}%`,
+                      background: "#4293D0",
+                      borderRadius: 4,
+                      transition: "width 0.4s",
+                    }}
+                  />
                 </div>
               </div>
             </div>
