@@ -178,10 +178,15 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
   const profile = profileRaw as { userId: string; userName: string; location: string };
 
   const { board, locations, humanCohortAvg, cohortSize, agentAvg, humanCount, agentCount, leaderText, leaderSide } = await getData();
-  // Gemeinsamer Maßstab für die Vergleichsbalken: beide Karten sind gleich breit,
-  // also ist die Balkenlänge (jeweils Wert/Maximum) direkt vergleichbar. Ehrlich
-  // ab 0 skaliert — bei knappem Stand sind die Balken bewusst fast gleich lang.
-  const vsMax = Math.max(humanCohortAvg, agentAvg, 1);
+  // Vergleichsbalken als VORSPRUNGS-Indikator (nicht Absolutwert): bei 113 vs 109
+  // wären 0-basierte Balken praktisch gleich lang. Wir spreizen daher die relative
+  // Differenz zum Führenden mit einer "Lupe" (AMP) — der Führende ist immer voll,
+  // der Rückstand wird sichtbar verstärkt. Skaliert mit dem echten Abstand; die
+  // exakten Zahlen stehen groß darüber, der Balken zeigt nur "wie deutlich".
+  const vsHi = Math.max(humanCohortAvg, agentAvg, 1);
+  const VS_AMP = 8;
+  const barPct = (v: number) =>
+    Math.max(12, Math.min(100, 100 - ((vsHi - v) / vsHi) * 100 * VS_AMP));
   const top3 = board.slice(0, 3);
   const rest = board.slice(3);
 
@@ -376,7 +381,7 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
                   <div
                     style={{
                       height: "100%",
-                      width: `${(humanCohortAvg / vsMax) * 100}%`,
+                      width: `${barPct(humanCohortAvg)}%`,
                       background: "#E5172D",
                       borderRadius: 4,
                       transition: "width 0.4s",
@@ -448,7 +453,7 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
                   <div
                     style={{
                       height: "100%",
-                      width: `${(agentAvg / vsMax) * 100}%`,
+                      width: `${barPct(agentAvg)}%`,
                       background: "#4293D0",
                       borderRadius: 4,
                       transition: "width 0.4s",
