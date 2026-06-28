@@ -243,6 +243,15 @@ export interface RankMove {
   becameLeader: boolean; // neu auf Platz 1
 }
 
+// Zusammenfassung der Podiums-Lage NACH einem Tages-Snapshot — fuer die
+// Ergebnis-Check-Meldung im Teams-Kanal. null, wenn an diesem Lauf kein neuer
+// Spieltag gesnappt wurde ODER sich am Podium nichts geaendert hat.
+export interface RankSnapshotSummary {
+  podium: { rank: number; name: string; points: number; isAgent: boolean; isNew: boolean }[];
+  newLeaderName: string | null; // neuer Spitzenreiter (sonst null)
+  changed: boolean; // true, wenn neuer Leader ODER neuer Podiumsplatz
+}
+
 // Baut die Rangliste fuer die Bewegungs-Banner — IDENTISCH zur sichtbaren
 // Tabelle (page.tsx): alle Spieler inkl. Orakel, Competition-Ranking nach
 // Punkten (Punktgleiche teilen sich den Rang). Damit stimmt der Banner-Rang
@@ -282,18 +291,18 @@ function boardRanking(
 export async function recordRankSnapshot(
   records: PredictionRecord[],
   completedDay: string | null,
-): Promise<void> {
-  if (!process.env.UPSTASH_REDIS_REST_URL) return;
+): Promise<RankSnapshotSummary | null> {
+  if (!process.env.UPSTASH_REDIS_REST_URL) return null;
   // Nur einmal pro vollstaendig beendetem Kalendertag snapshotten. Ohne fertigen
   // Tag (oder Tag bereits gesnappt) passiert nichts -> Banner/Ticker buendeln die
   // volle Tages-Bewegung statt pro Einzelspiel zu feuern.
-  if (!completedDay) return;
+  if (!completedDay) return null;
   const redis = getRedis();
   const lastDay = await redis.get<string>(RANK_LASTDAY_KEY);
-  if (lastDay != null && String(lastDay) >= completedDay) return;
+  if (lastDay != null && String(lastDay) >= completedDay) return null;
   const excluded = new Set(await readExcludedUserIds().catch(() => [] as string[]));
   const current = boardRanking(records, excluded);
-  if (current.size === 0) return;
+  if (current.size === 0) return null;
 
   const prev = (await redis.hgetall<Record<string, number>>(RANK_PREV_KEY)) || {};
   // Beim allerersten Snapshot (kein prev) waere jeder "neu" — keine Ticker-Events,
@@ -303,18 +312,28 @@ export async function recordRankSnapshot(
 
   // userId -> Anzeigename (nur Menschen) fuer die Liveticker-Texte.
   const names = new Map<string, string>();
+  // userId -> Anzeigename ALLER Spieler (inkl. Orakel) + Agent-Flag, fuer den
+  // Teams-Podium-Block (dort soll das Orakel mit auftauchen).
+  const allNames = new Map<string, string>();
+  const agentIds = new Set<string>();
   for (const r of records) {
-    if (r.source === "human" && !names.has(r.userId)) names.set(r.userId, r.userName);
+    if (!allNames.has(r.userId)) allNames.set(r.userId, r.userName);
+    if (r.source !== "human") agentIds.add(r.userId);
+    else if (!names.has(r.userId)) names.set(r.userId, r.userName);
   }
 
   const moves: Record<string, string> = {};
   const newPrev: Record<string, number> = {};
-  let newLeader: string | null = null; // userId der neuen #1
+  let newLeader: string | null = null; // userId der neuen #1 (nur Menschen, Ticker)
   const podiumEntrants: string[] = []; // userIds, neu in Top 3 (ohne neuen Leader)
+  let newLeaderAny: string | null = null; // userId der neuen #1 (inkl. Orakel)
+  const newPodiumIds = new Set<string>(); // userIds, neu in Top 3 (inkl. Orakel)
   for (const [userId, { rank, points }] of current) {
     const from = userId in prev ? Number(prev[userId]) : null;
     const becameLeader = rank === 1 && from !== 1;
     const enteredTop3 = rank <= 3 && (from == null || from > 3);
+    if (hadPrev && becameLeader) newLeaderAny = userId;
+    if (hadPrev && (becameLeader || enteredTop3)) newPodiumIds.add(userId);
     const move: RankMove = {
       from,
       to: rank,
@@ -345,7 +364,7 @@ export async function recordRankSnapshot(
   // Kuratierte Liveticker-Events: nur die zwei Schwellen-Momente mit Erzaehlwert
   // (Fuehrungswechsel + Podiums-Neuzugang), gebuendelt pro Aufloesung. Der neue
   // Leader wird nur als Fuehrungswechsel angekuendigt, nicht doppelt als Podium.
-  if (!hadPrev) return;
+  if (!hadPrev) return null;
   const ts = new Date().toISOString();
   // Podium zuerst pushen, Leader zuletzt -> Leader steht im Ticker oben (LPUSH).
   if (podiumEntrants.length > 0) {
@@ -370,6 +389,24 @@ export async function recordRankSnapshot(
       ts,
     }).catch(() => {});
   }
+
+  // Podium-Zusammenfassung fuer den Ergebnis-Check-Post (Top 3, inkl. Orakel).
+  const podium = [...current.entries()]
+    .filter(([, v]) => v.rank <= 3)
+    .sort((a, b) => a[1].rank - b[1].rank)
+    .map(([userId, v]) => ({
+      rank: v.rank,
+      name: allNames.get(userId) || "Unbekannt",
+      points: v.points,
+      isAgent: agentIds.has(userId),
+      isNew: newPodiumIds.has(userId),
+    }));
+
+  return {
+    podium,
+    newLeaderName: newLeaderAny ? allNames.get(newLeaderAny) || null : null,
+    changed: newLeaderAny != null || newPodiumIds.size > 0,
+  };
 }
 
 // Liefert die noch nicht quittierte, positive Bewegung eines Spielers (oder null).

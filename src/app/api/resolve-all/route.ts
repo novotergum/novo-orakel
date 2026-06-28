@@ -146,7 +146,10 @@ export async function POST() {
     // gegen rank:lastDay gegated). Bewusst ENTKOPPELT vom Per-Spiel-Scoring oben,
     // damit der "Starker Spieltag +N"-Banner die volle Tages-Bewegung zeigt statt
     // pro Einzelspiel zu feuern. Punkte/Teams bleiben weiterhin zeitnah pro Lauf.
-    await recordRankSnapshot(records, latestCompletedDay(allMatches)).catch(() => {});
+    const snapshot = await recordRankSnapshot(
+      records,
+      latestCompletedDay(allMatches),
+    ).catch(() => null);
 
     // Post to Teams only if new tips were resolved
     let teamsPosted = false;
@@ -162,6 +165,29 @@ export async function POST() {
         lines.push("");
         lines.push(`${totalUpsets} Upset-Bonus vergeben!`);
       }
+
+      // Podium-Block nur anhängen, wenn sich heute an den Top 3 etwas bewegt hat
+      // (neuer Führender oder neuer Podiumsplatz). Snapshot ist auf einmal pro
+      // abgeschlossenem Spieltag gegated, der Block erscheint also höchstens 1x/Tag.
+      if (snapshot && snapshot.changed && snapshot.podium.length > 0) {
+        const medals = ["🥇", "🥈", "🥉"];
+        lines.push("");
+        lines.push(
+          snapshot.newLeaderName
+            ? `🏆 Neue Spitze: ${snapshot.newLeaderName} führt das Tippspiel an!`
+            : "🏆 Podium in Bewegung:",
+        );
+        for (const p of snapshot.podium) {
+          const medal = medals[p.rank - 1] ?? `${p.rank}.`;
+          const tags = [
+            p.isAgent ? "🤖" : null,
+            p.isNew ? "(neu im Podium)" : null,
+          ].filter(Boolean);
+          const suffix = tags.length ? ` ${tags.join(" ")}` : "";
+          lines.push(`${medal} ${p.name} — ${p.points} Punkte${suffix}`);
+        }
+      }
+
       lines.push("");
       lines.push("Leaderboard: https://wm-tippspiel.vercel.app");
 

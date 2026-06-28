@@ -1,5 +1,44 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getMatches } from "../../../lib/football-data";
+import { stageMultiplier } from "../../../lib/scoring";
+
+// K.O.-Phasen, deren Beginn in der Spieltag-Erinnerung angekündigt wird
+// (Sechzehntel-, Achtel-, Viertel-, Halbfinale, Finale — kein Spiel um Platz 3).
+const STAGE_LABEL: Record<string, string> = {
+  LAST_32: "Sechzehntelfinale",
+  LAST_16: "Achtelfinale",
+  QUARTER_FINALS: "Viertelfinale",
+  SEMI_FINALS: "Halbfinale",
+  FINAL: "Finale",
+};
+
+// Liefert eine fertige Banner-Zeile, wenn `target` der ERSTE Spieltag einer
+// angekündigten K.O.-Phase ist — sonst "". Basis ist die volle Fixture-Liste,
+// damit "erster Tag" zuverlässig bestimmt werden kann.
+function stageStartBanner(
+  allMatches: { kickoff?: string; stage?: string | null }[],
+  target: string,
+  berlinDay: (d: Date) => string,
+): { label: string; banner: string } | null {
+  const earliest = new Map<string, string>(); // stage -> frühester Berlin-Tag
+  for (const m of allMatches) {
+    const stage = m.stage;
+    if (!stage || !(stage in STAGE_LABEL) || typeof m.kickoff !== "string") continue;
+    const day = berlinDay(new Date(m.kickoff));
+    const cur = earliest.get(stage);
+    if (!cur || day < cur) earliest.set(stage, day);
+  }
+  for (const [stage, day] of earliest) {
+    if (day !== target) continue;
+    const label = STAGE_LABEL[stage];
+    const mult = stageMultiplier(stage).toLocaleString("de-DE");
+    return {
+      label,
+      banner: `🏆 Das ${label} beginnt heute – ab jetzt zählt jeder Tipp x${mult}! `,
+    };
+  }
+  return null;
+}
 
 // Edge-Cache: matches sind für ALLE Nutzer identisch und werden von TipForm
 // im Sekunden-/Minutentakt × offene Tabs gepollt. Mit Vercel-CDN-Cache-Control
@@ -39,7 +78,20 @@ export async function GET(req: NextRequest) {
         (m: { kickoff?: string }) =>
           typeof m.kickoff === "string" && berlinDay(new Date(m.kickoff)) === target,
       );
-      return NextResponse.json({ matches: filtered, count: filtered.length }, { headers });
+      // Beginnt heute eine angekündigte K.O.-Phase? Braucht die VOLLE Liste
+      // (nicht nur die kommenden Spiele aus `matches`), um den ersten Tag zu
+      // erkennen. Bei leerem Tag (count=0) bleibt der Reminder ohnehin aus.
+      const all = await getMatches();
+      const stage = stageStartBanner(all, target, berlinDay);
+      return NextResponse.json(
+        {
+          matches: filtered,
+          count: filtered.length,
+          stageStart: stage?.label ?? null,
+          stageBanner: stage?.banner ?? "",
+        },
+        { headers },
+      );
     }
 
     return NextResponse.json({ matches, count: matches.length }, { headers });
