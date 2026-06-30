@@ -881,6 +881,10 @@ export default function AdminPage() {
                 <span style={{ color: "#999", fontWeight: 400 }}>
                   {" "}· {anomalies.tippers.filter((t) => !t.excluded).length} in Wertung
                   {anomalies.tippers.some((t) => t.excluded) && ` · ${anomalies.tippers.filter((t) => t.excluded).length} raus`}
+                  {(() => {
+                    const aktiv = (anomalies.cards ?? []).filter((c) => c.status !== "zurückgenommen").length;
+                    return aktiv > 0 ? ` · ${aktiv} mit Karte` : "";
+                  })()}
                 </span>
               </summary>
               {anomalies.tippers.length === 0 ? (
@@ -898,6 +902,7 @@ export default function AdminPage() {
                         {t.lastTipAt ? `zuletzt ${new Date(t.lastTipAt).toLocaleString("de-DE", { dateStyle: "short", timeStyle: "short" })}` : ""}
                       </span>
                       <span style={{ color: "#3A3A3A", fontSize: 12, fontWeight: 600, width: 64, textAlign: "right" }}>{t.tips} Tipps</span>
+                      {cardCell(t.userId, t.userName)}
                     </div>
                   ))}
                 </div>
