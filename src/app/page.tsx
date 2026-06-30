@@ -212,16 +212,22 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
   const teamsJoinUrl = process.env.TEAMS_JOIN_URL;
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        // Erstplatzierter: warmer Gold-Ton statt neutralem Grau im Content-Bereich.
-        background: isLeader
-          ? "linear-gradient(180deg, #1a1405 0%, #1a1405 302px, #FBF1D8 302px, #FDF8EC 100%)"
-          : "linear-gradient(180deg, #0d0d1f 0%, #0d0d1f 260px, #f5f5f7 260px)",
-        fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-      }}
-    >
+    <>
+      {/* ── Schiedsrichter-Band: gelbe/rote Karte des Spielers + Einspruch ──
+          Bewusst AUSSERHALB des Gradient-Containers: dessen Hell-Dunkel-Kante
+          sitzt auf einem fixen Pixel-Breakpoint (260/302px) und würde sich sonst
+          gegen den nach unten geschobenen Header verschieben. */}
+      {showCard && <KarteBanner card={showCard} />}
+      <div
+        style={{
+          minHeight: "100vh",
+          // Erstplatzierter: warmer Gold-Ton statt neutralem Grau im Content-Bereich.
+          background: isLeader
+            ? "linear-gradient(180deg, #1a1405 0%, #1a1405 302px, #FBF1D8 302px, #FDF8EC 100%)"
+            : "linear-gradient(180deg, #0d0d1f 0%, #0d0d1f 260px, #f5f5f7 260px)",
+          fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+        }}
+      >
       {/* ── „Du führst"-Band (nur für den aktuell Erstplatzierten) ── */}
       {isLeader && (
         <div
@@ -240,8 +246,6 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
           👑 Du führst &middot; Platz 1
         </div>
       )}
-      {/* ── Schiedsrichter-Band: gelbe/rote Karte des Spielers + Einspruch ── */}
-      {showCard && <KarteBanner card={showCard} />}
       <div style={{ maxWidth: 720, margin: "0 auto", padding: "0 20px" }}>
         {/* ── 3. Header massiv staerken ── */}
         <header style={{ textAlign: "center", padding: "48px 0 56px", color: "#fff" }}>
@@ -710,5 +714,6 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
         </footer>
       </div>
     </div>
+    </>
   );
 }
