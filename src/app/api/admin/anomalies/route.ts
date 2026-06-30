@@ -5,6 +5,7 @@ import {
   readExcludedUserIds,
   readTipEditCounts,
   readIpHashSets,
+  readCards,
   type PredictionRecord,
 } from "../../../../lib/store";
 
@@ -434,9 +435,13 @@ export async function GET(req: NextRequest) {
       }))
       .sort((a, b) => b.tips - a.tips || (b.lastTipAt ?? "").localeCompare(a.lastTipAt ?? ""));
 
+    // Vergebene Karten (Schiedsrichter) — für Karten-Status am Treffer + Einspruch-Inbox.
+    const cards = await readCards().catch(() => []);
+
     return NextResponse.json({
       counts: { humans: list.length, matchesWithKickoff: kickoff.size, fieldExactPct: Math.round(fieldRate * 100) },
       tippers,
+      cards,
       duplicates: {
         sameLocalPart: sameLocalPart.map((c) => ({
           ...c,

@@ -69,6 +69,124 @@ export async function readRankedPredictions(): Promise<PredictionRecord[]> {
   return records.filter((r) => !ex.has(r.userId));
 }
 
+// --- Karten ("gelbe/rote Karte") -----------------------------------------
+// Schiedsrichter-System gegen Abschreiber/Doppel-Accounts. Eine Karte je User
+// im Hash "cards:h" (userId -> Card). Ablauf:
+//   gelb  = Verwarnung, KEINE Wertungsänderung. Der Spieler sieht sie auf der
+//           Startseite und kann Einspruch einlegen (status "einspruch").
+//   rot   = aus der Wertung (koppelt an das bestehende excluded-Set). Wird NUR
+//           als bewusste Admin-Aktion vergeben, nie automatisch.
+// Status-Lauf: offen -> (Spieler) einspruch -> (Admin) bestätigt | zurückgenommen.
+const CARDS_KEY = "cards:h";
+
+export type CardLevel = "gelb" | "rot";
+export type CardStatus = "offen" | "einspruch" | "bestätigt" | "zurückgenommen";
+
+export interface Card {
+  userId: string;
+  userName: string;
+  level: CardLevel;
+  reason: string; // Begründung des Schiedsrichters
+  issuedAt: string;
+  issuedBy?: string;
+  appealText?: string; // Einspruch-Begründung des Spielers
+  appealAt?: string;
+  status: CardStatus;
+  resolvedAt?: string;
+}
+
+function coerceCard(v: unknown): Card | null {
+  if (!v) return null;
+  if (typeof v === "string") {
+    try {
+      return JSON.parse(v) as Card;
+    } catch {
+      return null;
+    }
+  }
+  return v as Card;
+}
+
+export async function readCards(): Promise<Card[]> {
+  if (!process.env.UPSTASH_REDIS_REST_URL) return [];
+  const redis = getRedis();
+  const map = (await redis.hgetall<Record<string, unknown>>(CARDS_KEY)) ?? {};
+  return Object.values(map).map(coerceCard).filter(Boolean) as Card[];
+}
+
+export async function readCard(userId: string): Promise<Card | null> {
+  if (!process.env.UPSTASH_REDIS_REST_URL) return null;
+  const redis = getRedis();
+  return coerceCard(await redis.hget(CARDS_KEY, userId));
+}
+
+// Karte vergeben (überschreibt eine bestehende Karte desselben Users und setzt
+// den Status auf "offen"). Eine rote Karte koppelt an den Wertungsausschluss.
+export async function issueCard(
+  userId: string,
+  userName: string,
+  level: CardLevel,
+  reason: string,
+  issuedBy?: string,
+): Promise<Card> {
+  const redis = getRedis();
+  const card: Card = {
+    userId,
+    userName,
+    level,
+    reason: reason.trim(),
+    issuedAt: new Date().toISOString(),
+    issuedBy,
+    status: "offen",
+  };
+  await redis.hset(CARDS_KEY, { [userId]: card });
+  if (level === "rot") await setUserExcluded(userId, true);
+  return card;
+}
+
+// Einspruch des Spielers anhängen (nur möglich, solange die Karte nicht bereits
+// abschließend entschieden ist).
+export async function setCardAppeal(
+  userId: string,
+  text: string,
+): Promise<Card | null> {
+  const redis = getRedis();
+  const card = await readCard(userId);
+  if (!card) return null;
+  if (card.status === "bestätigt" || card.status === "zurückgenommen") return card;
+  card.appealText = text.trim();
+  card.appealAt = new Date().toISOString();
+  card.status = "einspruch";
+  await redis.hset(CARDS_KEY, { [userId]: card });
+  return card;
+}
+
+// Schiedsrichter-Entscheid. "zurückgenommen" hebt einen roten Wertungsausschluss
+// wieder auf; "bestätigt" lässt ihn bestehen.
+export async function resolveCard(
+  userId: string,
+  decision: "bestätigt" | "zurückgenommen",
+): Promise<Card | null> {
+  const redis = getRedis();
+  const card = await readCard(userId);
+  if (!card) return null;
+  card.status = decision;
+  card.resolvedAt = new Date().toISOString();
+  await redis.hset(CARDS_KEY, { [userId]: card });
+  if (decision === "zurückgenommen" && card.level === "rot") {
+    await setUserExcluded(userId, false);
+  }
+  return card;
+}
+
+// Karte ganz entfernen (hebt einen roten Wertungsausschluss auf).
+export async function deleteCard(userId: string): Promise<void> {
+  const redis = getRedis();
+  const card = await readCard(userId);
+  await redis.hdel(CARDS_KEY, userId);
+  if (card?.level === "rot") await setUserExcluded(userId, false);
+}
+
 // --- Legacy (pre-hash) layout, read only for the one-time migration ---
 const LEGACY_ALL_KEY = "predictions:all";
 

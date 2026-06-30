@@ -5,6 +5,11 @@ import {
   writePredictions,
   readExcludedUserIds,
   setUserExcluded,
+  readCards,
+  issueCard,
+  resolveCard,
+  deleteCard,
+  type CardLevel,
 } from "../../../lib/store";
 import { matchRegistrations, localNorm, type MatchInfo } from "../../../lib/personio";
 
@@ -295,6 +300,33 @@ export async function POST(req: NextRequest) {
       }
       await setUserExcluded(userId, Boolean(excluded));
       return NextResponse.json({ ok: true, userId, excluded: Boolean(excluded) });
+    }
+
+    // --- Karten (Schiedsrichter) ---
+    if (action === "issueCard") {
+      const { userName, level, reason } = body;
+      if (!userId || (level !== "gelb" && level !== "rot")) {
+        return NextResponse.json({ error: "userId und level (gelb|rot) erforderlich" }, { status: 400 });
+      }
+      const card = await issueCard(userId, String(userName ?? userId), level as CardLevel, String(reason ?? ""));
+      return NextResponse.json({ ok: true, card });
+    }
+
+    if (action === "resolveCard") {
+      const { decision } = body;
+      if (!userId || (decision !== "bestätigt" && decision !== "zurückgenommen")) {
+        return NextResponse.json({ error: "userId und decision (bestätigt|zurückgenommen) erforderlich" }, { status: 400 });
+      }
+      const card = await resolveCard(userId, decision);
+      return NextResponse.json({ ok: true, card });
+    }
+
+    if (action === "deleteCard") {
+      if (!userId) {
+        return NextResponse.json({ error: "userId required" }, { status: 400 });
+      }
+      await deleteCard(userId);
+      return NextResponse.json({ ok: true, userId });
     }
 
     return NextResponse.json({ error: "Unbekannte action" }, { status: 400 });

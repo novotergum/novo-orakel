@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { Redis } from "@upstash/redis";
-import { readRankedPredictions, readStandortByEmail } from "../lib/store";
+import { readRankedPredictions, readStandortByEmail, readCard } from "../lib/store";
+import KarteBanner from "./KarteBanner";
 import TipForm from "../components/TipForm";
 import CountdownScreen from "../components/CountdownScreen";
 import LoginScreen from "../components/LoginScreen";
@@ -177,6 +178,11 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
   if (!profileRaw) redirect("/onboarding");
   const profile = profileRaw as { userId: string; userName: string; location: string };
 
+  // Karte des Spielers (Schiedsrichter-System). Zurückgenommene Karten werden
+  // nicht angezeigt; alles andere (offen/einspruch/bestätigt) zeigt das Band.
+  const myCard = await readCard(profile.userId).catch(() => null);
+  const showCard = myCard && myCard.status !== "zurückgenommen" ? myCard : null;
+
   const { board, locations, humanCohortAvg, cohortSize, agentAvg, humanCount, agentCount, leaderText, leaderSide } = await getData();
   // Vergleichsbalken als VORSPRUNGS-Indikator (nicht Absolutwert): bei 113 vs 109
   // wären 0-basierte Balken praktisch gleich lang. Wir spreizen daher die relative
@@ -234,6 +240,8 @@ export default async function Home({ searchParams }: { searchParams: { view?: st
           👑 Du führst &middot; Platz 1
         </div>
       )}
+      {/* ── Schiedsrichter-Band: gelbe/rote Karte des Spielers + Einspruch ── */}
+      {showCard && <KarteBanner card={showCard} />}
       <div style={{ maxWidth: 720, margin: "0 auto", padding: "0 20px" }}>
         {/* ── 3. Header massiv staerken ── */}
         <header style={{ textAlign: "center", padding: "48px 0 56px", color: "#fff" }}>

@@ -48,7 +48,19 @@ interface Anomalies {
   suspiciousAccuracy: { userId: string; userName: string; resolved: number; exact: number; ratePct: number; chancePct: number; excluded: boolean }[];
   lastMinute: { userId: string; userName: string; lastMinuteTips: number; totalTips: number; share: number; knappsteMinuten: number | null; excluded: boolean }[];
   frequentChanges: { userId: string; userName: string; submits: number; distinctTips: number; changes: number; excluded: boolean }[];
+  cards: AnCard[];
   note: string;
+}
+
+interface AnCard {
+  userId: string;
+  userName: string;
+  level: "gelb" | "rot";
+  reason: string;
+  issuedAt: string;
+  appealText?: string;
+  appealAt?: string;
+  status: "offen" | "einspruch" | "bestätigt" | "zurückgenommen";
 }
 
 const LS_SECRET_KEY = "ut-orakel-admin-secret";
@@ -204,6 +216,101 @@ export default function AdminPage() {
     } catch {
       setActionMsg("Netzwerkfehler");
     }
+  }
+
+  // --- Karten (Schiedsrichter) ---
+  async function issueCard(userId: string, userName: string, level: "gelb" | "rot") {
+    const label = level === "rot" ? "ROTE Karte (aus der Wertung)" : "gelbe Karte (Verwarnung)";
+    const reason = prompt(`Begründung für die ${label} an "${userName}":`, "");
+    if (reason == null) return; // Abbruch
+    if (!reason.trim()) { setActionMsg("Begründung fehlt — Karte nicht vergeben."); return; }
+    setActionMsg("");
+    try {
+      const res = await fetch(`/api/admin?secret=${encodeURIComponent(secret)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "issueCard", userId, userName, level, reason }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setActionMsg(`${level === "rot" ? "🟥 Rote" : "🟨 Gelbe"} Karte an ${userName} vergeben`);
+        loadAnomalies(secret);
+        loadUsers(secret);
+      } else setActionMsg(data.error ?? "Fehler");
+    } catch {
+      setActionMsg("Netzwerkfehler");
+    }
+  }
+
+  async function resolveCard(userId: string, userName: string, decision: "bestätigt" | "zurückgenommen") {
+    const verb = decision === "bestätigt" ? "bestätigen (Karte bleibt)" : "zurücknehmen (Karte fällt weg)";
+    if (!confirm(`Einspruch von "${userName}" ${verb}?`)) return;
+    setActionMsg("");
+    try {
+      const res = await fetch(`/api/admin?secret=${encodeURIComponent(secret)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "resolveCard", userId, decision }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setActionMsg(`Einspruch von ${userName}: ${decision}`);
+        loadAnomalies(secret);
+        loadUsers(secret);
+      } else setActionMsg(data.error ?? "Fehler");
+    } catch {
+      setActionMsg("Netzwerkfehler");
+    }
+  }
+
+  async function deleteCard(userId: string, userName: string) {
+    if (!confirm(`Karte von "${userName}" ganz entfernen?`)) return;
+    setActionMsg("");
+    try {
+      const res = await fetch(`/api/admin?secret=${encodeURIComponent(secret)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "deleteCard", userId }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setActionMsg(`Karte von ${userName} entfernt`);
+        loadAnomalies(secret);
+        loadUsers(secret);
+      } else setActionMsg(data.error ?? "Fehler");
+    } catch {
+      setActionMsg("Netzwerkfehler");
+    }
+  }
+
+  // Aktive Karte eines Users (zurückgenommene zählen nicht).
+  const cardFor = (id: string): AnCard | null =>
+    anomalies?.cards?.find((c) => c.userId === id && c.status !== "zurückgenommen") ?? null;
+
+  // Karten-Zelle für eine Verdachts-Zeile: aktueller Status + 🟨/🟥-Buttons.
+  function cardCell(id: string, name: string) {
+    const c = cardFor(id);
+    return (
+      <span style={{ display: "inline-flex", gap: 4, alignItems: "center", flexWrap: "wrap" }}>
+        {c && (
+          <span
+            title={c.reason}
+            style={{
+              fontSize: 11, fontWeight: 700, padding: "1px 6px", borderRadius: 6,
+              background: c.level === "rot" ? "#ffebee" : "#fff8e1",
+              color: c.level === "rot" ? "#b71c1c" : "#8a6d00",
+              border: `1px solid ${c.level === "rot" ? "#ef9a9a" : "#ffe082"}`,
+            }}
+          >
+            {c.level === "rot" ? "🟥" : "🟨"}{" "}
+            {c.status === "einspruch" ? "Einspruch" : c.status === "bestätigt" ? "bestätigt" : "offen"}
+          </span>
+        )}
+        <button style={s.btnOutline} title="Gelbe Karte (Verwarnung)" onClick={() => issueCard(id, name, "gelb")}>🟨</button>
+        <button style={s.btnOutline} title="Rote Karte (aus der Wertung)" onClick={() => issueCard(id, name, "rot")}>🟥</button>
+        {c && <button style={s.btnOutline} title="Karte entfernen" onClick={() => deleteCard(id, name)}>✕</button>}
+      </span>
+    );
   }
 
   async function flushLeaderboard() {
@@ -733,6 +840,40 @@ export default function AdminPage() {
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
 
+            {/* Einspruch-Inbox: offene Einsprüche gegen Karten (Schiedsrichter) */}
+            {(() => {
+              const appeals = (anomalies.cards ?? []).filter((c) => c.status === "einspruch");
+              if (!appeals.length) return null;
+              return (
+                <div style={{ border: "2px solid #F2A900", borderRadius: 10, padding: "12px 14px", background: "#fffaf0" }}>
+                  <h4 style={{ margin: "0 0 8px", fontSize: 13, color: "#8a6d00" }}>
+                    ⚖️ Einsprüche ({appeals.length}) — Schiedsrichter-Entscheid offen
+                  </h4>
+                  {appeals.map((c) => (
+                    <div key={`ap-${c.userId}`} style={{ ...anStyles.box, borderColor: "#ffe082" }}>
+                      <div style={anStyles.tag(c.level === "rot" ? "#c62828" : "#8a6d00")}>
+                        {c.level === "rot" ? "🟥 Rote" : "🟨 Gelbe"} Karte · {c.userName}
+                      </div>
+                      <div style={{ fontSize: 12, color: "#555", margin: "2px 0" }}>
+                        <b>Karten-Grund:</b> {c.reason || "—"}
+                      </div>
+                      <div style={{ fontSize: 13, color: "#222", margin: "4px 0", padding: "6px 8px", background: "#fff", borderRadius: 6, border: "1px solid #eee" }}>
+                        <b>Einspruch:</b> {c.appealText || "—"}
+                      </div>
+                      <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+                        <button style={s.btn("#2e7d32")} onClick={() => resolveCard(c.userId, c.userName, "zurückgenommen")}>
+                          Karte zurücknehmen
+                        </button>
+                        <button style={s.btn("#c62828")} onClick={() => resolveCard(c.userId, c.userName, "bestätigt")}>
+                          Karte bestätigen
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+
             {/* Wer hat bisher überhaupt getippt? — rein informativ */}
             <details>
               <summary style={{ cursor: "pointer", margin: "0 0 8px", fontSize: 13, fontWeight: 600, color: "#3A3A3A" }}>
@@ -786,6 +927,7 @@ export default function AdminPage() {
                         <b>{m.name}</b> <span style={{ color: "#999" }}>· {m.id}</span>
                         {m.ex && <span style={anStyles.exBadge}>raus</span>}
                       </span>
+                      {cardCell(m.id, m.name)}
                       <button
                         style={m.ex ? s.btn("#2e7d32") : s.btnOutline}
                         onClick={() => toggleExcluded(m.id, m.name, !m.ex).then(() => loadAnomalies(secret))}
@@ -829,6 +971,7 @@ export default function AdminPage() {
                           <b>{m.name}</b> <span style={{ color: "#999" }}>· {m.id}</span>
                           {m.ex && <span style={anStyles.exBadge}>raus</span>}
                         </span>
+                        {cardCell(m.id, m.name)}
                         <button
                           style={m.ex ? s.btn("#2e7d32") : s.btnOutline}
                           onClick={() => toggleExcluded(m.id, m.name, !m.ex).then(() => loadAnomalies(secret))}
