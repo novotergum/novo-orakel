@@ -58,7 +58,13 @@ interface FDMatch {
   group: string | null; // "GROUP_A"
   homeTeam: FDTeam;
   awayTeam: FDTeam;
-  score: { fullTime: { home: number | null; away: number | null } };
+  score: {
+    fullTime: { home: number | null; away: number | null };
+    duration?: string; // REGULAR, EXTRA_TIME, PENALTY_SHOOTOUT
+    regularTime?: { home: number | null; away: number | null } | null;
+    extraTime?: { home: number | null; away: number | null } | null;
+    penalties?: { home: number | null; away: number | null } | null;
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -95,6 +101,21 @@ function normalize(m: FDMatch): NormalizedMatch {
   let away = m.awayTeam;
   let sh = m.score?.fullTime?.home ?? null;
   let sa = m.score?.fullTime?.away ?? null;
+
+  // Gewertet wird das Ergebnis nach 120 Minuten (Anleitung: "Es zählt das
+  // Ergebnis nach 90 Minuten bzw. nach Verlängerung"). football-data zählt
+  // bei Elfmeterschießen die Elfmeter-Tore ins fullTime hinein (z.B. "3:5"
+  // statt 1:1 n.V.) — dann regularTime + extraTime nehmen. Nicht
+  // fullTime − penalties: das penalties-Feld kann stale sein (537428 stand
+  // zwischenzeitlich auf 4:4 bei fullTime 3:5).
+  if (m.score?.duration === "PENALTY_SHOOTOUT") {
+    const rt = m.score.regularTime;
+    const et = m.score.extraTime;
+    if (rt?.home != null && rt?.away != null) {
+      sh = rt.home + (et?.home ?? 0);
+      sa = rt.away + (et?.away ?? 0);
+    }
+  }
 
   let id = m.id; // knockouts & any unmapped fixture keep football-data's stable id
 
